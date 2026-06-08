@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import clsx from "clsx";
-import { Play, ArrowRight, Clock, Zap } from "lucide-react";
+import { Play, ArrowRight, Clock, Zap, Flag } from "lucide-react";
 import { api } from "../api";
 import { ConfidenceBar, LaneBadge, Spinner, laneColor } from "../lib";
 import type { EncounterRow, Lane } from "../types";
@@ -120,7 +120,14 @@ export default function Worklist() {
                   <span className="text-xs text-slate-500">{r.scenario}</span>
                 </td>
                 <td className="px-4 py-3 text-slate-600">{r.payer}</td>
-                <td className="px-4 py-3"><LaneBadge lane={r.routing_lane} /></td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1.5">
+                    <LaneBadge lane={r.routing_lane} />
+                    {(r as any).escalated && (
+                      <span title="Escalated · high priority" className="text-amber-500"><Flag size={13} /></span>
+                    )}
+                  </div>
+                </td>
                 <td className="px-4 py-3">
                   {r.routing_lane && r.routing_lane !== "MANUAL" ? (
                     <ConfidenceBar value={r.overall_confidence} />

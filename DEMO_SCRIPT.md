@@ -79,6 +79,13 @@
    **`learned`** badge and higher *historical* confidence.
 - *"Corrections don't evaporate. In production this is a 24–48h batch into the SLM fine-tune pipeline."*
 
+## 8.6 Workflow actions (1 min) — orchestration controls
+- On any coded encounter, point to **Reassign queue** (STB / QA / Manual) and **Escalate to senior
+  reviewer**. Reassign a chart from STB → QA ("spot audit"), then **Escalate** it — note the
+  worklist now shows the **escalated flag / high priority**, and both actions land in the **audit
+  ledger**. *"Supervisors keep full control — intelligent routing, reassignment, and escalation, all
+  audit-logged."*
+
 ## 9. Defensibility + honest measurement (2 min)
 - On any coded chart, open the **Audit packet** → append-only evidence chain (stage, actor, event, model
   version, timestamps). *"This is your RAC-audit defense, generated automatically."*

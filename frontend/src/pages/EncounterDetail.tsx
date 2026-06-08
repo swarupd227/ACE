@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
   ArrowLeft, Check, FileText, ShieldCheck, X, ChevronRight, Quote, BookOpen, Sparkles, Scale, History, Cpu, FileSearch,
-  Stethoscope, MessageSquareWarning, CheckCircle2,
+  Stethoscope, MessageSquareWarning, CheckCircle2, ArrowRightLeft, AlertTriangle, Flag,
 } from "lucide-react";
 import { api } from "../api";
 import { ConfidenceBar, LaneBadge, Spinner, SystemBadge, confColor, laneColor, laneLabel, pct } from "../lib";
@@ -220,6 +220,8 @@ export default function EncounterDetail() {
         )}
       </div>
 
+      {run && <WorkflowActions run={run} />}
+
       {showAudit && run && <AuditPacket runId={run.id} />}
 
       {run && <CdiPanel encId={d.id} />}
@@ -293,6 +295,72 @@ function PipelineTrace({ stageLog, eligibility }: { stageLog: any[]; eligibility
 function stripBig(s: any) {
   const { stage, title, ...rest } = s;
   return rest;
+}
+
+function WorkflowActions({ run }: { run: any }) {
+  const qc = useQueryClient();
+  const inval = () => {
+    qc.invalidateQueries({ queryKey: ["encounter", run.encounter_id] });
+    qc.invalidateQueries({ queryKey: ["encounters"] });
+  };
+  const reassign = useMutation({
+    mutationFn: ({ lane, reason }: { lane: string; reason: string }) => api.reassign(run.id, lane, reason),
+    onSuccess: inval,
+  });
+  const escalate = useMutation({
+    mutationFn: () => api.escalate(run.id, "Senior Coder / CDI", "Flagged for senior review"),
+    onSuccess: inval,
+  });
+  const lanes: { key: "STB" | "QA" | "MANUAL"; label: string; reason: string }[] = [
+    { key: "STB", label: "STB", reason: "Approved for straight-through billing" },
+    { key: "QA", label: "QA", reason: "Sent for QA verification" },
+    { key: "MANUAL", label: "Manual", reason: "Routed to manual coder" },
+  ];
+
+  return (
+    <div className="card p-4">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div className="flex items-center gap-2">
+          <ArrowRightLeft size={16} className="text-ace-600" />
+          <span className="text-sm font-semibold text-slate-700">Reassign queue:</span>
+          {lanes.map((l) => (
+            <button
+              key={l.key}
+              disabled={reassign.isPending || run.routing_lane === l.key}
+              onClick={() => reassign.mutate({ lane: l.key, reason: l.reason })}
+              className={clsx(
+                "rounded-md border px-2.5 py-1 text-xs font-semibold",
+                run.routing_lane === l.key
+                  ? "border-ace-300 bg-ace-50 text-ace-700 cursor-default"
+                  : "border-slate-200 hover:bg-slate-50 text-slate-700"
+              )}
+            >
+              {l.label}{run.routing_lane === l.key ? " (current)" : ""}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            className="btn-ghost py-1.5"
+            disabled={escalate.isPending || run.escalated}
+            onClick={() => escalate.mutate()}
+          >
+            <AlertTriangle size={14} className="text-amber-500" />
+            {run.escalated ? "Escalated" : "Escalate to senior reviewer"}
+          </button>
+          {run.escalated && (
+            <span className="pill bg-amber-50 text-amber-700 ring-1 ring-amber-200">
+              <Flag size={11} /> {run.escalated_to} · high priority
+            </span>
+          )}
+        </div>
+      </div>
+      {(reassign.isPending || escalate.isPending) && (
+        <div className="mt-2 text-xs text-slate-400 flex items-center gap-1"><Spinner className="h-3 w-3" /> applying…</div>
+      )}
+    </div>
+  );
 }
 
 function CdiPanel({ encId }: { encId: string }) {

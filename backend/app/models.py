@@ -73,6 +73,11 @@ class CodingRun(Base):
     overall_confidence: Mapped[float] = mapped_column(Float, default=0.0)
     accuracy_estimate: Mapped[float] = mapped_column(Float, default=0.0)
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
+    # workflow orchestration (human actions)
+    escalated: Mapped[bool] = mapped_column(Boolean, default=False)
+    escalated_to: Mapped[str] = mapped_column(String(80), default="")
+    assigned_to: Mapped[str] = mapped_column(String(80), default="")
+    priority: Mapped[str] = mapped_column(String(12), default="normal")  # normal | high
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

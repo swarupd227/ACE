@@ -9,11 +9,62 @@ from .. import models
 from ..db import get_db
 from ..knowledge import graph_rag
 from ..pipeline import orchestrator
+from pydantic import BaseModel
+
 from ..schemas import AcceptRequest, OverrideRequest
 from ._serialize import run_to_dict
 
 router = APIRouter()
 HIDDEN_CLIENT = "__golden__"
+
+
+class ReassignRequest(BaseModel):
+    lane: str  # STB | QA | MANUAL
+    reason: str = ""
+    actor: str = "coder:demo"
+    assigned_to: str = ""
+
+
+class EscalateRequest(BaseModel):
+    to: str = "Senior Coder / CDI"
+    reason: str = ""
+    actor: str = "coder:demo"
+
+
+@router.post("/runs/{run_id}/reassign")
+def reassign_run(run_id: str, body: ReassignRequest, db: Session = Depends(get_db)) -> dict:
+    run = db.get(models.CodingRun, run_id)
+    if run is None:
+        raise HTTPException(404, "run not found")
+    if body.lane not in ("STB", "QA", "MANUAL"):
+        raise HTTPException(400, "lane must be STB, QA, or MANUAL")
+    prev = run.routing_lane
+    run.routing_lane = body.lane
+    run.routing_reason = f"Reassigned {prev}→{body.lane} by {body.actor}" + (f": {body.reason}" if body.reason else "")
+    if body.assigned_to:
+        run.assigned_to = body.assigned_to
+    db.add(models.AuditEntry(run_id=run.id, encounter_id=run.encounter_id, stage="workflow",
+                             actor=body.actor, event="reassigned",
+                             detail={"from": prev, "to": body.lane, "reason": body.reason, "assigned_to": body.assigned_to}))
+    db.commit()
+    db.refresh(run)
+    return run_to_dict(run)
+
+
+@router.post("/runs/{run_id}/escalate")
+def escalate_run(run_id: str, body: EscalateRequest, db: Session = Depends(get_db)) -> dict:
+    run = db.get(models.CodingRun, run_id)
+    if run is None:
+        raise HTTPException(404, "run not found")
+    run.escalated = True
+    run.escalated_to = body.to
+    run.priority = "high"
+    db.add(models.AuditEntry(run_id=run.id, encounter_id=run.encounter_id, stage="workflow",
+                             actor=body.actor, event="escalated",
+                             detail={"to": body.to, "reason": body.reason}))
+    db.commit()
+    db.refresh(run)
+    return run_to_dict(run)
 
 
 @router.post("/encounters/{enc_id}/code")

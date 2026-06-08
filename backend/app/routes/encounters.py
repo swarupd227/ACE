@@ -42,6 +42,8 @@ def list_encounters(db: Session = Depends(get_db)) -> list[dict]:
             "routing_reason": run.routing_reason if run else "",
             "overall_confidence": run.overall_confidence if run else 0.0,
             "latency_ms": run.latency_ms if run else 0,
+            "escalated": run.escalated if run else False,
+            "priority": run.priority if run else "normal",
             "run_id": run.id if run else None,
         })
     return out

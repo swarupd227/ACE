@@ -25,6 +25,7 @@ def run_to_dict(run: models.CodingRun) -> dict:
         "model_version": run.model_version, "chart_summary": run.chart_summary,
         "eligibility": run.eligibility, "stage_log": run.stage_log,
         "overall_confidence": run.overall_confidence, "accuracy_estimate": run.accuracy_estimate,
-        "latency_ms": run.latency_ms,
+        "latency_ms": run.latency_ms, "escalated": run.escalated, "escalated_to": run.escalated_to,
+        "assigned_to": run.assigned_to, "priority": run.priority,
         "codes": [code_to_dict(c) for c in sorted(run.codes, key=lambda x: (x.code_system, x.sequence))],
     }

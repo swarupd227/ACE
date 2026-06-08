@@ -40,6 +40,16 @@ export const api = {
       `/cdi/queries/${queryId}/respond`,
       { method: "POST", body: JSON.stringify({ response, responder: "physician:demo" }) }
     ),
+  reassign: (runId: string, lane: string, reason: string) =>
+    req<import("./types").Run>(`/runs/${runId}/reassign`, {
+      method: "POST",
+      body: JSON.stringify({ lane, reason, actor: "coder:demo" }),
+    }),
+  escalate: (runId: string, to: string, reason: string) =>
+    req<import("./types").Run>(`/runs/${runId}/escalate`, {
+      method: "POST",
+      body: JSON.stringify({ to, reason, actor: "coder:demo" }),
+    }),
   dashboard: () => req<import("./types").Dashboard>("/dashboard/stats"),
   kg: () => req<{ nodes: any[]; links: any[] }>("/kg/graph"),
   referenceSummary: () => req<any>("/reference/summary"),

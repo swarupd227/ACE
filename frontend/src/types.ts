@@ -18,6 +18,8 @@ export interface EncounterRow {
   routing_reason: string;
   overall_confidence: number;
   latency_ms: number;
+  escalated: boolean;
+  priority: string;
   run_id: string | null;
 }
 
@@ -79,6 +81,10 @@ export interface Run {
   overall_confidence: number;
   accuracy_estimate: number;
   latency_ms: number;
+  escalated: boolean;
+  escalated_to: string;
+  assigned_to: string;
+  priority: string;
   codes: CodeResult[];
 }
 export interface EncounterDetail {
