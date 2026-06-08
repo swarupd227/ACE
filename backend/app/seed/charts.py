@@ -161,29 +161,61 @@ CHARTS = [
 
 
 # Frozen golden set (adjudicated truth) for the evaluation harness.
-# These mirror chart patterns but are independent eval cases.
+# Independent, realistic full reports (distinct from the worklist charts).
 GOLDEN_CASES = [
     dict(specialty="Radiology", irr=0.94, ambiguous=False,
          truth={"icd": ["J18.9"], "cpt": ["71046"]},
-         chart_text="Chest X-ray 2 views. Productive cough, fever. Right lower lobe consolidation "
-                    "consistent with pneumonia. Signed."),
+         chart_text=(
+             "RADIOLOGY REPORT\nEXAM: Chest X-ray, PA and lateral (2 views)\n"
+             "HISTORY: Productive cough and fever for several days.\n"
+             "TECHNIQUE: Two views of the chest were obtained without contrast.\n"
+             "FINDINGS: Focal airspace consolidation in the right lower lobe. No effusion or pneumothorax.\n"
+             "IMPRESSION: Right lower lobe consolidation consistent with pneumonia.\n"
+             "Electronically signed by attending radiologist.")),
     dict(specialty="Radiology", irr=0.94, ambiguous=False,
          truth={"icd": ["R10.84"], "cpt": ["74177"]},
-         chart_text="CT abdomen and pelvis with IV contrast. Generalized abdominal pain. No acute "
-                    "findings. Signed."),
+         chart_text=(
+             "RADIOLOGY REPORT\nEXAM: CT of the abdomen and pelvis with IV contrast\n"
+             "HISTORY: Generalized abdominal pain.\n"
+             "TECHNIQUE: Helical CT of the abdomen and pelvis after intravenous iodinated contrast.\n"
+             "FINDINGS: No acute abnormality of the solid organs. No free air or free fluid.\n"
+             "IMPRESSION: No acute findings to explain generalized abdominal pain.\n"
+             "Electronically signed by attending radiologist.")),
     dict(specialty="Radiology", irr=0.90, ambiguous=True,
          truth={"icd": ["R05.9"], "cpt": ["71045"]},
-         chart_text="Chest X-ray single view. Persistent dry cough, rule out pneumonia. Lungs clear, "
-                    "no consolidation. Signed."),
+         chart_text=(
+             "RADIOLOGY REPORT\nEXAM: Chest X-ray, single view\n"
+             "HISTORY: Persistent dry cough. Rule out pneumonia.\n"
+             "TECHNIQUE: Single AP view of the chest.\n"
+             "FINDINGS: Lungs are clear. No consolidation, effusion, or pneumothorax.\n"
+             "IMPRESSION: No acute cardiopulmonary process. No radiographic evidence of pneumonia.\n"
+             "Electronically signed by attending radiologist.")),
     dict(specialty="Radiology", irr=0.95, ambiguous=False,
          truth={"icd": ["M54.50"], "cpt": ["72148"]},
-         chart_text="MRI lumbar spine without contrast. Chronic low back pain radiating to leg. "
-                    "L4-L5 disc bulge. Signed."),
+         chart_text=(
+             "RADIOLOGY REPORT\nEXAM: MRI lumbar spine without contrast\n"
+             "HISTORY: Chronic low back pain for several months radiating to the leg.\n"
+             "TECHNIQUE: Multiplanar multisequence MRI of the lumbar spine without contrast.\n"
+             "FINDINGS: L4-L5 disc bulge with mild central canal narrowing. No fracture.\n"
+             "IMPRESSION: L4-L5 degenerative disc disease. Low back pain.\n"
+             "Electronically signed by attending radiologist.")),
     dict(specialty="E&M", irr=0.86, ambiguous=False,
          truth={"icd": ["E11.40", "I10"], "cpt": ["99214"]},
-         chart_text="Established visit. T2DM with bilateral foot paresthesia, decreased monofilament "
-                    "sensation, A1C 9.2. HTN stable. 35 minutes. Signed."),
+         chart_text=(
+             "OFFICE VISIT NOTE (Established Patient)\n"
+             "HPI: Type 2 diabetic here for follow-up with bilateral foot tingling for several weeks.\n"
+             "MEDICATIONS: Metformin 1000 mg BID. Lisinopril 10 mg daily.\n"
+             "EXAM: Decreased monofilament sensation in both feet. Otherwise unremarkable.\n"
+             "DATA: A1C resulted today at 9.2%.\n"
+             "ASSESSMENT/PLAN: 1) Type 2 diabetes with neuropathy, uncontrolled - adjust therapy. "
+             "2) Hypertension - stable. Total time 35 minutes.\nElectronically signed by provider.")),
     dict(specialty="Radiology", irr=0.95, ambiguous=False,
          truth={"icd": ["M25.561"], "cpt": ["73562"]},
-         chart_text="Right knee X-ray 3 views. Knee pain after fall. No fracture. Mild OA. Signed."),
+         chart_text=(
+             "RADIOLOGY REPORT\nEXAM: Right knee X-ray, 3 views\n"
+             "HISTORY: Right knee pain after a fall.\n"
+             "TECHNIQUE: Three views of the right knee were obtained.\n"
+             "FINDINGS: No acute fracture or dislocation. Mild medial compartment joint space narrowing.\n"
+             "IMPRESSION: No acute fracture. Mild osteoarthritic change, right knee.\n"
+             "Electronically signed by attending radiologist.")),
 ]

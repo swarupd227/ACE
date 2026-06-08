@@ -94,16 +94,26 @@ def retrieve(db: Session, encounter: models.Encounter, analysis: dict, *, top_k:
     procs = db.scalars(
         select(models.ReferenceCode).where(models.ReferenceCode.code_system.in_(["CPT", "HCPCS"]))
     ).all()
-    if encounter.specialty == "Radiology":
-        procs = [c for c in procs if (not c.modality) or c.modality == encounter.modality or c.modality == "ANY"]
-    proc_scored = sorted(
-        ((_score(proc_tokens, c.description + " " + c.modality), c) for c in procs),
-        key=lambda x: x[0], reverse=True,
-    )
-    r.proc_candidates = [
-        {"code": c.code, "description": c.description, "modality": c.modality, "source": c.source}
-        for s, c in proc_scored[:top_k] if s > 0
-    ]
+    if encounter.specialty == "E&M":
+        # E&M's billable procedure IS the visit-level code; surface the whole office-visit
+        # family (99xxx) so the agent can pick the level from the MDM/time factors. There is
+        # no imaging procedure text to score against, so we don't rely on lexical overlap here.
+        em_codes = [c for c in procs if c.code.startswith("99")]
+        r.proc_candidates = [
+            {"code": c.code, "description": c.description, "modality": c.modality, "source": c.source}
+            for c in sorted(em_codes, key=lambda c: c.code)
+        ]
+    else:
+        if encounter.specialty == "Radiology":
+            procs = [c for c in procs if (not c.modality) or c.modality == encounter.modality or c.modality == "ANY"]
+        proc_scored = sorted(
+            ((_score(proc_tokens, c.description + " " + c.modality), c) for c in procs),
+            key=lambda x: x[0], reverse=True,
+        )
+        r.proc_candidates = [
+            {"code": c.code, "description": c.description, "modality": c.modality, "source": c.source}
+            for s, c in proc_scored[:top_k] if s > 0
+        ]
 
     # --- Ontology graph traversal: match concepts to diagnoses, walk edges ---
     concepts = db.scalars(select(models.OntologyConcept)).all()
