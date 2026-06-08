@@ -134,8 +134,8 @@ export default function Workflow() {
       </div>
 
       <p className="text-xs text-slate-400">
-        Model: {meta?.model_version}. CDI / physician-query workflow is specified in the blueprint and is the next
-        workflow module (drafts compliant, non-leading queries when documentation is insufficient).
+        Model: {meta?.model_version}. The <Link to="/cdi" className="text-ace-600 hover:underline">CDI / physician-query</Link>{" "}
+        module drafts compliant, non-leading queries when documentation is insufficient, and re-codes on the physician's answer.
       </p>
     </div>
   );

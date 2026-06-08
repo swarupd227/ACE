@@ -42,15 +42,20 @@ manual queue with reason `LLM_UNAVAILABLE`.
 | 4 · Validation gates | deterministic: existence, specificity, NCCI, MUE, modifiers, sex/age, payer necessity | compliance failures |
 | 5 · Calibration & routing | 4-factor calibrated confidence → STB/QA/Manual + bounded-autonomy rules | confident wrong answers |
 
-## Demo storyline (maps to the four mandatory scenarios)
-1. **Worklist** → run autonomous coding → watch the **STB/QA/Manual** split.
-2. **Scenario 1** (chest X-ray) → clean codes, cited, high 4-factor confidence → **STB**.
-3. **Scenario 2** (CT abdomen+pelvis) → **bundling/NCCI** + modifier logic on the gates checklist.
-4. **Scenario 3** (rule-out, normal film) → **avoids overcoding** pneumonia (specificity control).
-5. **Scenario 4** (incomplete / interventional) → **eligibility → Manual** with reason.
-6. **E&M** chart → MDM leveling, avoids overcoding diabetes complication.
-7. **Override a code** → **Closed-Loop Learning** populates and shifts later similar charts.
-8. **Knowledge Graph**, **Evaluation Harness**, **Audit packet**, **Dashboard** round out the story.
+## Demo storyline (see DEMO_SCRIPT.md for the full runbook)
+1. **Operational Workflow** → the whole process in one view (intake → eligibility → pipeline → STB/QA/Manual → billing + feedback).
+2. **Worklist** → run autonomous coding → watch the **STB/QA/Manual** split.
+3. **Scenario 1** (chest X-ray) → clean codes (71046-26), cited, high 4-factor confidence → **STB**.
+4. **Scenario 2** (CT abdomen+pelvis) → single **74177** (bundling/NCCI) + modifier logic on the gates checklist.
+5. **Scenario 3** (rule-out, normal film) → **avoids overcoding** pneumonia (specificity control).
+6. **Scenario 4** (incomplete / interventional) → **eligibility → Manual** with reason.
+7. **ED** → standard visit + **critical care → QA via bounded autonomy**; **E&M** → MDM leveling.
+8. **CDI / Physician Queries** → scan the anemia chart → compliant query → physician answer **re-codes** D64.9 → D50.9.
+9. **Override a code** → **Closed-Loop Learning** populates and shifts later similar charts.
+10. **Knowledge Graph**, **Evaluation Harness**, **Audit packet**, **Dashboard** round out the story.
+
+Specialties: **Radiology, E&M, ED**. Screens: Worklist · Operational Workflow · Pipeline & Architecture ·
+CDI · Dashboard · Knowledge Graph · Evaluation Harness · Closed-Loop Learning · Encounter detail.
 
 ## Data provenance (honest by design)
 - **ICD-10-CM / HCPCS** — real public-domain subsets (CMS/NCHS).

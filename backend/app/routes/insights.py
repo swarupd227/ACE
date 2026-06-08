@@ -26,15 +26,23 @@ def dashboard(db: Session = Depends(get_db)) -> dict:
     accs, lats = [], []
     by_spec: dict[str, dict] = {}
     coded = 0
+    eligible = 0           # charts that passed Stage-0 eligibility (auto-coding candidates)
+    eligible_excluded = 0  # routed to manual purely because they were ineligible
     for e in encs:
         run = db.scalars(
             select(models.CodingRun).where(models.CodingRun.encounter_id == e.id)
             .order_by(models.CodingRun.started_at.desc()).limit(1)
         ).first()
-        spec = by_spec.setdefault(e.specialty, {"specialty": e.specialty, "total": 0, "STB": 0, "QA": 0, "MANUAL": 0, "acc": []})
+        spec = by_spec.setdefault(e.specialty, {"specialty": e.specialty, "total": 0, "eligible": 0, "STB": 0, "QA": 0, "MANUAL": 0, "acc": []})
         spec["total"] += 1
         if run and run.routing_lane:
             coded += 1
+            is_eligible = (run.eligibility or {}).get("eligible", True)
+            if is_eligible:
+                eligible += 1
+                spec["eligible"] += 1
+            else:
+                eligible_excluded += 1
             lanes[run.routing_lane] = lanes.get(run.routing_lane, 0) + 1
             spec[run.routing_lane] = spec.get(run.routing_lane, 0) + 1
             if run.routing_lane != "MANUAL":
@@ -42,16 +50,19 @@ def dashboard(db: Session = Depends(get_db)) -> dict:
                 spec["acc"].append(run.overall_confidence)
             lats.append(run.latency_ms)
 
-    stb_rate = round(lanes["STB"] / coded, 3) if coded else 0.0
+    # STB rate is measured over eligible (auto-coding-candidate) charts — ineligible charts
+    # were never candidates for automation, so they don't count against the automation rate.
+    stb_rate = round(lanes["STB"] / eligible, 3) if eligible else 0.0
     avg_acc = round(sum(accs) / len(accs), 3) if accs else 0.0
     manual_reduction = round((lanes["STB"] + 0.5 * lanes["QA"]) / coded, 3) if coded else 0.0
     for s in by_spec.values():
         s["avg_accuracy"] = round(sum(s["acc"]) / len(s["acc"]), 3) if s["acc"] else 0.0
         s.pop("acc")
-        s["stb_rate"] = round(s["STB"] / s["total"], 3) if s["total"] else 0.0
+        s["stb_rate"] = round(s["STB"] / s["eligible"], 3) if s["eligible"] else 0.0
 
     return {
-        "total_encounters": total, "coded": coded,
+        "total_encounters": total, "coded": coded, "eligible": eligible,
+        "eligible_excluded": eligible_excluded,
         "stb_count": lanes["STB"], "qa_count": lanes["QA"], "manual_count": lanes["MANUAL"],
         "stb_rate": stb_rate, "avg_accuracy": avg_acc,
         "avg_latency_ms": int(sum(lats) / len(lats)) if lats else 0,

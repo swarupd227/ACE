@@ -58,6 +58,18 @@
 - **99214** (MDM-leveled) + **E11.40** (diabetes WITH neuropathy — supported by the exam) + **I10**.
 - *"Specialty accelerator: same pipeline, E&M leveling rules — and it still won't over-specify."*
 
+## 7.5 CDI / physician query — LIVE (3 min) — "co-pilot, not replacement"
+1. Open **EM20002** (anemia E&M chart). Note the initial code is **D64.9 (anemia, unspecified)** —
+   the type isn't documented.
+2. Click **Scan for CDI opportunities** → ACE drafts a **compliant, non-leading** query: states the
+   indicators (Hgb 8.2, iron started), offers options *including "Unable to determine"*, and does not
+   lead the physician.
+3. Click the physician answer **"Iron deficiency anemia"** → the encounter **re-codes to D50.9**
+   (iron-deficiency anemia) — more specific, audit-defensible, captured automatically.
+- *"This is the CDI revenue + integrity story from your own case studies — AI as a CDI co-pilot. It
+  drafts the query, the physician decides, and coding updates on the answer."* (See the **CDI / Physician
+  Queries** screen for the full queue.)
+
 ## 8. Closed-loop learning — LIVE (3 min) — the money moment
 1. Open **RAD10009** ("learning loop A"). Note the abdominal-pain code the model picked.
 2. Click **Override**, enter a **client-specific preference** (e.g. correct code + reason

@@ -8,6 +8,7 @@ import re
 import time
 from datetime import datetime, timezone
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import models
@@ -101,7 +102,7 @@ def verify_citations(code: dict, lookup: dict[int, str]) -> tuple[bool, float]:
 # ---------------------------------------------------------------------------
 # Main entry
 # ---------------------------------------------------------------------------
-def run_coding(db: Session, encounter_id: str) -> models.CodingRun:
+def run_coding(db: Session, encounter_id: str, extra_context: str = "") -> models.CodingRun:
     enc = db.get(models.Encounter, encounter_id)
     if enc is None:
         raise ValueError("encounter not found")
@@ -170,10 +171,13 @@ def run_coding(db: Session, encounter_id: str) -> models.CodingRun:
     hard = enc.specialty in ("E&M", "ED") or is_ambiguous or n_proc > 1
     samples = settings.ace_self_consistency_samples if hard else 1
     temp = 0.4 if samples > 1 else 0.0
+    rag_ctx = retr.as_prompt_context()
+    if extra_context:
+        rag_ctx += ("\n\n## PHYSICIAN CDI CLARIFICATIONS (authoritative — apply these)\n" + extra_context)
     try:
         coding_samples = complete_json(
             prompts.CODING_SYSTEM,
-            prompts.build_coding_user(numbered, enc.specialty, analysis, retr.as_prompt_context()),
+            prompts.build_coding_user(numbered, enc.specialty, analysis, rag_ctx),
             prompts.CODING_SCHEMA, hard=hard, temperature=temp, samples=samples,
         )
     except LLMUnavailable as e:
@@ -295,3 +299,54 @@ def run_coding(db: Session, encounter_id: str) -> models.CodingRun:
     if overall >= QA_THRESHOLD:
         return finish("QA", f"Calibrated confidence {overall:.2f} in QA band")
     return finish("MANUAL", f"Calibrated confidence {overall:.2f} below QA threshold")
+
+
+def cdi_scan(db: Session, encounter_id: str) -> list[models.CdiQuery]:
+    """Run the CDI agent on the latest coded run; persist drafted physician queries.
+    Replaces any prior OPEN (unanswered) queries for this encounter."""
+    enc = db.get(models.Encounter, encounter_id)
+    if enc is None:
+        raise ValueError("encounter not found")
+    run = db.scalars(
+        select(models.CodingRun).where(models.CodingRun.encounter_id == enc.id)
+        .order_by(models.CodingRun.started_at.desc()).limit(1)
+    ).first()
+    codes = [
+        {"code_system": c.code_system, "code": c.code, "role": c.role, "description": c.description}
+        for c in (run.codes if run else [])
+    ]
+    numbered, _ = _number_chart(enc.chart_text)
+    result = complete_json(
+        prompts.CDI_SYSTEM,
+        prompts.build_cdi_user(numbered, enc.specialty, codes),
+        prompts.CDI_SCHEMA, temperature=0.0,
+    )[0]
+
+    # clear prior open queries for this encounter
+    for q in db.scalars(
+        select(models.CdiQuery).where(
+            models.CdiQuery.encounter_id == enc.id, models.CdiQuery.status == "open"
+        )
+    ).all():
+        db.delete(q)
+
+    created: list[models.CdiQuery] = []
+    for q in result.get("queries", []):
+        opts = q.get("options", [])
+        if "Unable to determine" not in opts:
+            opts = opts + ["Unable to determine"]
+        cq = models.CdiQuery(
+            encounter_id=enc.id, run_id=run.id if run else "", specialty=enc.specialty,
+            question=q.get("question", ""), clinical_indicators=q.get("clinical_indicators", ""),
+            options=opts, target=q.get("target", ""), potential_codes=q.get("potential_codes", []),
+            rationale=q.get("rationale", ""),
+        )
+        db.add(cq)
+        created.append(cq)
+        if run:
+            _audit(db, run, "cdi", "query_drafted", {"target": cq.target, "question": cq.question})
+    db.commit()
+    for cq in created:
+        db.refresh(cq)
+    return created
+

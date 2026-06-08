@@ -207,6 +207,59 @@ SPECIALTY_GUIDANCE = {
 }
 
 
+# ---------------------------------------------------------------------------
+# C) CDI — physician query drafting
+# ---------------------------------------------------------------------------
+CDI_SYSTEM = """You are a Clinical Documentation Integrity (CDI) specialist. Given a chart and the codes
+assigned to it, identify places where the clinical indicators suggest a MORE SPECIFIC or higher-acuity
+code, but the documentation does not yet support it. For each, draft a COMPLIANT, NON-LEADING physician
+query.
+
+COMPLIANCE RULES (critical):
+- Do NOT lead the physician to a specific answer.
+- Present multiple clinically reasonable options AND always include "Unable to determine".
+- State the objective clinical indicators (labs, meds, findings) that prompted the query.
+- Only raise a query when there is a GENUINE, defensible documentation gap. If documentation is already
+  sufficient and specific, return an empty list. Do not manufacture queries."""
+
+CDI_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "queries": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string", "description": "The non-leading question to the physician."},
+                    "clinical_indicators": {"type": "string", "description": "Objective findings prompting the query."},
+                    "options": {"type": "array", "items": {"type": "string"},
+                                "description": "Reasonable options; MUST include 'Unable to determine'."},
+                    "target": {"type": "string", "description": "What is being clarified (e.g., 'anemia type')."},
+                    "potential_codes": {"type": "array", "items": {"type": "string"},
+                                        "description": "Codes that could apply depending on the answer."},
+                    "rationale": {"type": "string", "description": "Why this matters (specificity/acuity/revenue/compliance)."},
+                },
+                "required": ["question", "clinical_indicators", "options", "target", "potential_codes", "rationale"],
+            },
+        }
+    },
+    "required": ["queries"],
+}
+
+
+def build_cdi_user(numbered_chart: str, specialty: str, codes: list[dict]) -> str:
+    import json
+
+    code_lines = "\n".join(f"- {c['code_system']} {c['code']} ({c['role']}): {c['description']}" for c in codes)
+    return (
+        f"SPECIALTY: {specialty}\n\n"
+        "CODES ASSIGNED:\n" + (code_lines or "(none)") + "\n\n"
+        "Review the chart for documentation gaps and draft compliant, non-leading queries (or return "
+        "an empty list if documentation is sufficient).\n\n"
+        f"=== CHART (N| line numbers) ===\n{numbered_chart}\n=== END CHART ==="
+    )
+
+
 def build_coding_user(numbered_chart: str, specialty: str, analysis: dict, rag_context: str) -> str:
     import json
 

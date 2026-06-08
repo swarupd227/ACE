@@ -2,7 +2,8 @@ import { NavLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
-  LayoutList, Workflow as WorkflowIcon, Boxes, BarChart3, Network, FlaskConical, GraduationCap, ShieldCheck, Cpu,
+  LayoutList, Workflow as WorkflowIcon, Boxes, BarChart3, Network, FlaskConical, GraduationCap,
+  ShieldCheck, Cpu, Stethoscope,
 } from "lucide-react";
 import { api } from "../api";
 
@@ -10,6 +11,7 @@ const nav = [
   { to: "/", label: "Worklist", icon: LayoutList, end: true },
   { to: "/workflow", label: "Operational Workflow", icon: WorkflowIcon },
   { to: "/architecture", label: "Pipeline & Architecture", icon: Boxes },
+  { to: "/cdi", label: "CDI / Physician Queries", icon: Stethoscope },
   { to: "/dashboard", label: "Performance Dashboard", icon: BarChart3 },
   { to: "/knowledge-graph", label: "Knowledge Graph", icon: Network },
   { to: "/eval", label: "Evaluation Harness", icon: FlaskConical },

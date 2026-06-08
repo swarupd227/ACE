@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import KnowledgeGraph from "./pages/KnowledgeGraph";
 import EvalHarness from "./pages/EvalHarness";
 import Learning from "./pages/Learning";
+import Cdi from "./pages/Cdi";
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/knowledge-graph" element={<KnowledgeGraph />} />
         <Route path="/eval" element={<EvalHarness />} />
         <Route path="/learning" element={<Learning />} />
+        <Route path="/cdi" element={<Cdi />} />
       </Routes>
     </Layout>
   );

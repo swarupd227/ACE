@@ -32,6 +32,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ override_code, reason, coder_id: "coder:demo" }),
     }),
+  cdiScan: (encId: string) => req<import("./types").CdiQuery[]>(`/encounters/${encId}/cdi-scan`, { method: "POST" }),
+  cdiForEncounter: (encId: string) => req<import("./types").CdiQuery[]>(`/encounters/${encId}/cdi`),
+  cdiQueue: () => req<import("./types").CdiQuery[]>("/cdi/queries"),
+  cdiRespond: (queryId: string, response: string) =>
+    req<{ query: import("./types").CdiQuery; recoded: boolean; run: import("./types").Run | null }>(
+      `/cdi/queries/${queryId}/respond`,
+      { method: "POST", body: JSON.stringify({ response, responder: "physician:demo" }) }
+    ),
   dashboard: () => req<import("./types").Dashboard>("/dashboard/stats"),
   kg: () => req<{ nodes: any[]; links: any[] }>("/kg/graph"),
   referenceSummary: () => req<any>("/reference/summary"),

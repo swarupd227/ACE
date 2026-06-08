@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
   ArrowLeft, Check, FileText, ShieldCheck, X, ChevronRight, Quote, BookOpen, Sparkles, Scale, History, Cpu, FileSearch,
+  Stethoscope, MessageSquareWarning, CheckCircle2,
 } from "lucide-react";
 import { api } from "../api";
 import { ConfidenceBar, LaneBadge, Spinner, SystemBadge, confColor, laneColor, laneLabel, pct } from "../lib";
@@ -221,6 +222,8 @@ export default function EncounterDetail() {
 
       {showAudit && run && <AuditPacket runId={run.id} />}
 
+      {run && <CdiPanel encId={d.id} />}
+
       <div className="grid lg:grid-cols-2 gap-4">
         {/* Chart viewer */}
         <div className="card p-0 overflow-hidden h-fit lg:sticky lg:top-4">
@@ -290,6 +293,72 @@ function PipelineTrace({ stageLog, eligibility }: { stageLog: any[]; eligibility
 function stripBig(s: any) {
   const { stage, title, ...rest } = s;
   return rest;
+}
+
+function CdiPanel({ encId }: { encId: string }) {
+  const qc = useQueryClient();
+  const { data: queries } = useQuery({ queryKey: ["cdi", encId], queryFn: () => api.cdiForEncounter(encId) });
+  const scan = useMutation({
+    mutationFn: () => api.cdiScan(encId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["cdi", encId] }),
+  });
+  const respond = useMutation({
+    mutationFn: ({ id, resp }: { id: string; resp: string }) => api.cdiRespond(id, resp),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cdi", encId] });
+      qc.invalidateQueries({ queryKey: ["encounter", encId] });
+    },
+  });
+  const list = queries ?? [];
+
+  return (
+    <div className="card p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Stethoscope size={16} className="text-ace-600" />
+          <span className="font-semibold text-slate-700 text-sm">CDI / Physician Queries</span>
+          {list.length > 0 && <span className="pill bg-amber-50 text-amber-700 ring-1 ring-amber-200">{list.length}</span>}
+        </div>
+        <button className="btn-ghost py-1.5" disabled={scan.isPending} onClick={() => scan.mutate()}>
+          {scan.isPending ? <Spinner className="h-4 w-4" /> : <MessageSquareWarning size={14} />} Scan for CDI opportunities
+        </button>
+      </div>
+
+      {list.length === 0 && !scan.isPending && (
+        <p className="mt-2 text-xs text-slate-400">
+          {scan.isSuccess ? "Documentation is sufficient — no queries needed." : "No queries yet. Run a scan to check for documentation gaps."}
+        </p>
+      )}
+
+      <div className="mt-3 space-y-3">
+        {list.map((q) => (
+          <div key={q.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-800 text-sm">{q.target}</span>
+              <span className={clsx("pill ring-1", q.status === "answered" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-amber-50 text-amber-700 ring-amber-200")}>{q.status}</span>
+            </div>
+            <p className="mt-1 text-sm text-slate-700">{q.question}</p>
+            {q.clinical_indicators && <p className="mt-1 text-xs text-slate-500"><b>Indicators:</b> {q.clinical_indicators}</p>}
+            {q.status !== "answered" ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {q.options.map((o) => (
+                  <button key={o} disabled={respond.isPending}
+                    onClick={() => respond.mutate({ id: q.id, resp: o })}
+                    className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs hover:bg-ace-50 hover:border-ace-300">
+                    {o}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-600">
+                <CheckCircle2 size={14} className="text-emerald-600" /> Answered: <b>{q.physician_response}</b> → re-coded
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function AuditPacket({ runId }: { runId: string }) {

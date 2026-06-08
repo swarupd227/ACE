@@ -228,6 +228,23 @@ CHARTS = [
             "Electronically signed by Dr. N. Ito, MD."
         ),
     ),
+    # 13 — E&M with a CDI physician-query opportunity (anemia specificity not documented)
+    dict(
+        mrn="EM20002", patient_name="Frances Doyle", age=72, sex="F", specialty="E&M",
+        modality="", encounter_type="established", payer="Medicare", pos="11", dos="2026-04-19",
+        client="Summit Primary Care", source_system="Cerner", report_type="office_note",
+        scenario="E&M — CDI physician-query opportunity (anemia type not specified)",
+        chart_text=(
+            "OFFICE VISIT NOTE (Established Patient)\n"
+            "HPI: 72-year-old female with several weeks of fatigue and unintentional weight loss.\n"
+            "ROS: Fatigue, decreased appetite. No overt bleeding reported.\n"
+            "EXAM: Conjunctival pallor noted. Otherwise unremarkable.\n"
+            "DATA: CBC shows hemoglobin 8.2 g/dL. Started on ferrous sulfate. Referral to GI placed.\n"
+            "ASSESSMENT/PLAN: 1) Anemia - started iron, will work up. 2) Abnormal weight loss - GI "
+            "referral. Total time 30 minutes.\n"
+            "Electronically signed by Dr. S. Patel, MD."
+        ),
+    ),
 ]
 
 
@@ -307,4 +324,23 @@ GOLDEN_CASES = [
              "MDM: Acute respiratory failure with hypoxia; high probability of deterioration. BiPAP "
              "initiated. 60 minutes of critical care provided, exclusive of separate procedures. "
              "Admitted to ICU.\nElectronically signed by provider.")),
+    dict(specialty="E&M", irr=0.86, ambiguous=False,
+         truth={"icd": ["I10", "E78.5"], "cpt": ["99213"]},
+         chart_text=(
+             "OFFICE VISIT NOTE (Established Patient)\n"
+             "HPI: Routine follow-up for hypertension and hyperlipidemia, both stable. No new complaints.\n"
+             "EXAM: Blood pressure at goal. Unremarkable.\n"
+             "DATA: Lipid panel reviewed, at target on statin.\n"
+             "ASSESSMENT/PLAN: 1) Essential hypertension - stable, continue lisinopril. 2) Hyperlipidemia "
+             "- stable, continue statin. Low MDM. Total time 20 minutes.\nElectronically signed by provider.")),
+    dict(specialty="E&M", irr=0.86, ambiguous=False,
+         truth={"icd": ["E11.65"], "cpt": ["99214"]},
+         chart_text=(
+             "OFFICE VISIT NOTE (Established Patient)\n"
+             "HPI: Type 2 diabetic with worsening home glucose readings. No neuropathy symptoms.\n"
+             "EXAM: Unremarkable; feet with intact sensation.\n"
+             "DATA: A1C resulted at 10.1%, consistent with hyperglycemia.\n"
+             "ASSESSMENT/PLAN: Type 2 diabetes mellitus with hyperglycemia, uncontrolled - intensify "
+             "therapy, add agent, diabetic education. Moderate MDM. Total time 30 minutes.\n"
+             "Electronically signed by provider.")),
 ]

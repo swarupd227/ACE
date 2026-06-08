@@ -47,7 +47,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Kpi icon={Zap} label="STB rate" value={`${Math.round(data.stb_rate * 100)}%`} sub={`${data.stb_count}/${data.coded} coded`} target="≥80%" />
+        <Kpi icon={Zap} label="STB rate" value={`${Math.round(data.stb_rate * 100)}%`} sub={`${data.stb_count}/${data.eligible} eligible charts`} target="≥80%" />
         <Kpi icon={Gauge} label="Calibrated accuracy" value={`${Math.round(data.avg_accuracy * 100)}%`} sub="auto-coded lanes" target="≥90%" />
         <Kpi icon={TrendingUp} label="Manual effort reduction" value={`${Math.round(data.manual_effort_reduction * 100)}%`} sub="STB + ½ QA" target="≥30%" />
         <Kpi icon={Clock} label="Avg turnaround" value={`${(data.avg_latency_ms / 1000).toFixed(1)}s`} sub="per chart" target="−10–15%" />

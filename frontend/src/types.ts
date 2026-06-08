@@ -114,9 +114,29 @@ export interface Meta {
   specialties: string[];
   provenance: Record<string, string>;
 }
+export interface CdiQuery {
+  id: string;
+  encounter_id: string;
+  specialty: string;
+  status: string;
+  question: string;
+  clinical_indicators: string;
+  options: string[];
+  target: string;
+  potential_codes: string[];
+  rationale: string;
+  physician_response: string;
+  responded_by: string;
+  created_at: string | null;
+  patient_name?: string;
+  mrn?: string;
+}
+
 export interface Dashboard {
   total_encounters: number;
   coded: number;
+  eligible: number;
+  eligible_excluded: number;
   stb_count: number;
   qa_count: number;
   manual_count: number;

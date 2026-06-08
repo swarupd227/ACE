@@ -39,6 +39,11 @@ ICD10CM = [
     ("R06.02", "Shortness of breath", True, "R06.0"),
     ("A41.9", "Sepsis, unspecified organism", True, "A41"),
     ("R07.1", "Chest pain on breathing", True, "R07"),
+    ("D64.9", "Anemia, unspecified", True, "D64"),
+    ("D50.9", "Iron deficiency anemia, unspecified", True, "D50"),
+    ("R63.4", "Abnormal weight loss", True, "R63"),
+    ("E78.5", "Hyperlipidemia, unspecified", True, "E78"),
+    ("E11.65", "Type 2 diabetes mellitus with hyperglycemia", True, "E11.6"),
     # non-billable parents (specificity gate should reject these)
     ("E11.4", "Type 2 diabetes mellitus with neurological complications", False, "E11"),
     ("M25.56", "Pain in knee", False, "M25.5"),

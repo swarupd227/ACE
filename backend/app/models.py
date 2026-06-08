@@ -254,6 +254,28 @@ class LearningExample(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class CdiQuery(Base):
+    """A compliant, non-leading physician query raised when documentation is
+    insufficient to support a more specific/accurate code (CDI workflow)."""
+    __tablename__ = "cdi_queries"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    encounter_id: Mapped[str] = mapped_column(String(32), index=True)
+    run_id: Mapped[str] = mapped_column(String(32), default="")
+    specialty: Mapped[str] = mapped_column(String(40), default="")
+    status: Mapped[str] = mapped_column(String(16), default="open")  # open | answered
+    question: Mapped[str] = mapped_column(Text)
+    clinical_indicators: Mapped[str] = mapped_column(Text, default="")
+    options: Mapped[list] = mapped_column(JSONB, default=list)  # incl. "Unable to determine"
+    target: Mapped[str] = mapped_column(String(120), default="")
+    potential_codes: Mapped[list] = mapped_column(JSONB, default=list)
+    rationale: Mapped[str] = mapped_column(Text, default="")
+    physician_response: Mapped[str] = mapped_column(Text, default="")
+    responded_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class GoldenCase(Base):
     """Frozen golden-set case for the evaluation harness."""
     __tablename__ = "golden_cases"
