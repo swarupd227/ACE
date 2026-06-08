@@ -94,14 +94,14 @@ def retrieve(db: Session, encounter: models.Encounter, analysis: dict, *, top_k:
     procs = db.scalars(
         select(models.ReferenceCode).where(models.ReferenceCode.code_system.in_(["CPT", "HCPCS"]))
     ).all()
-    if encounter.specialty == "E&M":
-        # E&M's billable procedure IS the visit-level code; surface the whole office-visit
-        # family (99xxx) so the agent can pick the level from the MDM/time factors. There is
-        # no imaging procedure text to score against, so we don't rely on lexical overlap here.
-        em_codes = [c for c in procs if c.code.startswith("99")]
+    if encounter.specialty in ("E&M", "ED"):
+        # The billable procedure IS the visit-level code; surface the whole family so the agent
+        # can pick the level from MDM/time. No imaging text to score against, so no lexical filter.
+        tag = "EM_OFFICE" if encounter.specialty == "E&M" else "ED"
+        fam = [c for c in procs if c.modality == tag]
         r.proc_candidates = [
             {"code": c.code, "description": c.description, "modality": c.modality, "source": c.source}
-            for c in sorted(em_codes, key=lambda c: c.code)
+            for c in sorted(fam, key=lambda c: c.code)
         ]
     else:
         if encounter.specialty == "Radiology":

@@ -157,6 +157,77 @@ CHARTS = [
             "Electronically signed by Dr. A. Sharma, MD."
         ),
     ),
+    # 9 — ED standard visit → expect STB (99284)
+    dict(
+        mrn="ED30001", patient_name="Pat Sullivan", age=54, sex="M", specialty="ED",
+        modality="", encounter_type="ed", payer="Medicare", pos="23", dos="2026-04-18",
+        client="Riverbend Health", source_system="Cerner", report_type="ed_note",
+        scenario="ED — standard visit (MDM leveling)",
+        chart_text=(
+            "EMERGENCY DEPARTMENT NOTE\n"
+            "CHIEF COMPLAINT: Chest pain.\n"
+            "HPI: 54-year-old male with hypertension and hyperlipidemia presenting with 2 hours of "
+            "substernal chest pain. Multiple comorbidities reviewed.\n"
+            "ROS: Cardiovascular and respiratory systems reviewed; no diaphoresis.\n"
+            "EXAM: Vitals stable. Heart regular, lungs clear.\n"
+            "DATA/MDM: Independent interpretation of ECG (no acute ischemia). Ordered and reviewed "
+            "troponin, CBC, CMP, and chest X-ray. Acute illness with systemic symptoms; moderate risk "
+            "of morbidity. Decision for prescription management; shared decision-making for discharge. "
+            "High medical decision making.\n"
+            "DISPOSITION: Discharged with outpatient cardiology follow-up.\n"
+            "Electronically signed by Dr. K. Owens, MD."
+        ),
+    ),
+    # 10 — ED critical care → bounded autonomy → QA (99291)
+    dict(
+        mrn="ED30002", patient_name="Robin Walsh", age=68, sex="F", specialty="ED",
+        modality="", encounter_type="ed", payer="Medicare", pos="23", dos="2026-04-18",
+        client="Riverbend Health", source_system="Cerner", report_type="ed_note",
+        scenario="ED — critical care (bounded autonomy → QA)",
+        chart_text=(
+            "EMERGENCY DEPARTMENT NOTE\n"
+            "CHIEF COMPLAINT: Severe shortness of breath.\n"
+            "HPI: 68-year-old female with acute respiratory distress, hypoxic to 84% on room air.\n"
+            "EXAM: Tachypneic, accessory muscle use, diffuse crackles.\n"
+            "MDM: Acute respiratory failure with hypoxia. High probability of imminent deterioration. "
+            "BiPAP initiated, continuous bedside management.\n"
+            "CRITICAL CARE TIME: 60 minutes of critical care provided, exclusive of separately "
+            "reportable procedures.\n"
+            "DISPOSITION: Admitted to ICU.\n"
+            "Electronically signed by Dr. K. Owens, MD."
+        ),
+    ),
+    # 11 & 12 — learning-loop pair (same study/anatomy → an override on A transfers to B)
+    dict(
+        mrn="RAD10009", patient_name="Lee Carter", age=60, sex="M", specialty="Radiology",
+        modality="XR", payer="Medicare", pos="22", dos="2026-04-18", client="Lakeshore Clinics",
+        source_system="eClinicalWorks", report_type="radiology_report",
+        scenario="Radiology — learning loop A (apply a client-specific override here)",
+        chart_text=(
+            "RADIOLOGY REPORT\n"
+            "EXAM: Abdomen X-ray, single view\n"
+            "HISTORY: Abdominal pain.\n"
+            "TECHNIQUE: Single supine view of the abdomen.\n"
+            "FINDINGS: Nonspecific bowel gas pattern. No free air or obstruction.\n"
+            "IMPRESSION: No acute abnormality.\n"
+            "Electronically signed by Dr. N. Ito, MD."
+        ),
+    ),
+    dict(
+        mrn="RAD10010", patient_name="Dana Fox", age=58, sex="F", specialty="Radiology",
+        modality="XR", payer="Medicare", pos="22", dos="2026-04-19", client="Lakeshore Clinics",
+        source_system="eClinicalWorks", report_type="radiology_report",
+        scenario="Radiology — learning loop B (re-code after A's override to see it adopted)",
+        chart_text=(
+            "RADIOLOGY REPORT\n"
+            "EXAM: Abdomen X-ray, single view\n"
+            "HISTORY: Abdominal pain.\n"
+            "TECHNIQUE: Single supine view of the abdomen.\n"
+            "FINDINGS: Nonspecific bowel gas pattern. No obstruction or free air.\n"
+            "IMPRESSION: No acute abnormality.\n"
+            "Electronically signed by Dr. N. Ito, MD."
+        ),
+    ),
 ]
 
 
@@ -218,4 +289,22 @@ GOLDEN_CASES = [
              "FINDINGS: No acute fracture or dislocation. Mild medial compartment joint space narrowing.\n"
              "IMPRESSION: No acute fracture. Mild osteoarthritic change, right knee.\n"
              "Electronically signed by attending radiologist.")),
+    dict(specialty="ED", irr=0.85, ambiguous=False,
+         truth={"icd": ["R07.9"], "cpt": ["99284"]},
+         chart_text=(
+             "EMERGENCY DEPARTMENT NOTE\nCHIEF COMPLAINT: Chest pain.\n"
+             "HPI: Hypertensive, hyperlipidemic patient with substernal chest pain. Comorbidities reviewed.\n"
+             "EXAM: Vitals stable, heart regular, lungs clear.\n"
+             "MDM: Independent ECG interpretation (no acute ischemia); ordered and reviewed troponin, "
+             "CBC, CMP, chest X-ray. Acute illness with systemic symptoms, moderate risk, prescription "
+             "management. High medical decision making. Discharged with cardiology follow-up.\n"
+             "Electronically signed by provider.")),
+    dict(specialty="ED", irr=0.83, ambiguous=False,
+         truth={"icd": ["J96.00"], "cpt": ["99291"]},
+         chart_text=(
+             "EMERGENCY DEPARTMENT NOTE\nCHIEF COMPLAINT: Severe shortness of breath.\n"
+             "HPI: Acute respiratory distress, hypoxic to 84% on room air.\n"
+             "MDM: Acute respiratory failure with hypoxia; high probability of deterioration. BiPAP "
+             "initiated. 60 minutes of critical care provided, exclusive of separate procedures. "
+             "Admitted to ICU.\nElectronically signed by provider.")),
 ]

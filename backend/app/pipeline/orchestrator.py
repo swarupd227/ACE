@@ -55,7 +55,7 @@ def stage0_eligibility(enc: models.Encounter) -> dict:
     checks.append({"check": "required_documentation", "passed": has_report,
                    "detail": "report present" if has_report else "insufficient/empty documentation"})
 
-    approved = enc.specialty in ("Radiology", "E&M")
+    approved = enc.specialty in ("Radiology", "E&M", "ED")
     checks.append({"check": "approved_specialty", "passed": approved, "detail": enc.specialty})
 
     # exclusion flags
@@ -167,7 +167,7 @@ def run_coding(db: Session, encounter_id: str) -> models.CodingRun:
 
     # --- Stage 3 — coding (self-consistency on hard encounters) ---
     n_proc = len(analysis.get("procedures", []))
-    hard = enc.specialty == "E&M" or is_ambiguous or n_proc > 1
+    hard = enc.specialty in ("E&M", "ED") or is_ambiguous or n_proc > 1
     samples = settings.ace_self_consistency_samples if hard else 1
     temp = 0.4 if samples > 1 else 0.0
     try:
@@ -204,6 +204,17 @@ def run_coding(db: Session, encounter_id: str) -> models.CodingRun:
     persisted: list[models.CodeResult] = []
     gate_log = []
     for c in agg_codes:
+        # Deterministic professional-component handling: a facility radiology read (POS 22/23/19/21)
+        # bills the professional component — append modifier 26 if the model didn't. Rules belong in
+        # the rule engine, not the model's memory; this keeps radiology coding consistent.
+        if c["code_system"] == "CPT" and c["code"][:1] == "7" and enc.pos in ("22", "23", "19", "21"):
+            mods = list(c.get("modifiers", []))
+            if "26" not in mods and "TC" not in mods:
+                mods.append("26")
+                c["modifiers"] = mods
+                c["rule_justification"] = (c.get("rule_justification", "") +
+                                           " [auto: modifier 26 professional component for facility read]").strip()
+
         cit_ok, cit_score = verify_citations(c, lookup)
         gates = validation.run_gates(db, c, enc, code_dicts, retr.payer_policies)
         gate_pass_ratio = sum(1 for g in gates if g["passed"]) / len(gates) if gates else 0.0
@@ -214,7 +225,8 @@ def run_coding(db: Session, encounter_id: str) -> models.CodingRun:
         conf_doc_match = cit_score
         conf_rule = gate_pass_ratio
         # historical proxy: boost if a learned correction or golden pattern supports this code
-        conf_historical = 0.85 if any(le["use_code"] == c["code"] for le in retr.learned) else 0.6
+        learning_applied = any(le["use_code"] == c["code"] for le in retr.learned)
+        conf_historical = 0.85 if learning_applied else 0.6
         calibrated = round(
             0.40 * conf_model + 0.25 * conf_doc_match + 0.25 * conf_rule + 0.10 * conf_historical, 3
         )
@@ -234,7 +246,7 @@ def run_coding(db: Session, encounter_id: str) -> models.CodingRun:
             chart_citations=c.get("chart_citations", []),
             guideline_citations=c.get("guideline_citations", []),
             rule_justification=c.get("rule_justification", ""),
-            gate_results=gates, status=status,
+            gate_results=gates, status=status, learning_applied=learning_applied,
         )
         db.add(cr)
         persisted.append(cr)

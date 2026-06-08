@@ -26,7 +26,7 @@ def meta() -> dict:
         "model_hard": settings.ace_model_hard,
         "model_version": model_version(),
         "self_consistency_samples": settings.ace_self_consistency_samples,
-        "specialties": ["Radiology", "E&M"],
+        "specialties": ["Radiology", "E&M", "ED"],
         "provenance": {
             "ICD10CM": "REAL public-domain subset (CMS/NCHS)",
             "HCPCS": "REAL public-domain subset (CMS)",

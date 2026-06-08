@@ -93,14 +93,16 @@ def complete_json(
 
     model = settings.ace_model_hard if hard else settings.ace_model_default
     out: list[dict[str, Any]] = []
+    errors: list[str] = []
     for _ in range(max(1, samples)):
         try:
             if settings.llm_mode == "anthropic":
                 out.append(_anthropic_json(system, user, schema, model, temperature))
             else:
                 out.append(_local_json(system, user, schema, settings.local_llm_model, temperature))
-        except LLMUnavailable:
-            raise
-        except Exception as exc:  # network / parse / auth
-            raise LLMUnavailable(f"{settings.llm_mode} call failed: {exc}") from exc
+        except Exception as exc:  # transient network / parse / rate-limit on a single sample
+            errors.append(f"{type(exc).__name__}: {exc}")
+    # Self-consistency tolerates partial failures: only fail if EVERY sample failed.
+    if not out:
+        raise LLMUnavailable(f"{settings.llm_mode} call failed for all {samples} sample(s): {errors}")
     return out

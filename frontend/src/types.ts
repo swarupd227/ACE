@@ -59,6 +59,7 @@ export interface CodeResult {
   override_code: string;
   override_reason: string;
   accepted_by: string;
+  learning_applied: boolean;
 }
 export interface StageLogEntry {
   stage: string;

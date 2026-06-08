@@ -110,6 +110,7 @@ class CodeResult(Base):
     override_code: Mapped[str] = mapped_column(String(16), default="")
     override_reason: Mapped[str] = mapped_column(Text, default="")
     accepted_by: Mapped[str] = mapped_column(String(80), default="")
+    learning_applied: Mapped[bool] = mapped_column(Boolean, default=False)  # influenced by a learned correction
 
     run: Mapped[CodingRun] = relationship(back_populates="codes")
 

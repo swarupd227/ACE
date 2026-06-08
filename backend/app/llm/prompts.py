@@ -178,11 +178,41 @@ CODING_SCHEMA: dict[str, Any] = {
 }
 
 
+SPECIALTY_GUIDANCE = {
+    "Radiology": (
+        "RADIOLOGY RULES:\n"
+        "- Choose the CPT matching the documented MODALITY and CONTRAST: with vs without vs "
+        "without-then-with. Oral/rectal contrast alone counts as WITHOUT contrast.\n"
+        "- Choose the CPT matching the documented number of VIEWS; never exceed documented views.\n"
+        "- When the study is performed at a facility (POS 22 outpatient hospital, 23 ER), append "
+        "modifier 26 (professional component) to the imaging CPT — you are coding the radiologist's read.\n"
+        "- For unilateral extremity studies, append RT or LT when laterality is documented.\n"
+        "- Use a single COMBINATION code when one exists (e.g., CT abdomen+pelvis); do not unbundle.\n"
+        "- Link to the ordering indication; if no definitive diagnosis, code the sign/symptom."
+    ),
+    "E&M": (
+        "E&M RULES:\n"
+        "- Assign the visit-level CPT (established 99213-99215 / new 99203-99205) from the documented "
+        "MDM or total time. Do not infer a higher level than documented.\n"
+        "- Code all conditions addressed; use combination codes (e.g., diabetes WITH a complication) "
+        "only when the link is documented."
+    ),
+    "ED": (
+        "ED RULES:\n"
+        "- Assign the ED E&M level (99281-99285) from documented MDM.\n"
+        "- Use critical care (99291; +99292 each additional 30 min) ONLY when >=30 minutes of critical "
+        "care AND a high-acuity, life-threatening condition are documented.\n"
+        "- If a separately identifiable E&M is performed with a same-day procedure, consider modifier 25."
+    ),
+}
+
+
 def build_coding_user(numbered_chart: str, specialty: str, analysis: dict, rag_context: str) -> str:
     import json
 
     return (
         f"SPECIALTY: {specialty}\n\n"
+        + SPECIALTY_GUIDANCE.get(specialty, "") + "\n\n"
         "PRIOR ANALYSIS (entities, flags):\n" + json.dumps(analysis, indent=2) + "\n\n"
         "RETRIEVED CONTEXT — candidate reference codes, guideline excerpts, payer policy, "
         "NCCI/MUE notes, and any learned corrections. Use ONLY codes listed here:\n"

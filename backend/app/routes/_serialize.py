@@ -14,6 +14,7 @@ def code_to_dict(c: models.CodeResult) -> dict:
         "rule_justification": c.rule_justification, "gate_results": c.gate_results,
         "status": c.status, "is_overridden": c.is_overridden, "override_code": c.override_code,
         "override_reason": c.override_reason, "accepted_by": c.accepted_by,
+        "learning_applied": c.learning_applied,
     }
 
 

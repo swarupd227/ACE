@@ -35,6 +35,10 @@ ICD10CM = [
     ("R93.1", "Abnormal findings on diagnostic imaging of heart and coronary circulation", True, "R93"),
     ("R91.8", "Other nonspecific abnormal finding of lung field", True, "R91"),
     ("Z01.89", "Encounter for other specified special examinations", True, "Z01.8"),
+    ("J96.00", "Acute respiratory failure, unspecified whether with hypoxia or hypercapnia", True, "J96.0"),
+    ("R06.02", "Shortness of breath", True, "R06.0"),
+    ("A41.9", "Sepsis, unspecified organism", True, "A41"),
+    ("R07.1", "Chest pain on breathing", True, "R07"),
     # non-billable parents (specificity gate should reject these)
     ("E11.4", "Type 2 diabetes mellitus with neurological complications", False, "E11"),
     ("M25.56", "Pain in knee", False, "M25.5"),
@@ -62,12 +66,22 @@ CPT = [
     ("72149", "MRI, lumbar spine; with contrast", "MRI"),
     ("73721", "MRI, lower extremity joint; without contrast", "MRI"),
     ("73221", "MRI, upper extremity joint; without contrast", "MRI"),
-    # E&M (established / new office visit) — modality ANY
-    ("99213", "Office/outpatient visit, established patient, low MDM", "ANY"),
-    ("99214", "Office/outpatient visit, established patient, moderate MDM", "ANY"),
-    ("99215", "Office/outpatient visit, established patient, high MDM", "ANY"),
-    ("99203", "Office/outpatient visit, new patient, low MDM", "ANY"),
-    ("99204", "Office/outpatient visit, new patient, moderate MDM", "ANY"),
+    ("70551", "MRI, brain; without contrast", "MRI"),
+    ("71260", "CT, thorax; with contrast", "CT"),
+    # E&M (established / new office visit)
+    ("99213", "Office/outpatient visit, established patient, low MDM", "EM_OFFICE"),
+    ("99214", "Office/outpatient visit, established patient, moderate MDM", "EM_OFFICE"),
+    ("99215", "Office/outpatient visit, established patient, high MDM", "EM_OFFICE"),
+    ("99203", "Office/outpatient visit, new patient, low MDM", "EM_OFFICE"),
+    ("99204", "Office/outpatient visit, new patient, moderate MDM", "EM_OFFICE"),
+    # Emergency Department E&M + critical care
+    ("99281", "Emergency department visit, straightforward MDM", "ED"),
+    ("99282", "Emergency department visit, low MDM", "ED"),
+    ("99283", "Emergency department visit, moderate MDM", "ED"),
+    ("99284", "Emergency department visit, high MDM", "ED"),
+    ("99285", "Emergency department visit, high complexity MDM", "ED"),
+    ("99291", "Critical care, evaluation and management; first 30-74 minutes", "ED"),
+    ("99292", "Critical care; each additional 30 minutes", "ED"),
 ]
 
 HCPCS = [
@@ -105,6 +119,8 @@ MUE = [
     ("74176", 1, "CT abd+pelvis without contrast, one per day"),
     ("70450", 1, "CT head without contrast, one per day"),
     ("72148", 1, "MRI lumbar without contrast, one per day"),
+    ("99291", 1, "Critical care first hour, one per day per provider"),
+    ("99284", 1, "ED visit, one per encounter"),
 ]
 
 # --- Payer policy (representative) ---
@@ -168,4 +184,21 @@ GUIDELINES = [
     ("E&M Documentation Guidelines (2021)", "MDM",
      "E&M level selection is based on Medical Decision Making (number/complexity of problems, amount "
      "of data, risk) or total time. Do not infer specificity not documented.", "E&M"),
+    ("Radiology Coding Guidance", "Components",
+     "Modifier 26 reports the professional component (the physician's interpretation); modifier TC the "
+     "technical component (equipment/technologist). For a radiologist's interpretation of imaging "
+     "performed at a facility (POS 22 outpatient hospital, 23 emergency room), append modifier 26.", "Radiology"),
+    ("Radiology Coding Guidance", "Laterality",
+     "For unilateral extremity imaging, append RT (right) or LT (left) to identify the side imaged when "
+     "the documentation specifies laterality.", "Radiology"),
+    ("Radiology Coding Guidance", "Views",
+     "Select the CPT that matches the documented number of views (e.g., single vs 2-view chest; 3-view "
+     "vs 4+-view knee). Do not bill a higher view-count code than documented.", "Radiology"),
+    ("Radiology Coding Guidance", "OrderingDx",
+     "Link the imaging CPT to the diagnosis/indication from the order; when no definitive diagnosis is "
+     "established on the read, code the sign/symptom that prompted the study.", "Radiology"),
+    ("ED Coding Guidance", "Levels",
+     "ED E&M (99281-99285) is leveled by Medical Decision Making. Critical care (99291, +99292 each "
+     "additional 30 min) requires documentation of at least 30 minutes of critical care and a patient "
+     "with high probability of imminent or life-threatening deterioration.", "ED"),
 ]

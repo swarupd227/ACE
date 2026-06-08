@@ -107,8 +107,17 @@ def run_gates(
         else:
             add("mue", True, f"within MUE limit ({mue.max_units if mue else 'n/a'})")
 
-        # 8) POS alignment (radiology professional component sanity check)
+        # 8) POS alignment
         add("pos_alignment", True, f"POS {encounter.pos} acceptable")
+
+        # 9) Professional/technical component — facility radiology reads need modifier 26 (or TC)
+        if cval[:1] == "7" and encounter.pos in ("22", "23", "19", "21"):
+            mods = code.get("modifiers", [])
+            if "26" in mods or "TC" in mods:
+                add("component_modifier", True, "professional/technical component identified")
+            else:
+                add("component_modifier", False,
+                    f"facility radiology read (POS {encounter.pos}) requires modifier 26 (professional component)")
 
     # 7) Payer medical-necessity (LCD/NCD-style) from Graph-RAG payer policy
     pol = next((p for p in rag_payer if p["code"] == cval), None)

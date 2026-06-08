@@ -66,6 +66,11 @@ function CodeCard({ code, onSelect, selected, onHighlight }: {
           {code.is_overridden && (
             <span className="pill bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200">overridden</span>
           )}
+          {code.learning_applied && (
+            <span className="pill bg-fuchsia-50 text-fuchsia-700 ring-1 ring-fuchsia-200" title="Influenced by a captured coder correction">
+              <Sparkles size={11} /> learned
+            </span>
+          )}
           {code.modifiers.map((m) => (
             <span key={m} className="pill bg-slate-100 text-slate-600 ring-1 ring-slate-200">-{m}</span>
           ))}
