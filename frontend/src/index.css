@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-slate-100 text-slate-800 antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* thin scrollbars */
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full;
+}
+*::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl border border-slate-200 shadow-card;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold
+      transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-ace-600 text-white hover:bg-ace-700;
+  }
+  .btn-brand {
+    @apply btn bg-brand-500 text-white hover:bg-brand-600;
+  }
+  .btn-ghost {
+    @apply btn bg-white border border-slate-200 text-slate-700 hover:bg-slate-50;
+  }
+  .label {
+    @apply text-[11px] font-semibold uppercase tracking-wide text-slate-400;
+  }
+}
+
+@keyframes fadeup {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fadeup { animation: fadeup 0.3s ease both; }
+
+@keyframes pulsebar {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.pulsing { animation: pulsebar 1.1s ease-in-out infinite; }

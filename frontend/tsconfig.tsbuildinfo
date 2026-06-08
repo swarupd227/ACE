@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/api.ts","./src/lib.tsx","./src/main.tsx","./src/types.ts","./src/components/layout.tsx","./src/pages/architecture.tsx","./src/pages/dashboard.tsx","./src/pages/encounterdetail.tsx","./src/pages/evalharness.tsx","./src/pages/knowledgegraph.tsx","./src/pages/learning.tsx","./src/pages/worklist.tsx"],"version":"5.9.3"}

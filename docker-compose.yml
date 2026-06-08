@@ -1,0 +1,47 @@
+# ===========================================================================
+# ACE — Autonomous Coding Engine  ·  Self-contained demo stack
+# `docker compose up --build`  →  UI at http://localhost:8080
+# ===========================================================================
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ace}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ace_dev_pw}
+      POSTGRES_DB: ${POSTGRES_DB:-ace}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ace} -d ${POSTGRES_DB:-ace}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # Not published to the host by default — the API talks to it on the compose network.
+
+  api:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ace}:${POSTGRES_PASSWORD:-ace_dev_pw}@db:5432/${POSTGRES_DB:-ace}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    # host.docker.internal lets LLM_MODE=local reach an Ollama server on the host.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: /api
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+
+volumes:
+  pgdata:
