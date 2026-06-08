@@ -17,6 +17,13 @@
   **Specialty accelerator** (Radiology ✓ E&M ✓ ED ✓), and **Production mapping** (Azure/Foundry, US-region).
 - Message: *"This is the difference between a demo and a deployable system — the controls, not the model."*
 
+## 0.5 Operational workflow (1 min) — `Operational Workflow`
+- Show the end-to-end process in one picture: **Intake (Practice Admin/eCW/Cerner) → Stage 0 eligibility
+  → AI pipeline → confidence router → STB / QA / Manual lanes → billing**, with the **closed feedback
+  loop** and the human **roles** per lane (auto / CDI-auditor / coder).
+- Message: *"This is how it runs in production inside RevAmp — the AI pipeline plus the human-in-the-loop
+  orchestration, with governance and a feedback loop. The rest of the demo drills into each piece."*
+
 ## 1. The worklist + the run (3 min) — `Worklist`
 - Show the queue (Radiology, E&M, ED; payers; clients Practice Admin/eCW/Cerner).
 - Click **Run autonomous coding**. While it runs, narrate the 3-lane model:

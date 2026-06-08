@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import Worklist from "./pages/Worklist";
+import Workflow from "./pages/Workflow";
 import Architecture from "./pages/Architecture";
 import EncounterDetail from "./pages/EncounterDetail";
 import Dashboard from "./pages/Dashboard";
@@ -13,6 +14,7 @@ export default function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<Worklist />} />
+        <Route path="/workflow" element={<Workflow />} />
         <Route path="/architecture" element={<Architecture />} />
         <Route path="/encounter/:id" element={<EncounterDetail />} />
         <Route path="/dashboard" element={<Dashboard />} />
