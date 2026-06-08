@@ -117,9 +117,13 @@ def code_encounter(enc_id: str, db: Session = Depends(get_db)) -> dict:
 
 @router.post("/coding/run-all")
 def run_all(db: Session = Depends(get_db)) -> dict:
-    # Re-process every non-hidden chart so the demo button is always reliable.
+    # Code only NEW (uncoded) charts — so ingesting one chart and running codes just that one
+    # (~25s) instead of re-coding the whole batch. A fresh reseed leaves everything NEW, so the
+    # first run still codes all. To re-code an already-coded chart, use its per-row "Code" action.
     encs = db.scalars(
-        select(models.Encounter).where(models.Encounter.client != HIDDEN_CLIENT)
+        select(models.Encounter).where(
+            models.Encounter.client != HIDDEN_CLIENT, models.Encounter.status == "NEW"
+        )
     ).all()
     lanes = {"STB": 0, "QA": 0, "MANUAL": 0}
     for e in encs:
