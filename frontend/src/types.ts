@@ -139,6 +139,47 @@ export interface CdiQuery {
   mrn?: string;
 }
 
+export interface CtItem {
+  run_id: string;
+  encounter_id: string;
+  patient_name: string;
+  mrn: string;
+  specialty: string;
+  payer: string;
+  lane: string;
+  priority: string;
+  escalated: boolean;
+  assigned_to: string;
+  age_minutes: number;
+  has_open_cdi: boolean;
+  sla_status: string;
+}
+export interface CtQueue {
+  key: string;
+  label: string;
+  sla_target_min: number;
+  count: number;
+  breached: number;
+  items: CtItem[];
+}
+export interface ControlTower {
+  roster: string[];
+  sla_targets: Record<string, number>;
+  summary: { total: number; unassigned: number; breached: number };
+  queues: CtQueue[];
+}
+export interface Policy {
+  id: number;
+  payer: string;
+  code: string;
+  policy_id: string;
+  medical_necessity: string;
+  requires_auth: boolean;
+  modifier_pref: string;
+  covered_dx: string[];
+  source: string;
+}
+
 export interface Dashboard {
   total_encounters: number;
   coded: number;

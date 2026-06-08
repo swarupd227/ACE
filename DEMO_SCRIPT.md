@@ -11,18 +11,12 @@
 
 ---
 
-## 0. Architecture first (2 min) — `Pipeline & Architecture`
-- Walk the **Stage 0–5** strip; emphasize each stage's "prevents:" line.
-- Point to **Reference data provenance** (real ICD-10/HCPCS; CPT placeholder swappable for AMA),
-  **Specialty accelerator** (Radiology ✓ E&M ✓ ED ✓), and **Production mapping** (Azure/Foundry, US-region).
-- Message: *"This is the difference between a demo and a deployable system — the controls, not the model."*
-
-## 0.5 Operational workflow (1 min) — `Operational Workflow`
-- Show the end-to-end process in one picture: **Intake (Practice Admin/eCW/Cerner) → Stage 0 eligibility
-  → AI pipeline → confidence router → STB / QA / Manual lanes → billing**, with the **closed feedback
-  loop** and the human **roles** per lane (auto / CDI-auditor / coder).
-- Message: *"This is how it runs in production inside RevAmp — the AI pipeline plus the human-in-the-loop
-  orchestration, with governance and a feedback loop. The rest of the demo drills into each piece."*
+## 0. Control Tower (2 min) — `Control Tower`
+- Open on the manager's live operating view: **work queues** (STB / QA / Manual / Escalated / CDI) with
+  **SLA aging** and **breach** flags. Click a queue to see its items; **select charts and assign** them to
+  a coder/auditor from the roster.
+- Message: *"This is the operating picture — live queues, SLA, and workforce assignment. Now let's see
+  where the work comes from and how each chart is coded."*
 
 ## 1. The worklist + the run (3 min) — `Worklist`
 - Show the queue (Radiology, E&M, ED; payers; clients Practice Admin/eCW/Cerner).
@@ -35,7 +29,9 @@
 - Show the **4-factor confidence** (doc match / historical / rule engine / model).
 - Point out **modifier 26** on the imaging CPT and the **component_modifier** gate passing —
   *"facility read = professional component; the system codes it the way your radiology coders do."*
-- Show the **validation gates** all green → **STB**.
+- Show the **validation gates** all green → **STB**. Expand the **Pipeline trace (Stage 0–5)** to show
+  every intermediary step (eligibility → conditioning → extraction → retrieval → cited coding → gates →
+  calibration) — the architecture, lived per-chart rather than on a slide.
 
 ## 3. Scenario 2 — multi-procedure bundling (2 min) — CT abdomen+pelvis (RAD10002)
 - One **combined 74177**, NOT unbundled 74150+72192. Call out the **NCCI** gate.
@@ -90,10 +86,10 @@
 ## 9. Defensibility + honest measurement (2 min)
 - On any coded chart, open the **Audit packet** → append-only evidence chain (stage, actor, event, model
   version, timestamps). *"This is your RAC-audit defense, generated automatically."*
-- `Knowledge Graph` → payer policy + medical ontology that grounds retrieval (Amrish's Graph-RAG ask).
-  **Click a node** to see what it drives; scroll to **"Building your knowledge graph"** for how it's
-  ingested/curated/versioned per client. On any encounter, the **"Knowledge used for this chart"** panel
-  proves which KG facts (ontology paths, payer policy, learned corrections) shaped *that* coding decision.
+- `Policy & Knowledge Admin` → **edit a payer policy live** (add a covered diagnosis, toggle prior-auth,
+  or add a client overlay) — these drive the medical-necessity gate on the next coding run. The **Explore
+  Graph** tab shows the payer/ontology graph (click a node); **Data Sources** shows provenance. On any
+  encounter, the **"Knowledge used for this chart"** panel proves which facts shaped *that* decision.
 - `Evaluation Harness` → click **Run evaluation** → per-specialty accuracy **vs adjudicated consensus
   with the IRR ceiling**. *"We never claim to beat the laws of inter-coder agreement; we report honestly."*
 - `Performance Dashboard` → STB rate, accuracy, manual-effort reduction, TAT vs the SLA targets; note the

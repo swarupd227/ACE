@@ -51,6 +51,20 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ to, reason, actor: "coder:demo" }),
     }),
+  controlTower: () => req<import("./types").ControlTower>("/control-tower"),
+  assign: (runIds: string[], assignedTo: string) =>
+    req<{ assigned: number; to: string }>("/control-tower/assign", {
+      method: "POST", body: JSON.stringify({ run_ids: runIds, assigned_to: assignedTo }),
+    }),
+  policies: () => req<import("./types").Policy[]>("/policies"),
+  createPolicy: (p: Partial<import("./types").Policy>) =>
+    req<import("./types").Policy>("/policies", { method: "POST", body: JSON.stringify(p) }),
+  updatePolicy: (id: number, p: Partial<import("./types").Policy>) =>
+    req<import("./types").Policy>(`/policies/${id}`, { method: "PUT", body: JSON.stringify(p) }),
+  deletePolicy: (id: number) => req(`/policies/${id}`, { method: "DELETE" }),
+  patchLearning: (id: string, applied: boolean) =>
+    req(`/learning/${id}`, { method: "PATCH", body: JSON.stringify({ applied }) }),
+  deleteLearning: (id: string) => req(`/learning/${id}`, { method: "DELETE" }),
   dashboard: () => req<import("./types").Dashboard>("/dashboard/stats"),
   kg: () => req<{ nodes: any[]; links: any[] }>("/kg/graph"),
   referenceSummary: () => req<any>("/reference/summary"),

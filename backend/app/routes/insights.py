@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import re
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
@@ -136,9 +137,33 @@ def learning(db: Session = Depends(get_db)) -> list[dict]:
     return [
         {"id": le.id, "specialty": le.specialty, "pattern_key": le.pattern_key,
          "wrong_code": le.wrong_code, "correct_code": le.correct_code, "code_system": le.code_system,
-         "reason": le.reason, "created_at": le.created_at.isoformat()}
+         "reason": le.reason, "applied": le.applied, "created_at": le.created_at.isoformat()}
         for le in rows
     ]
+
+
+class LearningPatch(BaseModel):
+    applied: bool
+
+
+@router.patch("/learning/{ex_id}")
+def patch_learning(ex_id: str, body: LearningPatch, db: Session = Depends(get_db)) -> dict:
+    le = db.get(models.LearningExample, ex_id)
+    if le is None:
+        raise HTTPException(404, "learning example not found")
+    le.applied = body.applied  # graph_rag only retrieves applied==True exemplars → affects coding
+    db.commit()
+    return {"id": le.id, "applied": le.applied}
+
+
+@router.delete("/learning/{ex_id}")
+def delete_learning(ex_id: str, db: Session = Depends(get_db)) -> dict:
+    le = db.get(models.LearningExample, ex_id)
+    if le is None:
+        raise HTTPException(404, "learning example not found")
+    db.delete(le)
+    db.commit()
+    return {"deleted": ex_id}
 
 
 # --- Evaluation harness ----------------------------------------------------

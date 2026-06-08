@@ -1,11 +1,10 @@
 import { Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import Worklist from "./pages/Worklist";
-import Workflow from "./pages/Workflow";
-import Architecture from "./pages/Architecture";
+import ControlTower from "./pages/ControlTower";
 import EncounterDetail from "./pages/EncounterDetail";
 import Dashboard from "./pages/Dashboard";
-import KnowledgeGraph from "./pages/KnowledgeGraph";
+import PolicyAdmin from "./pages/PolicyAdmin";
 import EvalHarness from "./pages/EvalHarness";
 import Learning from "./pages/Learning";
 import Cdi from "./pages/Cdi";
@@ -15,14 +14,13 @@ export default function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<Worklist />} />
-        <Route path="/workflow" element={<Workflow />} />
-        <Route path="/architecture" element={<Architecture />} />
+        <Route path="/control-tower" element={<ControlTower />} />
+        <Route path="/cdi" element={<Cdi />} />
         <Route path="/encounter/:id" element={<EncounterDetail />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/knowledge-graph" element={<KnowledgeGraph />} />
+        <Route path="/policy" element={<PolicyAdmin />} />
         <Route path="/eval" element={<EvalHarness />} />
         <Route path="/learning" element={<Learning />} />
-        <Route path="/cdi" element={<Cdi />} />
       </Routes>
     </Layout>
   );

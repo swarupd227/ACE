@@ -54,6 +54,7 @@ class Encounter(Base):
     scenario: Mapped[str] = mapped_column(String(80), default="")
     status: Mapped[str] = mapped_column(String(24), default="NEW")  # NEW|CODED|...
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)  # queue arrival (for SLA aging)
 
     runs: Mapped[list["CodingRun"]] = relationship(back_populates="encounter", cascade="all,delete-orphan")
 

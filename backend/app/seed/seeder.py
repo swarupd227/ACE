@@ -1,6 +1,8 @@
 """Idempotent database initialization and data seeding."""
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import select, text
 
 from .. import models
@@ -56,9 +58,14 @@ def seed_all(force: bool = False) -> dict:
             db.add(models.GoldenCase(specialty=g["specialty"], chart_text=g["chart_text"],
                                      truth=g["truth"], irr=g["irr"], ambiguous=g["ambiguous"]))
 
-        # encounters (work items)
-        for ch in charts.CHARTS:
-            db.add(models.Encounter(**ch))
+        # encounters (work items) — stagger arrival times so SLA aging is realistic
+        now = datetime.now(timezone.utc)
+        for i, ch in enumerate(charts.CHARTS):
+            enc = models.Encounter(**ch)
+            # spread arrivals across the last ~3.5 hours so SLA shows a realistic
+            # on-track / at-risk / breached mix (deterministic, varied)
+            enc.received_at = now - timedelta(minutes=(i * 11 + (i % 3) * 18))
+            db.add(enc)
 
         db.commit()
         return {

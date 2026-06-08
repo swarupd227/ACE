@@ -43,7 +43,7 @@ manual queue with reason `LLM_UNAVAILABLE`.
 | 5 · Calibration & routing | 4-factor calibrated confidence → STB/QA/Manual + bounded-autonomy rules | confident wrong answers |
 
 ## Demo storyline (see DEMO_SCRIPT.md for the full runbook)
-1. **Operational Workflow** → the whole process in one view (intake → eligibility → pipeline → STB/QA/Manual → billing + feedback).
+1. **Control Tower** → the manager's live operating view: work queues (STB/QA/Manual/Escalated/CDI), SLA aging, and workforce assignment.
 2. **Worklist** → run autonomous coding → watch the **STB/QA/Manual** split.
 3. **Scenario 1** (chest X-ray) → clean codes (71046-26), cited, high 4-factor confidence → **STB**.
 4. **Scenario 2** (CT abdomen+pelvis) → single **74177** (bundling/NCCI) + modifier logic on the gates checklist.
@@ -52,13 +52,14 @@ manual queue with reason `LLM_UNAVAILABLE`.
 7. **ED** → standard visit + **critical care → QA via bounded autonomy**; **E&M** → MDM leveling.
 8. **CDI / Physician Queries** → scan the anemia chart → compliant query → physician answer **re-codes** D64.9 → D50.9.
 9. **Override a code** → **Closed-Loop Learning** populates and shifts later similar charts.
-10. **Knowledge Graph**, **Evaluation Harness**, **Audit packet**, **Dashboard** round out the story.
+10. **Policy & Knowledge Admin** (edit a payer policy → it drives the necessity gate), **Evaluation Harness**, **Audit packet**, **Dashboard** round out the story.
 
-Specialties: **Radiology, E&M, ED, Pathology, Surgical**. Screens: Worklist · Operational Workflow ·
-Pipeline & Architecture · CDI · Dashboard · Knowledge Graph · Evaluation Harness · Closed-Loop Learning ·
+Specialties: **Radiology, E&M, ED, Pathology, Surgical**. Screens (operational tools, not slideware):
+Worklist · **Control Tower** (queues + SLA + assignment) · CDI · Dashboard · **Policy & Knowledge Admin**
+(editable, drives coding) · Evaluation Harness · Closed-Loop Learning (apply/withdraw exemplars) ·
 Encounter detail. Human controls: accept / override-with-reason / **reassign** / **escalate** /
-**revert-to-AI (rollback)** — all audit-logged. The Knowledge Graph is interactive and shows **per-chart
-"Knowledge used"** evidence plus how it's built/curated per client.
+**revert-to-AI (rollback)** — all audit-logged. The architecture/pipeline is shown **per-chart** (Stage 0–5
+trace), not as a standalone diagram.
 
 ## Data provenance (honest by design)
 - **ICD-10-CM / HCPCS** — real public-domain subsets (CMS/NCHS).
