@@ -4,6 +4,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import { Play, ArrowRight, Clock, Zap, Flag } from "lucide-react";
 import { api } from "../api";
+import AgentConsole from "../components/AgentConsole";
 import { ConfidenceBar, LaneBadge, Spinner, laneColor } from "../lib";
 import type { EncounterRow, Lane } from "../types";
 
@@ -29,19 +30,11 @@ export default function Worklist() {
   const qc = useQueryClient();
   const { data: rows, isLoading } = useQuery({ queryKey: ["encounters"], queryFn: api.encounters });
   const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: api.meta });
-  const [running, setRunning] = useState<string | null>(null);
+  const [consoleEnc, setConsoleEnc] = useState<{ id: string; name: string } | null>(null);
 
   const runAll = useMutation({
     mutationFn: api.runAll,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["encounters"] }),
-  });
-  const codeOne = useMutation({
-    mutationFn: (id: string) => api.code(id),
-    onMutate: (id) => setRunning(id),
-    onSettled: () => {
-      setRunning(null);
-      qc.invalidateQueries({ queryKey: ["encounters"] });
-    },
   });
 
   const list = rows ?? [];
@@ -144,10 +137,10 @@ export default function Worklist() {
                   {!r.routing_lane ? (
                     <button
                       className="btn-ghost py-1.5"
-                      disabled={!!running || !meta?.llm_available}
-                      onClick={() => codeOne.mutate(r.id)}
+                      disabled={!meta?.llm_available}
+                      onClick={() => setConsoleEnc({ id: r.id, name: r.patient_name })}
                     >
-                      {running === r.id ? <Spinner className="h-4 w-4" /> : <Play size={14} />} Code
+                      <Play size={14} /> Code
                     </button>
                   ) : (
                     <Link to={`/encounter/${r.id}`} className="btn-ghost py-1.5">
@@ -160,6 +153,15 @@ export default function Worklist() {
           </tbody>
         </table>
       </div>
+
+      {consoleEnc && (
+        <AgentConsole
+          encounterId={consoleEnc.id}
+          title={consoleEnc.name}
+          onClose={() => setConsoleEnc(null)}
+          onDone={() => qc.invalidateQueries({ queryKey: ["encounters"] })}
+        />
+      )}
     </div>
   );
 }

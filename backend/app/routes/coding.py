@@ -1,12 +1,17 @@
 """Run the coding pipeline; human-in-the-loop override/accept; audit & learning."""
 from __future__ import annotations
 
+import json
+import queue
+import threading
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import models
-from ..db import get_db
+from ..db import SessionLocal, get_db
 from ..knowledge import graph_rag
 from ..pipeline import orchestrator
 from pydantic import BaseModel
@@ -113,6 +118,43 @@ def code_encounter(enc_id: str, db: Session = Depends(get_db)) -> dict:
         raise HTTPException(404, "encounter not found")
     run = orchestrator.run_coding(db, enc_id)
     return run_to_dict(run)
+
+
+@router.get("/encounters/{enc_id}/code/stream")
+def code_encounter_stream(enc_id: str) -> StreamingResponse:
+    """Run the agentic pipeline and STREAM each agent/tool step as Server-Sent Events,
+    so the UI can show the agent working in real time."""
+    q: "queue.Queue" = queue.Queue()
+
+    def work() -> None:
+        db = SessionLocal()
+        try:
+            if db.get(models.Encounter, enc_id) is None:
+                q.put({"type": "error", "detail": "encounter not found"})
+                return
+            run = orchestrator.run_coding(db, enc_id, emit=lambda ev: q.put(ev))
+            q.put({"type": "done", "run": run_to_dict(run)})
+        except Exception as exc:  # noqa: BLE001 — surface to the stream
+            q.put({"type": "error", "detail": str(exc)})
+        finally:
+            db.close()
+            q.put(None)  # sentinel
+
+    threading.Thread(target=work, daemon=True).start()
+
+    def gen():
+        yield "retry: 3000\n\n"
+        while True:
+            ev = q.get()
+            if ev is None:
+                break
+            yield f"data: {json.dumps(ev)}\n\n"
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+    )
 
 
 @router.post("/coding/run-all")

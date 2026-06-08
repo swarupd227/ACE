@@ -59,7 +59,10 @@ Worklist · **Control Tower** (queues + SLA + assignment) · CDI · Dashboard (S
 & TAT reduction, exception rate, maturity pathway) · **Policy & Knowledge Admin** (editable, drives
 coding) · **Integrations & Ingestion** (simulated EHR connectors + live ingest + REST/batch) · Evaluation
 Harness · Closed-Loop Learning (apply/withdraw exemplars) · Encounter detail. Traceability to the
-Use-Case acceptance criteria is in `REQUIREMENTS_TRACEABILITY.md`. Human controls: accept / override-with-reason / **reassign** / **escalate** /
+Use-Case acceptance criteria is in `REQUIREMENTS_TRACEABILITY.md`. **Agentic UX:** clicking **Code**
+(or "Watch agent re-run") opens a **live Agent Console** that streams the run over **SSE** —
+eligibility → conditioning/extraction agent → Graph-RAG → coding agent → validation gates → routing,
+with real LLM latency. Human controls: accept / override-with-reason / **reassign** / **escalate** /
 **revert-to-AI (rollback)** — all audit-logged. The architecture/pipeline is shown **per-chart** (Stage 0–5
 trace), not as a standalone diagram.
 

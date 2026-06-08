@@ -102,7 +102,7 @@ def verify_citations(code: dict, lookup: dict[int, str]) -> tuple[bool, float]:
 # ---------------------------------------------------------------------------
 # Main entry
 # ---------------------------------------------------------------------------
-def run_coding(db: Session, encounter_id: str, extra_context: str = "") -> models.CodingRun:
+def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=None) -> models.CodingRun:
     enc = db.get(models.Encounter, encounter_id)
     if enc is None:
         raise ValueError("encounter not found")
@@ -114,6 +114,17 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "") -> model
     numbered, lookup = _number_chart(enc.chart_text)
     log: list[dict] = []
 
+    # --- agentic event stream (no-op unless an emitter is passed) ---
+    emit = emit or (lambda *a, **k: None)
+
+    def say(actor: str, msg: str, level: str = "info") -> None:
+        emit({"type": "log", "actor": actor, "msg": msg, "level": level, "ts": _now().isoformat()})
+
+    def step(key: str, title: str) -> None:
+        emit({"type": "stage", "key": key, "title": title, "ts": _now().isoformat()})
+
+    say("Orchestrator", f"Coding run started · {enc.patient_name} · {enc.specialty} {enc.modality}".strip(), "head")
+
     def finish(lane: str, reason: str):
         run.routing_lane = lane
         run.routing_reason = reason
@@ -122,6 +133,10 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "") -> model
         run.latency_ms = int((time.time() - t0) * 1000)
         run.finished_at = _now()
         enc.status = "CODED"
+        say("Calibration & Routing",
+            f"routed → {lane} · {reason}",
+            {"STB": "good", "QA": "warn", "MANUAL": "bad"}.get(lane, "info"))
+        emit({"type": "routing", "lane": lane, "reason": reason})
         db.flush()  # ensure code rows have ids before we snapshot them
         # Snapshot the original AI output so a coder can roll back human edits deterministically.
         run.ai_snapshot = {
@@ -139,7 +154,12 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "") -> model
         return run
 
     # --- Stage 0 ---
+    step("0", "Eligibility")
+    say("Stage 0 · Eligibility Gate", "checking required docs, approved specialty, exclusion flags…", "tool")
     elig = stage0_eligibility(enc)
+    say("Stage 0 · Eligibility Gate",
+        "eligible — entering pipeline" if elig["eligible"] else f"INELIGIBLE: {elig['reason']}",
+        "good" if elig["eligible"] else "bad")
     run.eligibility = elig
     log.append({"stage": "0_eligibility", "title": "Auto-Coding Eligibility", "result": elig})
     _audit(db, run, "0_eligibility", "eligibility_checked", elig)
@@ -147,6 +167,8 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "") -> model
         return finish("MANUAL", f"Ineligible for auto-coding: {elig['reason']}")
 
     # --- Stage 1+2 — analysis (conditioning + summary + extraction) ---
+    step("1", "Conditioning")
+    say("Conditioning + Extraction Agent", f"invoking {model_version()} — sectioning, summary, structured extraction…", "tool")
     try:
         analysis = complete_json(
             prompts.ANALYSIS_SYSTEM,
@@ -159,6 +181,11 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "") -> model
 
     run.chart_summary = analysis.get("summary", "")
     flags = analysis.get("conditioning_flags", [])
+    step("2", "Extraction")
+    say("Conditioning + Extraction Agent",
+        f"{len(analysis.get('diagnoses', []))} diagnoses · {len(analysis.get('procedures', []))} procedures · {len(flags)} flag(s) · summary ready", "good")
+    for f in flags:
+        say("  ⚑ Conditioning flag", f"{f.get('type')}: {f.get('detail')}", "warn")
     log.append({"stage": "1_conditioning", "title": "Document Conditioning",
                 "sections": analysis.get("sections", []), "flags": flags})
     log.append({"stage": "2_extraction", "title": "Clinical Entity Extraction",
@@ -171,7 +198,12 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "") -> model
     is_ambiguous = any(f.get("type") in ("ambiguous", "contradiction", "missing_documentation") for f in flags)
 
     # --- Retrieval (Graph-RAG) ---
+    step("rag", "Graph-RAG")
+    say("Graph-RAG Retriever", "querying payer-policy + ontology knowledge graph and code sets…", "tool")
     retr = graph_rag.retrieve(db, enc, analysis)
+    say("Graph-RAG Retriever",
+        f"{len(retr.icd_candidates)} ICD · {len(retr.proc_candidates)} proc candidates · "
+        f"{len(retr.ontology_paths)} ontology paths · {len(retr.payer_policies)} payer policies · {len(retr.learned)} learned", "good")
     log.append({"stage": "rag", "title": "Graph-RAG Retrieval",
                 "icd_candidates": retr.icd_candidates, "proc_candidates": retr.proc_candidates,
                 "ontology_paths": retr.ontology_paths, "payer_policies": retr.payer_policies,
@@ -185,6 +217,9 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "") -> model
     rag_ctx = retr.as_prompt_context()
     if extra_context:
         rag_ctx += ("\n\n## PHYSICIAN CDI CLARIFICATIONS (authoritative — apply these)\n" + extra_context)
+    step("3", "Cited coding")
+    say("Coding Agent",
+        f"assigning cited codes · {'Opus' if hard else 'Sonnet'} tier · self-consistency {samples}×…", "tool")
     try:
         coding_samples = complete_json(
             prompts.CODING_SYSTEM,
@@ -213,8 +248,12 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "") -> model
                 "samples": samples, "hard": hard, "candidates": agg_codes,
                 "notes": coding_samples[0].get("notes", "")})
     _audit(db, run, "3_coding", "candidates_generated", {"count": len(agg_codes), "samples": samples})
+    say("Coding Agent",
+        f"{len(agg_codes)} candidate code(s): " + ", ".join(c["code"] for c in agg_codes), "good")
 
     # --- Stage 3b — citation verification + Stage 4 — gates + Stage 5 — calibration ---
+    step("4", "Validation gates")
+    say("Validation Engine", "verifying citations + running deterministic gates (existence, NCCI, MUE, modifiers, specificity, payer necessity)…", "tool")
     code_dicts = [{"code_system": c["code_system"], "code": c["code"]} for c in agg_codes]
     persisted: list[models.CodeResult] = []
     gate_log = []
@@ -235,6 +274,11 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "") -> model
         gates = validation.run_gates(db, c, enc, code_dicts, retr.payer_policies)
         gate_pass_ratio = sum(1 for g in gates if g["passed"]) / len(gates) if gates else 0.0
         existence_ok = next((g["passed"] for g in gates if g["gate"] == "code_existence"), False)
+        _np = sum(1 for g in gates if g["passed"])
+        _fail = ", ".join(g["gate"] for g in gates if not g["passed"])
+        say(f"  Validation · {c['code_system']} {c['code']}",
+            f"{_np}/{len(gates)} gates {'✓' if not _fail else '✗ ' + _fail} · citation {'✓' if cit_ok else '✗'} ({cit_score})",
+            "good" if (not _fail and cit_ok) else ("bad" if not cit_ok else "warn"))
 
         # four confidence factors (VHT spec) + calibrated overall
         conf_model = float(c.get("confidence", 0.0)) * float(c.get("_agreement", 1.0))
@@ -274,6 +318,8 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "") -> model
     log.append({"stage": "4_validation", "title": "Validation & Compliance Gates", "results": gate_log})
 
     # --- Stage 5 — calibration + routing ---
+    step("5", "Calibration & routing")
+    say("Calibration & Routing", "calibrating multi-axis confidence and applying bounded-autonomy rules…", "tool")
     accepted = [cr for cr in persisted if cr.status == "accepted"]
     rejected = [cr for cr in persisted if cr.status == "rejected"]
     needs_review = [cr for cr in persisted if cr.status == "needs_review"]

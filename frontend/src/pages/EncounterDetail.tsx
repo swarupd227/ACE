@@ -7,6 +7,7 @@ import {
   Stethoscope, MessageSquareWarning, CheckCircle2, ArrowRightLeft, AlertTriangle, Flag, Undo2, Network,
 } from "lucide-react";
 import { api } from "../api";
+import AgentConsole from "../components/AgentConsole";
 import { ConfidenceBar, LaneBadge, Spinner, SystemBadge, confColor, laneColor, laneLabel, pct } from "../lib";
 import type { CodeResult, EncounterDetail as Detail } from "../types";
 
@@ -165,9 +166,11 @@ function CodeCard({ code, onSelect, selected, onHighlight }: {
 export default function EncounterDetail() {
   const { id } = useParams();
   const { data, isLoading } = useQuery({ queryKey: ["encounter", id], queryFn: () => api.encounter(id!) });
+  const qc = useQueryClient();
   const [highlight, setHighlight] = useState<number[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [showAudit, setShowAudit] = useState(false);
+  const [showConsole, setShowConsole] = useState(false);
 
   const highlightSet = useMemo(() => new Set(highlight ?? []), [highlight]);
 
@@ -182,6 +185,15 @@ export default function EncounterDetail() {
       <Link to="/" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
         <ArrowLeft size={15} /> Worklist
       </Link>
+
+      {showConsole && (
+        <AgentConsole
+          encounterId={d.id}
+          title={d.patient_name}
+          onClose={() => setShowConsole(false)}
+          onDone={() => qc.invalidateQueries({ queryKey: ["encounter", id] })}
+        />
+      )}
 
       {/* Header */}
       <div className="card p-5">
@@ -203,6 +215,9 @@ export default function EncounterDetail() {
             )}
             {run && <div className="text-[11px] text-slate-400 font-mono">{run.model_version}</div>}
             {run && <div className="text-[11px] text-slate-400">{(run.latency_ms / 1000).toFixed(1)}s</div>}
+            <button className="btn-ghost py-1.5" onClick={() => setShowConsole(true)}>
+              <Cpu size={14} /> Watch agent re-run
+            </button>
             <button className="btn-ghost py-1.5" onClick={() => setShowAudit((s) => !s)}>
               <ShieldCheck size={14} /> Audit packet
             </button>

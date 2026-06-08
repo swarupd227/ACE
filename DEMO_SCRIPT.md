@@ -25,9 +25,13 @@
 
 ## 1. The worklist + the run (3 min) — `Worklist`
 - Show the queue (Radiology, E&M, ED; payers; clients Practice Admin/eCW/Cerner).
-- Click **Run autonomous coding**. While it runs, narrate the 3-lane model:
-  **STB / QA / Manual** by calibrated confidence.
-- When done: point to the **STB rate** tile and the lane split.
+- **The agentic moment:** on an *uncoded* chart (e.g. one you just ingested), click **Code** → the
+  **Agent Console streams the run live** — Eligibility → Conditioning+Extraction Agent (*invoking Claude…*)
+  → Graph-RAG Retriever → Coding Agent → Validation Engine (gate-by-gate) → Calibration & Routing, with
+  real LLM latency between steps. *"You watch the agent think and call its tools — not a spinner."*
+  (On any *coded* chart, the encounter detail has **Watch agent re-run** to replay it live.)
+- "Run autonomous coding" is the **batch** equivalent (pre-run before the meeting; narrate the **STB/QA/
+  Manual** split + **STB rate** tile afterward).
 
 ## 2. Scenario 1 — clean radiology → STB (3 min) — open the chest X-ray (RAD10001)
 - Hover a code → **chart lines highlight** (the citation gesture). *"Every code points at the words that justify it."*
