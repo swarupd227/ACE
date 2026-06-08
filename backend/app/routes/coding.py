@@ -51,6 +51,45 @@ def reassign_run(run_id: str, body: ReassignRequest, db: Session = Depends(get_d
     return run_to_dict(run)
 
 
+@router.post("/runs/{run_id}/rollback")
+def rollback_run(run_id: str, db: Session = Depends(get_db)) -> dict:
+    """Revert all human edits (overrides, accepts, reassign, escalate) back to the original
+    AI recommendation, deterministically, from the snapshot captured at coding time."""
+    run = db.get(models.CodingRun, run_id)
+    if run is None:
+        raise HTTPException(404, "run not found")
+    snap = run.ai_snapshot or {}
+    if not snap:
+        raise HTTPException(400, "no AI snapshot available for this run")
+
+    by_id = {c["id"]: c for c in snap.get("codes", [])}
+    for c in run.codes:
+        s = by_id.get(c.id)
+        if s:
+            c.code = s["code"]
+            c.description = s["description"]
+            c.modifiers = s.get("modifiers", [])
+            c.status = s.get("status", "accepted")
+        c.is_overridden = False
+        c.override_code = ""
+        c.override_reason = ""
+        c.accepted_by = ""
+
+    run.routing_lane = snap.get("routing_lane", run.routing_lane)
+    run.routing_reason = snap.get("routing_reason", run.routing_reason)
+    run.overall_confidence = snap.get("overall_confidence", run.overall_confidence)
+    run.escalated = False
+    run.escalated_to = ""
+    run.assigned_to = ""
+    run.priority = "normal"
+    db.add(models.AuditEntry(run_id=run.id, encounter_id=run.encounter_id, stage="workflow",
+                             actor="coder:demo", event="rolled_back",
+                             detail={"restored_lane": run.routing_lane}))
+    db.commit()
+    db.refresh(run)
+    return run_to_dict(run)
+
+
 @router.post("/runs/{run_id}/escalate")
 def escalate_run(run_id: str, body: EscalateRequest, db: Session = Depends(get_db)) -> dict:
     run = db.get(models.CodingRun, run_id)

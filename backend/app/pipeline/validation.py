@@ -110,8 +110,9 @@ def run_gates(
         # 8) POS alignment
         add("pos_alignment", True, f"POS {encounter.pos} acceptable")
 
-        # 9) Professional/technical component — facility radiology reads need modifier 26 (or TC)
-        if cval[:1] == "7" and encounter.pos in ("22", "23", "19", "21"):
+        # 9) Professional/technical component — facility radiology (7xxxx) and surgical pathology
+        # (88xxx) interpretations need modifier 26 (or TC)
+        if (cval[:1] == "7" or cval[:2] == "88") and encounter.pos in ("22", "23", "19", "21"):
             mods = code.get("modifiers", [])
             if "26" in mods or "TC" in mods:
                 add("component_modifier", True, "professional/technical component identified")

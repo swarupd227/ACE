@@ -204,6 +204,20 @@ SPECIALTY_GUIDANCE = {
         "care AND a high-acuity, life-threatening condition are documented.\n"
         "- If a separately identifiable E&M is performed with a same-day procedure, consider modifier 25."
     ),
+    "Pathology": (
+        "PATHOLOGY RULES:\n"
+        "- Assign the surgical pathology CPT (88300-88309) by SPECIMEN type and COMPLEXITY level; a skin "
+        "lesion examined microscopically is typically level IV (88305).\n"
+        "- Append modifier 26 (professional component) for the pathologist's interpretation at a facility.\n"
+        "- Code the diagnosis from the microscopic/final diagnosis, not the clinical history."
+    ),
+    "Surgical": (
+        "SURGICAL RULES:\n"
+        "- Assign the CPT for the procedure actually performed (operative note).\n"
+        "- Apply modifiers when supported: 51 multiple procedures, 59 distinct service, 78/79 return to "
+        "OR, 50/RT/LT laterality, 80/82/AS assistant surgeon, 58 staged.\n"
+        "- Honor the global package and add-on-code rules; do not unbundle. Code the post-op diagnosis."
+    ),
 }
 
 

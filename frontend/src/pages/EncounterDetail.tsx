@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
   ArrowLeft, Check, FileText, ShieldCheck, X, ChevronRight, Quote, BookOpen, Sparkles, Scale, History, Cpu, FileSearch,
-  Stethoscope, MessageSquareWarning, CheckCircle2, ArrowRightLeft, AlertTriangle, Flag,
+  Stethoscope, MessageSquareWarning, CheckCircle2, ArrowRightLeft, AlertTriangle, Flag, Undo2, Network,
 } from "lucide-react";
 import { api } from "../api";
 import { ConfidenceBar, LaneBadge, Spinner, SystemBadge, confColor, laneColor, laneLabel, pct } from "../lib";
@@ -224,6 +224,8 @@ export default function EncounterDetail() {
 
       {showAudit && run && <AuditPacket runId={run.id} />}
 
+      {run && <GraphRagEvidence run={run} />}
+
       {run && <CdiPanel encId={d.id} />}
 
       <div className="grid lg:grid-cols-2 gap-4">
@@ -297,6 +299,58 @@ function stripBig(s: any) {
   return rest;
 }
 
+function GraphRagEvidence({ run }: { run: any }) {
+  const [open, setOpen] = useState(true);
+  const rag = (run.stage_log ?? []).find((s: any) => s.stage === "rag");
+  if (!rag) return null;
+  const onto = rag.ontology_paths ?? [];
+  const pol = rag.payer_policies ?? [];
+  const learned = rag.learned ?? [];
+  const usedCount = onto.length + pol.length + learned.length;
+
+  return (
+    <div className="card p-4">
+      <button className="flex items-center justify-between w-full" onClick={() => setOpen((o) => !o)}>
+        <span className="flex items-center gap-2 font-semibold text-slate-700 text-sm">
+          <Network size={16} className="text-ace-600" /> Knowledge used for this chart
+          <span className="pill bg-ace-50 text-ace-700 ring-1 ring-ace-100">{usedCount} facts · {(rag.icd_candidates?.length ?? 0) + (rag.proc_candidates?.length ?? 0)} candidates</span>
+        </span>
+        <ChevronRight size={16} className={clsx("transition-transform text-slate-400", open && "rotate-90")} />
+      </button>
+      {open && (
+        <div className="mt-3 grid md:grid-cols-3 gap-3 text-xs">
+          <div>
+            <div className="label mb-1">Ontology paths</div>
+            {onto.length ? onto.map((o: any, i: number) => (
+              <div key={i} className="mb-1 text-slate-600">
+                <span className="font-semibold">{o.concept}</span>
+                {o.maps_to?.length ? <span className="text-ace-700"> → {o.maps_to.map((m: any) => m.code).join(", ")}</span> : null}
+                {o.edges?.length ? <div className="text-slate-400">{o.edges.map((e: any) => `${e.rel} ${e.to}`).join(" · ")}</div> : null}
+              </div>
+            )) : <div className="text-slate-400">none matched</div>}
+          </div>
+          <div>
+            <div className="label mb-1">Payer policy applied</div>
+            {pol.length ? pol.map((p: any, i: number) => (
+              <div key={i} className="mb-1 text-slate-600">
+                <span className="font-semibold">{p.payer} · {p.code}</span>
+                {p.requires_auth ? <span className="ml-1 text-amber-600">(auth)</span> : null}
+                <div className="text-slate-400">{p.medical_necessity}</div>
+              </div>
+            )) : <div className="text-slate-400">none for these codes</div>}
+          </div>
+          <div>
+            <div className="label mb-1">Learned corrections</div>
+            {learned.length ? learned.map((l: any, i: number) => (
+              <div key={i} className="mb-1 text-fuchsia-700">use {l.use_code} (instead of {l.instead_of}) — {l.reason}</div>
+            )) : <div className="text-slate-400">none</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WorkflowActions({ run }: { run: any }) {
   const qc = useQueryClient();
   const inval = () => {
@@ -311,6 +365,7 @@ function WorkflowActions({ run }: { run: any }) {
     mutationFn: () => api.escalate(run.id, "Senior Coder / CDI", "Flagged for senior review"),
     onSuccess: inval,
   });
+  const rollback = useMutation({ mutationFn: () => api.rollback(run.id), onSuccess: inval });
   const lanes: { key: "STB" | "QA" | "MANUAL"; label: string; reason: string }[] = [
     { key: "STB", label: "STB", reason: "Approved for straight-through billing" },
     { key: "QA", label: "QA", reason: "Sent for QA verification" },
@@ -355,6 +410,13 @@ function WorkflowActions({ run }: { run: any }) {
             </span>
           )}
         </div>
+
+        {run.modified && (
+          <button className="btn-ghost py-1.5" disabled={rollback.isPending} onClick={() => rollback.mutate()}
+                  title="Discard human edits and restore the original AI recommendation">
+            <Undo2 size={14} className="text-slate-500" /> {rollback.isPending ? "Reverting…" : "Revert to AI recommendation"}
+          </button>
+        )}
       </div>
       {(reassign.isPending || escalate.isPending) && (
         <div className="mt-2 text-xs text-slate-400 flex items-center gap-1"><Spinner className="h-3 w-3" /> applying…</div>

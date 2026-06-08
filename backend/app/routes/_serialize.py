@@ -19,7 +19,13 @@ def code_to_dict(c: models.CodeResult) -> dict:
 
 
 def run_to_dict(run: models.CodingRun) -> dict:
+    modified = bool(
+        run.escalated
+        or run.routing_reason.startswith("Reassigned")
+        or any(c.is_overridden or c.accepted_by for c in run.codes)
+    )
     return {
+        "modified": modified,
         "id": run.id, "encounter_id": run.encounter_id, "status": run.status,
         "routing_lane": run.routing_lane, "routing_reason": run.routing_reason,
         "model_version": run.model_version, "chart_summary": run.chart_summary,

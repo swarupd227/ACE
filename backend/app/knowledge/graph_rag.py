@@ -106,6 +106,10 @@ def retrieve(db: Session, encounter: models.Encounter, analysis: dict, *, top_k:
     else:
         if encounter.specialty == "Radiology":
             procs = [c for c in procs if (not c.modality) or c.modality == encounter.modality or c.modality == "ANY"]
+        elif encounter.specialty == "Pathology":
+            procs = [c for c in procs if c.modality in ("PATH", "ANY", "")]
+        elif encounter.specialty == "Surgical":
+            procs = [c for c in procs if c.modality in ("SURG", "ANY", "")]
         proc_scored = sorted(
             ((_score(proc_tokens, c.description + " " + c.modality), c) for c in procs),
             key=lambda x: x[0], reverse=True,

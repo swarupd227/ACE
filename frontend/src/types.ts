@@ -85,6 +85,7 @@ export interface Run {
   escalated_to: string;
   assigned_to: string;
   priority: string;
+  modified: boolean;
   codes: CodeResult[];
 }
 export interface EncounterDetail {

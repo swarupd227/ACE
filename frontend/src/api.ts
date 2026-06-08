@@ -45,6 +45,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ lane, reason, actor: "coder:demo" }),
     }),
+  rollback: (runId: string) => req<import("./types").Run>(`/runs/${runId}/rollback`, { method: "POST" }),
   escalate: (runId: string, to: string, reason: string) =>
     req<import("./types").Run>(`/runs/${runId}/escalate`, {
       method: "POST",

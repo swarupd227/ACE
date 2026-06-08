@@ -44,6 +44,10 @@ ICD10CM = [
     ("R63.4", "Abnormal weight loss", True, "R63"),
     ("E78.5", "Hyperlipidemia, unspecified", True, "E78"),
     ("E11.65", "Type 2 diabetes mellitus with hyperglycemia", True, "E11.6"),
+    ("D22.9", "Melanocytic nevi, unspecified", True, "D22"),
+    ("D22.5", "Melanocytic nevi of trunk", True, "D22"),
+    ("K80.20", "Calculus of gallbladder without obstruction", True, "K80.2"),
+    ("L72.0", "Epidermal cyst", True, "L72"),
     # non-billable parents (specificity gate should reject these)
     ("E11.4", "Type 2 diabetes mellitus with neurological complications", False, "E11"),
     ("M25.56", "Pain in knee", False, "M25.5"),
@@ -87,6 +91,20 @@ CPT = [
     ("99285", "Emergency department visit, high complexity MDM", "ED"),
     ("99291", "Critical care, evaluation and management; first 30-74 minutes", "ED"),
     ("99292", "Critical care; each additional 30 minutes", "ED"),
+    # Pathology (surgical pathology / cytology) — DEMO placeholder
+    ("88304", "Surgical pathology, gross and microscopic exam, level III", "PATH"),
+    ("88305", "Surgical pathology, gross and microscopic exam, level IV", "PATH"),
+    ("88307", "Surgical pathology, gross and microscopic exam, level V", "PATH"),
+    ("88112", "Cytopathology, cell enhancement technique, interpretation", "PATH"),
+    ("88342", "Immunohistochemistry, per specimen; initial single antibody stain", "PATH"),
+    # Surgical (outpatient / ASC) — DEMO placeholder
+    ("11402", "Excision, benign lesion incl margins, trunk/arms/legs; 1.1-2.0 cm", "SURG"),
+    ("11602", "Excision, malignant lesion incl margins, trunk/arms/legs; 1.1-2.0 cm", "SURG"),
+    ("12002", "Simple repair of superficial wounds; 2.6-7.5 cm", "SURG"),
+    ("10060", "Incision and drainage of abscess; simple or single", "SURG"),
+    ("20610", "Arthrocentesis/aspiration/injection, major joint or bursa", "SURG"),
+    ("29881", "Arthroscopy, knee, surgical; with meniscectomy (medial OR lateral)", "SURG"),
+    ("47562", "Laparoscopy, surgical; cholecystectomy", "SURG"),
 ]
 
 HCPCS = [
@@ -106,6 +124,14 @@ MODIFIERS = [
     ("LT", "Left side", "CPT", ""),
     ("25", "Significant, separately identifiable E&M", "CPT", "Same-day E&M with a procedure"),
     ("76", "Repeat procedure by same physician", "CPT", ""),
+    ("58", "Staged/related procedure during postoperative period", "CPT", ""),
+    ("78", "Unplanned return to OR for related procedure", "CPT", ""),
+    ("79", "Unrelated procedure during postoperative period", "CPT", ""),
+    ("80", "Assistant surgeon", "CPT", ""),
+    ("82", "Assistant surgeon (no qualified resident available)", "CPT", ""),
+    ("AS", "Physician assistant/NP/CNS as assistant at surgery", "CPT", ""),
+    ("62", "Two surgeons (co-surgeons)", "CPT", ""),
+    ("22", "Increased procedural services", "CPT", ""),
 ]
 
 # --- NCCI PTP (column1 payable / column2 bundled). modifier_allowed True=can unbundle ---
@@ -140,6 +166,14 @@ PAYER_POLICY = [
      False, "", ["R51", "S06", "C71", "I63"]),
     ("Medicare", "71046", "Chest 2-view covered for respiratory symptoms / abnormal findings.",
      False, "", ["R05", "R07", "J18", "R91"]),
+    ("Medicare", "47562", "Laparoscopic cholecystectomy covered for symptomatic cholelithiasis / "
+     "cholecystitis with documented stones.", False, "", ["K80", "K81", "K82"]),
+    ("Anthem", "47562", "Prior authorization required for elective laparoscopic cholecystectomy.",
+     True, "Auth # required on claim", ["K80", "K81"]),
+    ("Medicare", "88305", "Surgical pathology (level IV) covered for excised tissue requiring "
+     "microscopic diagnosis.", False, "", ["D22", "D23", "L72", "C44"]),
+    ("Cigna", "99214", "Established E&M level 4 supported by moderate MDM documentation.",
+     False, "", []),
 ]
 
 # --- Medical ontology (concept graph for Graph-RAG) ---
@@ -155,6 +189,13 @@ ONTOLOGY_CONCEPTS = [
     ("C0018681", "Headache", "Sign or Symptom", [{"system": "ICD10CM", "code": "R51.9"}]),
     ("C0024109", "Lung structure", "Body Part", []),
     ("C0205054", "Hilar region", "Body Part", []),
+    ("C0002871", "Anemia", "Disease", [{"system": "ICD10CM", "code": "D64.9"}]),
+    ("C0162316", "Iron deficiency anemia", "Disease", [{"system": "ICD10CM", "code": "D50.9"}]),
+    ("C0001339", "Acute respiratory failure", "Disease", [{"system": "ICD10CM", "code": "J96.00"}]),
+    ("C0027960", "Melanocytic nevus", "Disorder", [{"system": "ICD10CM", "code": "D22.5"}]),
+    ("C0008350", "Cholelithiasis", "Disease", [{"system": "ICD10CM", "code": "K80.20"}]),
+    ("C0016976", "Gallbladder structure", "Body Part", []),
+    ("C1123023", "Skin structure", "Body Part", []),
 ]
 # (src_cui, rel, dst_cui)
 ONTOLOGY_EDGES = [
@@ -163,6 +204,10 @@ ONTOLOGY_EDGES = [
     ("C0008031", "associated_with", "C0032285"), # chest pain -> pneumonia
     ("C0011882", "is_a", "C0011860"),            # diabetic neuropathy -> T2DM
     ("C0022650", "finding_site", "C0024109"),
+    ("C0162316", "is_a", "C0002871"),            # iron deficiency anemia -> anemia
+    ("C0008350", "finding_site", "C0016976"),    # cholelithiasis -> gallbladder
+    ("C0027960", "finding_site", "C1123023"),    # melanocytic nevus -> skin
+    ("C0001339", "finding_site", "C0024109"),    # acute respiratory failure -> lung
 ]
 
 # --- Guideline chunks (ICD-10-CM Official Guidelines are public domain; paraphrased) ---
@@ -206,4 +251,12 @@ GUIDELINES = [
      "ED E&M (99281-99285) is leveled by Medical Decision Making. Critical care (99291, +99292 each "
      "additional 30 min) requires documentation of at least 30 minutes of critical care and a patient "
      "with high probability of imminent or life-threatening deterioration.", "ED"),
+    ("Pathology Coding Guidance", "Levels",
+     "Surgical pathology CPT (88300-88309) is selected by specimen and complexity level; a skin "
+     "specimen examined microscopically is typically level IV (88305). Append modifier 26 for the "
+     "pathologist's professional interpretation at a facility.", "Pathology"),
+    ("Surgical Coding Guidance", "Modifiers",
+     "Apply surgical modifiers: 51 multiple procedures, 59 distinct service, 78/79 return to OR, "
+     "50/RT/LT laterality, 80/82/AS assistant surgeon, 58 staged. Honor the global surgical package "
+     "and add-on-code rules; do not unbundle component services.", "Surgical"),
 ]

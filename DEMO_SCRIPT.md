@@ -83,13 +83,17 @@
 - On any coded encounter, point to **Reassign queue** (STB / QA / Manual) and **Escalate to senior
   reviewer**. Reassign a chart from STB → QA ("spot audit"), then **Escalate** it — note the
   worklist now shows the **escalated flag / high priority**, and both actions land in the **audit
-  ledger**. *"Supervisors keep full control — intelligent routing, reassignment, and escalation, all
-  audit-logged."*
+  ledger**. Then click **Revert to AI recommendation** to undo all human edits back to the original
+  AI output (also audit-logged). *"Supervisors keep full control — routing, reassignment, escalation,
+  and rollback, all audit-logged."*
 
 ## 9. Defensibility + honest measurement (2 min)
 - On any coded chart, open the **Audit packet** → append-only evidence chain (stage, actor, event, model
   version, timestamps). *"This is your RAC-audit defense, generated automatically."*
 - `Knowledge Graph` → payer policy + medical ontology that grounds retrieval (Amrish's Graph-RAG ask).
+  **Click a node** to see what it drives; scroll to **"Building your knowledge graph"** for how it's
+  ingested/curated/versioned per client. On any encounter, the **"Knowledge used for this chart"** panel
+  proves which KG facts (ontology paths, payer policy, learned corrections) shaped *that* coding decision.
 - `Evaluation Harness` → click **Run evaluation** → per-specialty accuracy **vs adjudicated consensus
   with the IRR ceiling**. *"We never claim to beat the laws of inter-coder agreement; we report honestly."*
 - `Performance Dashboard` → STB rate, accuracy, manual-effort reduction, TAT vs the SLA targets; note the

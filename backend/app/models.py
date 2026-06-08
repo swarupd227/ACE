@@ -78,6 +78,7 @@ class CodingRun(Base):
     escalated_to: Mapped[str] = mapped_column(String(80), default="")
     assigned_to: Mapped[str] = mapped_column(String(80), default="")
     priority: Mapped[str] = mapped_column(String(12), default="normal")  # normal | high
+    ai_snapshot: Mapped[dict] = mapped_column(JSONB, default=dict)  # original AI output for rollback/undo
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

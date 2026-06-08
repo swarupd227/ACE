@@ -54,8 +54,11 @@ manual queue with reason `LLM_UNAVAILABLE`.
 9. **Override a code** → **Closed-Loop Learning** populates and shifts later similar charts.
 10. **Knowledge Graph**, **Evaluation Harness**, **Audit packet**, **Dashboard** round out the story.
 
-Specialties: **Radiology, E&M, ED**. Screens: Worklist · Operational Workflow · Pipeline & Architecture ·
-CDI · Dashboard · Knowledge Graph · Evaluation Harness · Closed-Loop Learning · Encounter detail.
+Specialties: **Radiology, E&M, ED, Pathology, Surgical**. Screens: Worklist · Operational Workflow ·
+Pipeline & Architecture · CDI · Dashboard · Knowledge Graph · Evaluation Harness · Closed-Loop Learning ·
+Encounter detail. Human controls: accept / override-with-reason / **reassign** / **escalate** /
+**revert-to-AI (rollback)** — all audit-logged. The Knowledge Graph is interactive and shows **per-chart
+"Knowledge used"** evidence plus how it's built/curated per client.
 
 ## Data provenance (honest by design)
 - **ICD-10-CM / HCPCS** — real public-domain subsets (CMS/NCHS).

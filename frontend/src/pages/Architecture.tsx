@@ -71,7 +71,7 @@ export default function Architecture() {
           <div className="flex items-center gap-2 mb-3"><Layers size={16} className="text-ace-600" /><h2 className="font-bold text-slate-800">Specialty accelerator</h2></div>
           <p className="text-sm text-slate-600">One pipeline, configured per specialty + per client. New specialties deploy with minimal customization; client-specific coding preferences and payer-KG rules "port in".</p>
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {["Radiology ✓", "E&M ✓", "ED ✓", "Pathology (next)", "Surgical (next)"].map((s) => (
+            {["Radiology ✓", "E&M ✓", "ED ✓", "Pathology ✓", "Surgical ✓", "Inpatient (next)"].map((s) => (
               <span key={s} className="pill bg-ace-50 text-ace-700 ring-1 ring-ace-100">{s}</span>
             ))}
           </div>

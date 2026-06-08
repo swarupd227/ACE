@@ -56,7 +56,7 @@ def stage0_eligibility(enc: models.Encounter) -> dict:
     checks.append({"check": "required_documentation", "passed": has_report,
                    "detail": "report present" if has_report else "insufficient/empty documentation"})
 
-    approved = enc.specialty in ("Radiology", "E&M", "ED")
+    approved = enc.specialty in ("Radiology", "E&M", "ED", "Pathology", "Surgical")
     checks.append({"check": "approved_specialty", "passed": approved, "detail": enc.specialty})
 
     # exclusion flags
@@ -122,6 +122,17 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "") -> model
         run.latency_ms = int((time.time() - t0) * 1000)
         run.finished_at = _now()
         enc.status = "CODED"
+        db.flush()  # ensure code rows have ids before we snapshot them
+        # Snapshot the original AI output so a coder can roll back human edits deterministically.
+        run.ai_snapshot = {
+            "routing_lane": lane, "routing_reason": reason,
+            "overall_confidence": run.overall_confidence,
+            "codes": [
+                {"id": c.id, "code": c.code, "description": c.description, "role": c.role,
+                 "modifiers": list(c.modifiers or []), "status": c.status}
+                for c in run.codes
+            ],
+        }
         _audit(db, run, "routing", f"routed:{lane}", {"reason": reason})
         db.commit()
         db.refresh(run)
@@ -208,10 +219,11 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "") -> model
     persisted: list[models.CodeResult] = []
     gate_log = []
     for c in agg_codes:
-        # Deterministic professional-component handling: a facility radiology read (POS 22/23/19/21)
-        # bills the professional component — append modifier 26 if the model didn't. Rules belong in
-        # the rule engine, not the model's memory; this keeps radiology coding consistent.
-        if c["code_system"] == "CPT" and c["code"][:1] == "7" and enc.pos in ("22", "23", "19", "21"):
+        # Deterministic professional-component handling: a facility radiology read (7xxxx) or surgical
+        # pathology interpretation (88xxx) at POS 22/23/19/21 bills the professional component — append
+        # modifier 26 if the model didn't. Rules belong in the rule engine, not the model's memory.
+        _is_prof = c["code"][:1] == "7" or c["code"][:2] == "88"
+        if c["code_system"] == "CPT" and _is_prof and enc.pos in ("22", "23", "19", "21"):
             mods = list(c.get("modifiers", []))
             if "26" not in mods and "TC" not in mods:
                 mods.append("26")

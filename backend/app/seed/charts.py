@@ -245,6 +245,43 @@ CHARTS = [
             "Electronically signed by Dr. S. Patel, MD."
         ),
     ),
+    # 14 — Pathology (surgical pathology of a skin specimen) → expect 88305-26 + D22.5
+    dict(
+        mrn="PA40001", patient_name="Glen Mercer", age=63, sex="M", specialty="Pathology",
+        modality="", encounter_type="", payer="Medicare", pos="22", dos="2026-04-20",
+        client="Riverbend Health", source_system="Cerner", report_type="pathology_report",
+        scenario="Pathology — surgical pathology specimen leveling",
+        chart_text=(
+            "SURGICAL PATHOLOGY REPORT\n"
+            "SPECIMEN: Skin, left upper back, shave biopsy.\n"
+            "CLINICAL HISTORY: Pigmented skin lesion.\n"
+            "GROSS: Tan-brown skin fragment measuring 0.8 x 0.5 x 0.2 cm.\n"
+            "MICROSCOPIC: Sections show a compound melanocytic nevus with nests of bland melanocytes at "
+            "the dermo-epidermal junction and within the dermis. No cytologic atypia or malignancy.\n"
+            "FINAL DIAGNOSIS: Compound melanocytic nevus, skin of back. Benign.\n"
+            "Electronically signed by Dr. H. Vance, MD, Pathologist."
+        ),
+    ),
+    # 15 — Surgical (outpatient/ASC) → expect 47562 + K80.20
+    dict(
+        mrn="SG50001", patient_name="Brenda Cho", age=49, sex="F", specialty="Surgical",
+        modality="", encounter_type="", payer="Medicare", pos="24", dos="2026-04-20",
+        client="Summit Surgical Center", source_system="PracticeAdmin", report_type="op_note",
+        scenario="Surgical — outpatient laparoscopic procedure",
+        chart_text=(
+            "OPERATIVE NOTE\n"
+            "PREOPERATIVE DIAGNOSIS: Symptomatic cholelithiasis.\n"
+            "POSTOPERATIVE DIAGNOSIS: Same.\n"
+            "PROCEDURE PERFORMED: Laparoscopic cholecystectomy.\n"
+            "INDICATIONS: Recurrent biliary colic with gallstones documented on ultrasound; no duct "
+            "obstruction.\n"
+            "FINDINGS: Multiple gallstones; gallbladder removed intact without complication.\n"
+            "DESCRIPTION: Standard four-port laparoscopic technique. Critical view of safety obtained. "
+            "Cystic duct and artery clipped and divided. Gallbladder dissected from the liver bed and "
+            "removed.\n"
+            "Electronically signed by Dr. R. Banerjee, MD, Surgeon."
+        ),
+    ),
 ]
 
 
@@ -343,4 +380,19 @@ GOLDEN_CASES = [
              "ASSESSMENT/PLAN: Type 2 diabetes mellitus with hyperglycemia, uncontrolled - intensify "
              "therapy, add agent, diabetic education. Moderate MDM. Total time 30 minutes.\n"
              "Electronically signed by provider.")),
+    dict(specialty="Pathology", irr=0.88, ambiguous=False,
+         truth={"icd": ["D22.5"], "cpt": ["88305"]},
+         chart_text=(
+             "SURGICAL PATHOLOGY REPORT\nSPECIMEN: Skin, back, shave biopsy.\n"
+             "MICROSCOPIC: Compound melanocytic nevus with bland junctional and dermal nests. No atypia "
+             "or malignancy.\nFINAL DIAGNOSIS: Compound melanocytic nevus, skin of back. Benign.\n"
+             "Electronically signed by pathologist.")),
+    dict(specialty="Surgical", irr=0.90, ambiguous=False,
+         truth={"icd": ["K80.20"], "cpt": ["47562"]},
+         chart_text=(
+             "OPERATIVE NOTE\nPREOPERATIVE DIAGNOSIS: Symptomatic cholelithiasis.\n"
+             "PROCEDURE PERFORMED: Laparoscopic cholecystectomy.\nFINDINGS: Multiple gallstones, no duct "
+             "obstruction; gallbladder removed intact.\nDESCRIPTION: Four-port laparoscopic technique, "
+             "critical view of safety, cystic duct and artery clipped and divided.\n"
+             "Electronically signed by surgeon.")),
 ]
