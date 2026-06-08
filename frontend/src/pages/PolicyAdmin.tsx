@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import { Search, Plus, Save, Trash2, X, ShieldCheck, Lock, Unlock, Network, Database } from "lucide-react";
 import { api } from "../api";
+import OntologyGraph from "../components/OntologyGraph";
 import { Spinner } from "../lib";
 import type { Policy } from "../types";
 
@@ -102,59 +103,10 @@ function PoliciesTab() {
   );
 }
 
-const COLS: Record<string, { x: number; color: string }> = {
-  payer: { x: 130, color: "#f26722" }, concept: { x: 460, color: "#6366f1" }, code: { x: 790, color: "#0ea5e9" },
-};
-
 function GraphTab() {
   const { data } = useQuery({ queryKey: ["kg"], queryFn: api.kg });
-  const [sel, setSel] = useState<string | null>(null);
-  const layout = useMemo(() => {
-    if (!data) return null;
-    const byType: Record<string, any[]> = { payer: [], concept: [], code: [] };
-    data.nodes.forEach((n) => (byType[n.type] ?? (byType[n.type] = [])).push(n));
-    const pos: Record<string, { x: number; y: number; node: any }> = {};
-    Object.entries(byType).forEach(([t, ns]) => { const c = COLS[t]; if (!c) return; ns.sort((a, b) => a.label.localeCompare(b.label)); ns.forEach((n, i) => { pos[n.id] = { x: c.x, y: 30 + i * 46, node: n }; }); });
-    const height = 30 + Math.max(...Object.values(byType).map((a) => a.length)) * 46 + 20;
-    return { pos, height };
-  }, [data]);
-  const adjacency = useMemo(() => {
-    const m: Record<string, any[]> = {};
-    data?.links.forEach((l) => { (m[l.source] ??= []).push({ rel: l.rel, other: l.target, detail: l.detail });
-      (m[l.target] ??= []).push({ rel: l.rel, other: l.source, detail: l.detail }); });
-    return m;
-  }, [data]);
-  if (!data || !layout) return <div className="grid place-items-center h-40"><Spinner className="h-5 w-5 text-ace-500" /></div>;
-  const labelOf = (id: string) => data.nodes.find((n) => n.id === id)?.label ?? id;
-  const nbr = sel ? new Set((adjacency[sel] ?? []).map((a) => a.other).concat(sel)) : null;
-  const selNode = sel ? data.nodes.find((n) => n.id === sel) : null;
-
-  return (
-    <div className="grid lg:grid-cols-[1fr_300px] gap-4">
-      <div className="card p-4 overflow-x-auto">
-        <svg width={900} height={layout.height} className="min-w-[900px]">
-          {data.links.map((l, i) => { const a = layout.pos[l.source], b = layout.pos[l.target]; if (!a || !b) return null;
-            const act = sel && (l.source === sel || l.target === sel); const mx = (a.x + b.x) / 2;
-            return <path key={i} d={`M ${a.x} ${a.y} C ${mx} ${a.y}, ${mx} ${b.y}, ${b.x} ${b.y}`} fill="none" stroke={act ? "#6366f1" : "#cbd5e1"} strokeWidth={act ? 2 : 1} opacity={sel && !act ? 0.12 : 0.6} />; })}
-          {Object.values(layout.pos).map(({ x, y, node }) => { const c = COLS[node.type]; const dim = sel && nbr && !nbr.has(node.id);
-            return <g key={node.id} transform={`translate(${x},${y})`} className="cursor-pointer" opacity={dim ? 0.25 : 1} onClick={() => setSel(node.id === sel ? null : node.id)}>
-              <circle r={sel === node.id ? 8 : 5} fill={c.color} />
-              <text x={node.type === "code" ? 11 : -11} y={4} textAnchor={node.type === "code" ? "start" : "end"} className={clsx("text-[12px]", sel === node.id ? "fill-slate-900 font-semibold" : "fill-slate-600")}>{node.label}</text>
-            </g>; })}
-        </svg>
-      </div>
-      <div className="card p-4 h-fit">
-        {selNode ? (<div>
-          <span className="pill ring-1 ring-slate-200 bg-slate-100 text-slate-600 capitalize">{selNode.type}</span>
-          <h3 className="mt-2 font-bold text-slate-900">{selNode.label}</h3>
-          <div className="mt-2 label">Connections</div>
-          <div className="mt-1 space-y-1">{(adjacency[sel!] ?? []).map((a, i) => (
-            <div key={i} className="text-xs text-slate-600 border-l-2 border-ace-200 pl-2"><span className="text-slate-400">{a.rel}</span> → {labelOf(a.other)}{a.detail && <div className="text-slate-400">{a.detail}</div>}</div>))}
-          </div>
-        </div>) : <div className="text-sm text-slate-500">Click a node to inspect what it maps to and drives. Payer→code edges are managed in the Policies tab.</div>}
-      </div>
-    </div>
-  );
+  if (!data) return <div className="grid place-items-center h-40"><Spinner className="h-5 w-5 text-ace-500" /></div>;
+  return <OntologyGraph nodes={data.nodes} links={data.links} />;
 }
 
 function SourcesTab() {

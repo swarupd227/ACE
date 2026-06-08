@@ -4,14 +4,16 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import models
-from ..db import get_db
+from ..db import SessionLocal, get_db
 from ..pipeline import orchestrator
 from ._serialize import run_to_dict
+from ._sse import sse_response
 
 router = APIRouter()
 
@@ -36,6 +38,23 @@ def cdi_scan(enc_id: str, db: Session = Depends(get_db)) -> list[dict]:
         raise HTTPException(404, "encounter not found")
     queries = orchestrator.cdi_scan(db, enc_id)
     return [_q(q) for q in queries]
+
+
+@router.get("/encounters/{enc_id}/cdi-scan/stream")
+def cdi_scan_stream(enc_id: str) -> StreamingResponse:
+    """Run the CDI agent and STREAM its reasoning as SSE."""
+    def work(emit):
+        db = SessionLocal()
+        try:
+            if db.get(models.Encounter, enc_id) is None:
+                emit({"type": "error", "detail": "encounter not found"})
+                return
+            queries = orchestrator.cdi_scan(db, enc_id, emit=emit)
+            emit({"type": "done", "queries": [_q(q) for q in queries]})
+        finally:
+            db.close()
+
+    return sse_response(work)
 
 
 @router.get("/encounters/{enc_id}/cdi")

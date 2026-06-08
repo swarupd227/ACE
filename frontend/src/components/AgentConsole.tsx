@@ -2,13 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { X, Cpu, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
 import { LaneBadge } from "../lib";
-import type { Run } from "../types";
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE ?? "/api";
 
 type Line = { actor: string; msg: string; level: string; ts?: string };
 
-const STEPS: [string, string][] = [
+export const CODING_STEPS: [string, string][] = [
   ["0", "Eligibility"], ["1", "Conditioning"], ["2", "Extraction"],
   ["rag", "Graph-RAG"], ["3", "Coding"], ["4", "Validation"], ["5", "Routing"],
 ];
@@ -28,43 +27,51 @@ function hhmmss(ts?: string) {
 }
 
 export default function AgentConsole({
-  encounterId, title, onClose, onDone,
-}: { encounterId: string; title: string; onClose: () => void; onDone?: (run: Run) => void }) {
+  url, title, label = "Autonomous Coding Agent", steps, onClose, onDone,
+}: {
+  url: string;            // path after /api, e.g. /encounters/:id/code/stream
+  title: string;
+  label?: string;
+  steps?: [string, string][];
+  onClose: () => void;
+  onDone?: (done: any) => void;
+}) {
   const [lines, setLines] = useState<Line[]>([]);
   const [reached, setReached] = useState<Set<string>>(new Set());
+  const [progress, setProgress] = useState<{ done: number; total: number; lanes?: any } | null>(null);
   const [status, setStatus] = useState<"running" | "done" | "error">("running");
   const [result, setResult] = useState<{ lane: string; reason: string } | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const es = new EventSource(`${API_BASE}/encounters/${encounterId}/code/stream`);
+    const es = new EventSource(`${API_BASE}${url}`);
     es.onmessage = (e) => {
       const ev = JSON.parse(e.data);
       if (ev.type === "log") setLines((l) => [...l, ev]);
       else if (ev.type === "stage") setReached((s) => new Set(s).add(ev.key));
+      else if (ev.type === "progress") setProgress({ done: ev.done, total: ev.total, lanes: ev.lanes });
       else if (ev.type === "routing") setResult({ lane: ev.lane, reason: ev.reason });
-      else if (ev.type === "done") { setStatus("done"); es.close(); onDone?.(ev.run); }
+      else if (ev.type === "done") { setStatus("done"); es.close(); onDone?.(ev); }
       else if (ev.type === "error") {
         setStatus("error");
         setLines((l) => [...l, { actor: "error", msg: ev.detail, level: "bad" }]);
         es.close();
       }
     };
-    es.onerror = () => es.close(); // no auto-reconnect (would re-trigger a run)
+    es.onerror = () => es.close(); // no auto-reconnect (would re-trigger the run)
     return () => es.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [encounterId]);
+  }, [url]);
 
   useEffect(() => { if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight; }, [lines]);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4" onClick={onClose}>
       <div className="w-full max-w-3xl rounded-xl overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        {/* header */}
         <div className="bg-ace-900 text-white px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Cpu size={16} className="text-brand-300" />
-            <span className="font-semibold">Autonomous Coding Agent</span>
+            <span className="font-semibold">{label}</span>
             <span className="text-xs text-slate-400">· {title}</span>
           </div>
           <div className="flex items-center gap-3">
@@ -75,24 +82,34 @@ export default function AgentConsole({
           </div>
         </div>
 
-        {/* step bar */}
-        <div className="bg-ace-900/95 px-4 pb-3 flex gap-1.5">
-          {STEPS.map(([key, label]) => (
-            <div key={key} className="flex-1">
-              <div className={clsx("h-1 rounded-full transition-colors", reached.has(key) ? "bg-brand-400" : "bg-white/10")} />
-              <div className={clsx("mt-1 text-[10px]", reached.has(key) ? "text-slate-200" : "text-slate-500")}>{label}</div>
+        {/* step bar (pipeline) or progress bar (batch) */}
+        {steps && (
+          <div className="bg-ace-900/95 px-4 pb-3 flex gap-1.5">
+            {steps.map(([key, lbl]) => (
+              <div key={key} className="flex-1">
+                <div className={clsx("h-1 rounded-full transition-colors", reached.has(key) ? "bg-brand-400" : "bg-white/10")} />
+                <div className={clsx("mt-1 text-[10px]", reached.has(key) ? "text-slate-200" : "text-slate-500")}>{lbl}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {progress && (
+          <div className="bg-ace-900/95 px-4 pb-3">
+            <div className="flex justify-between text-[11px] text-slate-300 mb-1">
+              <span>{progress.done} / {progress.total} charts</span>
+              {progress.lanes && <span className="text-slate-400">STB {progress.lanes.STB} · QA {progress.lanes.QA} · Manual {progress.lanes.MANUAL}</span>}
             </div>
-          ))}
-        </div>
+            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div className="h-full bg-brand-400 transition-all" style={{ width: `${(progress.done / Math.max(1, progress.total)) * 100}%` }} />
+            </div>
+          </div>
+        )}
 
-        {/* console */}
         <div ref={boxRef} className="bg-[#0b1020] h-[52vh] overflow-y-auto px-4 py-3 font-mono text-[12.5px] leading-relaxed">
           {lines.map((ln, i) => (
             <div key={i} className="flex gap-2 fadeup">
               <span className="text-slate-600 select-none shrink-0">{hhmmss(ln.ts)}</span>
-              <span className={clsx("shrink-0", ln.actor.startsWith("  ") ? "text-slate-500" : "text-ace-300")}>
-                {ln.actor.trim()}
-              </span>
+              <span className={clsx("shrink-0", ln.actor.startsWith("  ") ? "text-slate-500" : "text-ace-300")}>{ln.actor.trim()}</span>
               <span className="text-slate-600">›</span>
               <span className={clsx(LEVEL[ln.level] ?? "text-slate-300", "whitespace-pre-wrap")}>{ln.msg}</span>
             </div>
@@ -100,10 +117,9 @@ export default function AgentConsole({
           {status === "running" && <div className="text-cyan-400 animate-pulse">▋</div>}
         </div>
 
-        {/* footer */}
         <div className="bg-ace-900 text-white px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm">
-            {result ? (<><span className="text-slate-400">Routing decision:</span><LaneBadge lane={result.lane as any} /><span className="text-xs text-slate-400">{result.reason}</span></>)
+            {result ? (<><span className="text-slate-400">Routing:</span><LaneBadge lane={result.lane as any} /><span className="text-xs text-slate-400">{result.reason}</span></>)
               : <span className="text-xs text-slate-400">streaming the agent's stages and tool calls…</span>}
           </div>
           <button className="btn-ghost py-1.5" disabled={status === "running"} onClick={onClose}>

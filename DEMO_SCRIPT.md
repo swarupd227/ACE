@@ -66,7 +66,8 @@
 ## 7.5 CDI / physician query — LIVE (3 min) — "co-pilot, not replacement"
 1. Open **EM20002** (anemia E&M chart). Note the initial code is **D64.9 (anemia, unspecified)** —
    the type isn't documented.
-2. Click **Scan for CDI opportunities** → ACE drafts a **compliant, non-leading** query: states the
+2. Click **Scan for CDI opportunities** → the **CDI Agent console streams live** (reviewing docs →
+   checking codes → drafting queries). ACE drafts a **compliant, non-leading** query: states the
    indicators (Hgb 8.2, iron started), offers options *including "Unable to determine"*, and does not
    lead the physician.
 3. Click the physician answer **"Iron deficiency anemia"** → the encounter **re-codes to D50.9**
@@ -97,8 +98,9 @@
   version, timestamps). *"This is your RAC-audit defense, generated automatically."*
 - `Policy & Knowledge Admin` → **edit a payer policy live** (add a covered diagnosis, toggle prior-auth,
   or add a client overlay) — these drive the medical-necessity gate on the next coding run. The **Explore
-  Graph** tab shows the payer/ontology graph (click a node); **Data Sources** shows provenance. On any
-  encounter, the **"Knowledge used for this chart"** panel proves which facts shaped *that* decision.
+  Graph** tab is an **interactive Cytoscape force-directed ontology graph** (search, zoom, drag, click a
+  node to inspect its relationships); **Data Sources** shows provenance. On any encounter, the
+  **"Knowledge used for this chart"** panel proves which facts shaped *that* decision.
 - `Evaluation Harness` → click **Run evaluation** → per-specialty accuracy **vs adjudicated consensus
   with the IRR ceiling**. *"We never claim to beat the laws of inter-coder agreement; we report honestly."*
 - `Performance Dashboard` → STB rate, calibrated accuracy, **manual-effort reduction**, **coding TAT

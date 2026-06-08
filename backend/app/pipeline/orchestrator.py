@@ -359,12 +359,18 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     return finish("MANUAL", f"Calibrated confidence {overall:.2f} below QA threshold")
 
 
-def cdi_scan(db: Session, encounter_id: str) -> list[models.CdiQuery]:
+def cdi_scan(db: Session, encounter_id: str, emit=None) -> list[models.CdiQuery]:
     """Run the CDI agent on the latest coded run; persist drafted physician queries.
     Replaces any prior OPEN (unanswered) queries for this encounter."""
+    emit = emit or (lambda *a, **k: None)
+
+    def say(actor: str, msg: str, level: str = "info") -> None:
+        emit({"type": "log", "actor": actor, "msg": msg, "level": level, "ts": _now().isoformat()})
+
     enc = db.get(models.Encounter, encounter_id)
     if enc is None:
         raise ValueError("encounter not found")
+    say("CDI Agent", f"reviewing documentation for {enc.patient_name} · {enc.specialty}", "head")
     run = db.scalars(
         select(models.CodingRun).where(models.CodingRun.encounter_id == enc.id)
         .order_by(models.CodingRun.started_at.desc()).limit(1)
@@ -373,12 +379,17 @@ def cdi_scan(db: Session, encounter_id: str) -> list[models.CdiQuery]:
         {"code_system": c.code_system, "code": c.code, "role": c.role, "description": c.description}
         for c in (run.codes if run else [])
     ]
+    say("CDI Agent", f"checking {len(codes)} assigned code(s) for documentation gaps · invoking {model_version()}…", "tool")
     numbered, _ = _number_chart(enc.chart_text)
     result = complete_json(
         prompts.CDI_SYSTEM,
         prompts.build_cdi_user(numbered, enc.specialty, codes),
         prompts.CDI_SCHEMA, temperature=0.0,
     )[0]
+    nq = len(result.get("queries", []))
+    say("CDI Agent",
+        f"{nq} compliant quer{'y' if nq == 1 else 'ies'} drafted" if nq else "documentation is sufficient — no queries needed",
+        "good" if nq else "info")
 
     # clear prior open queries for this encounter
     for q in db.scalars(
@@ -401,6 +412,7 @@ def cdi_scan(db: Session, encounter_id: str) -> list[models.CdiQuery]:
         )
         db.add(cq)
         created.append(cq)
+        say(f"  Query · {cq.target}", cq.question[:90] + ("…" if len(cq.question) > 90 else ""), "warn")
         if run:
             _audit(db, run, "cdi", "query_drafted", {"target": cq.target, "question": cq.question})
     db.commit()

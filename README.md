@@ -62,7 +62,10 @@ Harness · Closed-Loop Learning (apply/withdraw exemplars) · Encounter detail. 
 Use-Case acceptance criteria is in `REQUIREMENTS_TRACEABILITY.md`. **Agentic UX:** clicking **Code**
 (or "Watch agent re-run") opens a **live Agent Console** that streams the run over **SSE** —
 eligibility → conditioning/extraction agent → Graph-RAG → coding agent → validation gates → routing,
-with real LLM latency. Human controls: accept / override-with-reason / **reassign** / **escalate** /
+with real LLM latency. The same live console streams the **CDI scan** (agent reasoning) and the **batch
+run** (per-chart progress). The Policy & Knowledge Admin **Explore Graph** tab is an **interactive
+Cytoscape force-directed ontology graph** (fcose layout, search, zoom, drag, click-to-inspect) in the
+style of Microsoft's Ontology-Playground. Human controls: accept / override-with-reason / **reassign** / **escalate** /
 **revert-to-AI (rollback)** — all audit-logged. The architecture/pipeline is shown **per-chart** (Stage 0–5
 trace), not as a standalone diagram.
 

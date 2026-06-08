@@ -1,10 +1,6 @@
 """Run the coding pipeline; human-in-the-loop override/accept; audit & learning."""
 from __future__ import annotations
 
-import json
-import queue
-import threading
-
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
@@ -18,6 +14,7 @@ from pydantic import BaseModel
 
 from ..schemas import AcceptRequest, OverrideRequest
 from ._serialize import run_to_dict
+from ._sse import sse_response
 
 router = APIRouter()
 HIDDEN_CLIENT = "__golden__"
@@ -122,39 +119,53 @@ def code_encounter(enc_id: str, db: Session = Depends(get_db)) -> dict:
 
 @router.get("/encounters/{enc_id}/code/stream")
 def code_encounter_stream(enc_id: str) -> StreamingResponse:
-    """Run the agentic pipeline and STREAM each agent/tool step as Server-Sent Events,
-    so the UI can show the agent working in real time."""
-    q: "queue.Queue" = queue.Queue()
-
-    def work() -> None:
+    """Run the agentic pipeline and STREAM each agent/tool step as SSE."""
+    def work(emit):
         db = SessionLocal()
         try:
             if db.get(models.Encounter, enc_id) is None:
-                q.put({"type": "error", "detail": "encounter not found"})
+                emit({"type": "error", "detail": "encounter not found"})
                 return
-            run = orchestrator.run_coding(db, enc_id, emit=lambda ev: q.put(ev))
-            q.put({"type": "done", "run": run_to_dict(run)})
-        except Exception as exc:  # noqa: BLE001 — surface to the stream
-            q.put({"type": "error", "detail": str(exc)})
+            run = orchestrator.run_coding(db, enc_id, emit=emit)
+            emit({"type": "done", "run": run_to_dict(run)})
         finally:
             db.close()
-            q.put(None)  # sentinel
 
-    threading.Thread(target=work, daemon=True).start()
+    return sse_response(work)
 
-    def gen():
-        yield "retry: 3000\n\n"
-        while True:
-            ev = q.get()
-            if ev is None:
-                break
-            yield f"data: {json.dumps(ev)}\n\n"
 
-    return StreamingResponse(
-        gen(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
-    )
+@router.get("/coding/run-all/stream")
+def run_all_stream() -> StreamingResponse:
+    """Code every NEW chart, streaming per-chart progress as SSE."""
+    def work(emit):
+        db = SessionLocal()
+        try:
+            from datetime import datetime, timezone  # local: ts only
+            def say(actor, msg, level="info"):
+                emit({"type": "log", "actor": actor, "msg": msg, "level": level,
+                      "ts": datetime.now(timezone.utc).isoformat()})
+
+            encs = db.scalars(
+                select(models.Encounter).where(
+                    models.Encounter.status == "NEW", models.Encounter.client != HIDDEN_CLIENT
+                ).order_by(models.Encounter.received_at.asc())
+            ).all()
+            total = len(encs)
+            lanes = {"STB": 0, "QA": 0, "MANUAL": 0}
+            say("Batch Orchestrator", f"coding {total} uncoded chart(s)…", "head")
+            for i, e in enumerate(encs, 1):
+                say("Batch Orchestrator", f"[{i}/{total}] {e.patient_name} · {e.specialty} {e.modality}".strip(), "tool")
+                run = orchestrator.run_coding(db, e.id)  # inner steps not streamed (one line per chart)
+                lanes[run.routing_lane] = lanes.get(run.routing_lane, 0) + 1
+                say(f"  → {e.mrn}", f"{run.routing_lane} · {run.routing_reason}",
+                    {"STB": "good", "QA": "warn", "MANUAL": "bad"}.get(run.routing_lane, "info"))
+                emit({"type": "progress", "done": i, "total": total, "lanes": dict(lanes)})
+            say("Batch Orchestrator", f"done · STB {lanes['STB']} · QA {lanes['QA']} · Manual {lanes['MANUAL']}", "good")
+            emit({"type": "done", "coded": total, "lanes": lanes})
+        finally:
+            db.close()
+
+    return sse_response(work)
 
 
 @router.post("/coding/run-all")

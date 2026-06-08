@@ -4,7 +4,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import { Play, ArrowRight, Clock, Zap, Flag } from "lucide-react";
 import { api } from "../api";
-import AgentConsole from "../components/AgentConsole";
+import AgentConsole, { CODING_STEPS } from "../components/AgentConsole";
 import { ConfidenceBar, LaneBadge, Spinner, laneColor } from "../lib";
 import type { EncounterRow, Lane } from "../types";
 
@@ -31,11 +31,7 @@ export default function Worklist() {
   const { data: rows, isLoading } = useQuery({ queryKey: ["encounters"], queryFn: api.encounters });
   const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: api.meta });
   const [consoleEnc, setConsoleEnc] = useState<{ id: string; name: string } | null>(null);
-
-  const runAll = useMutation({
-    mutationFn: api.runAll,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["encounters"] }),
-  });
+  const [showBatch, setShowBatch] = useState(false);
 
   const list = rows ?? [];
   const coded = list.filter((r) => r.routing_lane);
@@ -57,12 +53,11 @@ export default function Worklist() {
         </div>
         <button
           className="btn-brand"
-          disabled={runAll.isPending || !meta?.llm_available}
-          onClick={() => runAll.mutate()}
+          disabled={!meta?.llm_available}
+          onClick={() => setShowBatch(true)}
           title={!meta?.llm_available ? "Configure ANTHROPIC_API_KEY to enable coding" : ""}
         >
-          {runAll.isPending ? <Spinner className="h-4 w-4" /> : <Play size={16} />}
-          Run autonomous coding
+          <Play size={16} /> Run autonomous coding
         </button>
       </div>
 
@@ -156,9 +151,19 @@ export default function Worklist() {
 
       {consoleEnc && (
         <AgentConsole
-          encounterId={consoleEnc.id}
+          url={`/encounters/${consoleEnc.id}/code/stream`}
+          steps={CODING_STEPS}
           title={consoleEnc.name}
           onClose={() => setConsoleEnc(null)}
+          onDone={() => qc.invalidateQueries({ queryKey: ["encounters"] })}
+        />
+      )}
+      {showBatch && (
+        <AgentConsole
+          url="/coding/run-all/stream"
+          label="Batch Orchestrator"
+          title="uncoded charts"
+          onClose={() => setShowBatch(false)}
           onDone={() => qc.invalidateQueries({ queryKey: ["encounters"] })}
         />
       )}

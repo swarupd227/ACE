@@ -7,7 +7,7 @@ import {
   Stethoscope, MessageSquareWarning, CheckCircle2, ArrowRightLeft, AlertTriangle, Flag, Undo2, Network,
 } from "lucide-react";
 import { api } from "../api";
-import AgentConsole from "../components/AgentConsole";
+import AgentConsole, { CODING_STEPS } from "../components/AgentConsole";
 import { ConfidenceBar, LaneBadge, Spinner, SystemBadge, confColor, laneColor, laneLabel, pct } from "../lib";
 import type { CodeResult, EncounterDetail as Detail } from "../types";
 
@@ -188,7 +188,8 @@ export default function EncounterDetail() {
 
       {showConsole && (
         <AgentConsole
-          encounterId={d.id}
+          url={`/encounters/${d.id}/code/stream`}
+          steps={CODING_STEPS}
           title={d.patient_name}
           onClose={() => setShowConsole(false)}
           onDone={() => qc.invalidateQueries({ queryKey: ["encounter", id] })}
@@ -442,11 +443,8 @@ function WorkflowActions({ run }: { run: any }) {
 
 function CdiPanel({ encId }: { encId: string }) {
   const qc = useQueryClient();
+  const [scanConsole, setScanConsole] = useState(false);
   const { data: queries } = useQuery({ queryKey: ["cdi", encId], queryFn: () => api.cdiForEncounter(encId) });
-  const scan = useMutation({
-    mutationFn: () => api.cdiScan(encId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["cdi", encId] }),
-  });
   const respond = useMutation({
     mutationFn: ({ id, resp }: { id: string; resp: string }) => api.cdiRespond(id, resp),
     onSuccess: () => {
@@ -464,15 +462,23 @@ function CdiPanel({ encId }: { encId: string }) {
           <span className="font-semibold text-slate-700 text-sm">CDI / Physician Queries</span>
           {list.length > 0 && <span className="pill bg-amber-50 text-amber-700 ring-1 ring-amber-200">{list.length}</span>}
         </div>
-        <button className="btn-ghost py-1.5" disabled={scan.isPending} onClick={() => scan.mutate()}>
-          {scan.isPending ? <Spinner className="h-4 w-4" /> : <MessageSquareWarning size={14} />} Scan for CDI opportunities
+        <button className="btn-ghost py-1.5" onClick={() => setScanConsole(true)}>
+          <MessageSquareWarning size={14} /> Scan for CDI opportunities
         </button>
       </div>
 
-      {list.length === 0 && !scan.isPending && (
-        <p className="mt-2 text-xs text-slate-400">
-          {scan.isSuccess ? "Documentation is sufficient — no queries needed." : "No queries yet. Run a scan to check for documentation gaps."}
-        </p>
+      {scanConsole && (
+        <AgentConsole
+          url={`/encounters/${encId}/cdi-scan/stream`}
+          label="CDI Agent"
+          title="documentation review"
+          onClose={() => setScanConsole(false)}
+          onDone={() => qc.invalidateQueries({ queryKey: ["cdi", encId] })}
+        />
+      )}
+
+      {list.length === 0 && (
+        <p className="mt-2 text-xs text-slate-400">No queries yet. Run a scan to check for documentation gaps.</p>
       )}
 
       <div className="mt-3 space-y-3">
