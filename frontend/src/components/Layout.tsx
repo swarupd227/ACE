@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
   LayoutList, LayoutDashboard, BarChart3, ShieldCheck, FlaskConical, GraduationCap,
-  Cpu, Stethoscope,
+  Cpu, Stethoscope, Plug,
 } from "lucide-react";
 import { api } from "../api";
 
@@ -13,6 +13,7 @@ const nav = [
   { to: "/cdi", label: "CDI / Physician Queries", icon: Stethoscope },
   { to: "/dashboard", label: "Performance Dashboard", icon: BarChart3 },
   { to: "/policy", label: "Policy & Knowledge Admin", icon: ShieldCheck },
+  { to: "/integrations", label: "Integrations & Ingestion", icon: Plug },
   { to: "/eval", label: "Evaluation Harness", icon: FlaskConical },
   { to: "/learning", label: "Closed-Loop Learning", icon: GraduationCap },
 ];

@@ -171,3 +171,61 @@ def delete_policy(policy_id: int, db: Session = Depends(get_db)) -> dict:
     db.delete(p)
     db.commit()
     return {"deleted": policy_id}
+
+
+# ---------------------------------------------------------------------------
+# Integrations / Ingestion — simulated PMS/EHR connectivity + real batch ingest
+# ---------------------------------------------------------------------------
+SOURCE_SYSTEMS = [
+    {"name": "Practice Admin", "type": "PMS (VHT-owned)", "channel": "REST / batch"},
+    {"name": "eClinicalWorks", "type": "EHR", "channel": "FHIR R4 / HL7 v2"},
+    {"name": "Cerner", "type": "EHR", "channel": "FHIR R4 / HL7 v2"},
+]
+CHANNELS = ["FHIR R4 (DiagnosticReport)", "HL7 v2 (ORU^R01)", "EDI X12 837/835", "Batch SFTP", "REST API"]
+
+
+@router.get("/integrations")
+def integrations(db: Session = Depends(get_db)) -> dict:
+    counts: dict[str, int] = {}
+    for e in db.scalars(select(models.Encounter).where(models.Encounter.client != HIDDEN)).all():
+        counts[e.source_system] = counts.get(e.source_system, 0) + 1
+    connectors = [
+        {**s, "status": "connected",
+         "charts_ingested": counts.get(s["name"], 0) or counts.get(s["name"].replace(" ", ""), 0)}
+        for s in SOURCE_SYSTEMS
+    ]
+    return {"connectors": connectors, "channels": CHANNELS, "api_docs": "/docs",
+            "note": "Demo simulates connectivity; the REST ingest below is live."}
+
+
+class IngestIn(BaseModel):
+    report_text: str
+    specialty: str = "Radiology"
+    modality: str = ""
+    payer: str = "Medicare"
+    pos: str = "22"
+    mrn: str = ""
+    patient_name: str = "Ingested Patient"
+    sex: str = "F"
+    age: int = 55
+    dos: str = "2026-04-21"
+    source_system: str = "Practice Admin"
+
+
+@router.post("/ingest")
+def ingest(body: IngestIn, db: Session = Depends(get_db)) -> dict:
+    if len(body.report_text.strip()) < 20:
+        raise HTTPException(400, "report_text too short to ingest")
+    mrn = body.mrn or f"ING{abs(hash(body.report_text)) % 100000:05d}"
+    enc = models.Encounter(
+        mrn=mrn, patient_name=body.patient_name, age=body.age, sex=body.sex,
+        specialty=body.specialty, modality=body.modality, payer=body.payer, pos=body.pos,
+        dos=body.dos, client="Ingested", source_system=body.source_system,
+        report_type="ingested", chart_text=body.report_text, scenario="Live ingest",
+        status="NEW",
+    )
+    db.add(enc)
+    db.commit()
+    db.refresh(enc)
+    return {"id": enc.id, "mrn": enc.mrn, "specialty": enc.specialty, "status": enc.status,
+            "source_system": enc.source_system}

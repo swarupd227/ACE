@@ -192,5 +192,15 @@ export interface Dashboard {
   avg_accuracy: number;
   avg_latency_ms: number;
   manual_effort_reduction: number;
+  exception_rate: number;
+  tat: { baseline_min: number; assisted_min: number; reduction_pct: number };
+  maturity: { stage: string; stb_rate: number; target: number; stages: string[] };
   by_specialty: any[];
+}
+
+export interface Integrations {
+  connectors: { name: string; type: string; channel: string; status: string; charts_ingested: number }[];
+  channels: string[];
+  api_docs: string;
+  note: string;
 }

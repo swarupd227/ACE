@@ -33,5 +33,7 @@ def meta() -> dict:
             "CPT": "DEMO placeholder (not AMA text); swap licensed AMA for production",
             "NCCI/MUE": "Modeled on real CMS edit logic (subset)",
             "guidelines": "ICD-10-CM Official Guidelines (public), paraphrased",
+            "effective_dating": "ICD-10-CM FY2026 (eff 2025-10-01), CPT 2026 (eff 2026-01-01); "
+                                "prior-year sets retained for back-dated/corrected claims",
         },
     }

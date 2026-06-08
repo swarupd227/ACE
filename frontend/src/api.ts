@@ -65,6 +65,10 @@ export const api = {
   patchLearning: (id: string, applied: boolean) =>
     req(`/learning/${id}`, { method: "PATCH", body: JSON.stringify({ applied }) }),
   deleteLearning: (id: string) => req(`/learning/${id}`, { method: "DELETE" }),
+  integrations: () => req<import("./types").Integrations>("/integrations"),
+  ingest: (body: Record<string, any>) =>
+    req<{ id: string; mrn: string; specialty: string; status: string; source_system: string }>(
+      "/ingest", { method: "POST", body: JSON.stringify(body) }),
   dashboard: () => req<import("./types").Dashboard>("/dashboard/stats"),
   kg: () => req<{ nodes: any[]; links: any[] }>("/kg/graph"),
   referenceSummary: () => req<any>("/reference/summary"),

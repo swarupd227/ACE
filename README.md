@@ -55,9 +55,11 @@ manual queue with reason `LLM_UNAVAILABLE`.
 10. **Policy & Knowledge Admin** (edit a payer policy → it drives the necessity gate), **Evaluation Harness**, **Audit packet**, **Dashboard** round out the story.
 
 Specialties: **Radiology, E&M, ED, Pathology, Surgical**. Screens (operational tools, not slideware):
-Worklist · **Control Tower** (queues + SLA + assignment) · CDI · Dashboard · **Policy & Knowledge Admin**
-(editable, drives coding) · Evaluation Harness · Closed-Loop Learning (apply/withdraw exemplars) ·
-Encounter detail. Human controls: accept / override-with-reason / **reassign** / **escalate** /
+Worklist · **Control Tower** (queues + SLA + assignment) · CDI · Dashboard (STB, accuracy, manual-effort
+& TAT reduction, exception rate, maturity pathway) · **Policy & Knowledge Admin** (editable, drives
+coding) · **Integrations & Ingestion** (simulated EHR connectors + live ingest + REST/batch) · Evaluation
+Harness · Closed-Loop Learning (apply/withdraw exemplars) · Encounter detail. Traceability to the
+Use-Case acceptance criteria is in `REQUIREMENTS_TRACEABILITY.md`. Human controls: accept / override-with-reason / **reassign** / **escalate** /
 **revert-to-AI (rollback)** — all audit-logged. The architecture/pipeline is shown **per-chart** (Stage 0–5
 trace), not as a standalone diagram.
 

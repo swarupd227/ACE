@@ -17,6 +17,25 @@ from ..pipeline import orchestrator
 router = APIRouter()
 HIDDEN = "__golden__"
 
+# Reference manual coding turnaround per specialty (minutes/chart). Operational benchmarks,
+# configurable per client — used to quantify the AI-assisted TAT reduction.
+MANUAL_TAT_BASELINE = {"Radiology": 6.0, "E&M": 9.0, "ED": 12.0, "Pathology": 8.0, "Surgical": 14.0}
+# AI-assisted coding TAT per lane during the 100%-audit early rollout (conservative): even STB charts
+# get a human audit touch initially, so TAT is reduced but not eliminated. The reduction grows as audit
+# sampling tapers post-certification (see maturity pathway). STB = AI draft + quick audit; QA = auditor
+# verifies an AI draft; MANUAL = AI pre-extraction assists a full human coder.
+_AI_TAT = {"STB": lambda b: 0.40 * b, "QA": lambda b: 0.65 * b, "MANUAL": lambda b: 0.95 * b}
+
+
+def _maturity_stage(stb_rate: float) -> str:
+    if stb_rate >= 0.80:
+        return "Autonomous (target)"
+    if stb_rate >= 0.60:
+        return "Approaching autonomous"
+    if stb_rate >= 0.30:
+        return "Scaling"
+    return "Foundation / shadow"
+
 
 # --- Dashboard -------------------------------------------------------------
 @router.get("/dashboard/stats")
@@ -25,6 +44,7 @@ def dashboard(db: Session = Depends(get_db)) -> dict:
     total = len(encs)
     lanes = {"STB": 0, "QA": 0, "MANUAL": 0}
     accs, lats = [], []
+    tat_base, tat_asst = 0.0, 0.0
     by_spec: dict[str, dict] = {}
     coded = 0
     eligible = 0           # charts that passed Stage-0 eligibility (auto-coding candidates)
@@ -50,6 +70,9 @@ def dashboard(db: Session = Depends(get_db)) -> dict:
                 accs.append(run.overall_confidence)
                 spec["acc"].append(run.overall_confidence)
             lats.append(run.latency_ms)
+            b = MANUAL_TAT_BASELINE.get(e.specialty, 8.0)
+            tat_base += b
+            tat_asst += _AI_TAT.get(run.routing_lane, lambda x: x)(b)
 
     # STB rate is measured over eligible (auto-coding-candidate) charts — ineligible charts
     # were never candidates for automation, so they don't count against the automation rate.
@@ -68,6 +91,16 @@ def dashboard(db: Session = Depends(get_db)) -> dict:
         "stb_rate": stb_rate, "avg_accuracy": avg_acc,
         "avg_latency_ms": int(sum(lats) / len(lats)) if lats else 0,
         "manual_effort_reduction": manual_reduction,
+        "exception_rate": round(lanes["MANUAL"] / coded, 3) if coded else 0.0,
+        "tat": {
+            "baseline_min": round(tat_base / coded, 1) if coded else 0.0,
+            "assisted_min": round(tat_asst / coded, 1) if coded else 0.0,
+            "reduction_pct": round(1 - tat_asst / tat_base, 3) if tat_base else 0.0,
+        },
+        "maturity": {
+            "stage": _maturity_stage(stb_rate), "stb_rate": stb_rate, "target": 0.80,
+            "stages": ["Foundation / shadow", "Scaling", "Approaching autonomous", "Autonomous (target)"],
+        },
         "by_specialty": list(by_spec.values()),
     }
 

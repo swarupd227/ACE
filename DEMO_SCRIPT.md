@@ -18,6 +18,11 @@
 - Message: *"This is the operating picture — live queues, SLA, and workforce assignment. Now let's see
   where the work comes from and how each chart is coded."*
 
+## 0.7 Integrations & Ingestion (1 min) — `Integrations & Ingestion`
+- Show connected source systems (Practice Admin / eCW / Cerner) + channels (FHIR R4 / HL7 v2 / EDI 837 /
+  SFTP / REST). **Load a sample report → Ingest into queue → it appears live in the Worklist.**
+- Message: *"Charts arrive from the EHR/PMS; the connectors are simulated, the ingest is real."*
+
 ## 1. The worklist + the run (3 min) — `Worklist`
 - Show the queue (Radiology, E&M, ED; payers; clients Practice Admin/eCW/Cerner).
 - Click **Run autonomous coding**. While it runs, narrate the 3-lane model:
@@ -92,8 +97,9 @@
   encounter, the **"Knowledge used for this chart"** panel proves which facts shaped *that* decision.
 - `Evaluation Harness` → click **Run evaluation** → per-specialty accuracy **vs adjudicated consensus
   with the IRR ceiling**. *"We never claim to beat the laws of inter-coder agreement; we report honestly."*
-- `Performance Dashboard` → STB rate, accuracy, manual-effort reduction, TAT vs the SLA targets; note the
-  **100%-audit → 95%-certification** governance.
+- `Performance Dashboard` → STB rate, calibrated accuracy, **manual-effort reduction**, **coding TAT
+  reduction** (manual baseline → AI-assisted), **exception rate**, and the **automation-maturity pathway**
+  (current position vs the ≥80% target); note the **100%-audit → 95%-certification** governance ramp.
 
 ## Close (30 sec)
 *"Working today, not slideware. Radiology depth your coders will recognize, E&M and ED on the same
