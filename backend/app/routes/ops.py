@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from .. import config_store, models
 from ..db import get_db
+from ._admin_audit import Actor, get_actor, log_change
 
 router = APIRouter()
 HIDDEN = "__golden__"
@@ -146,31 +147,37 @@ class PolicyIn(BaseModel):
 
 
 @router.post("/policies")
-def create_policy(body: PolicyIn, db: Session = Depends(get_db)) -> dict:
+def create_policy(body: PolicyIn, db: Session = Depends(get_db),
+                  actor: Actor = Depends(get_actor)) -> dict:
     p = models.PayerPolicy(**body.model_dump())
     db.add(p)
+    log_change(db, actor, "policy", "create", f"{body.payer}/{body.code}", body.model_dump())
     db.commit()
     db.refresh(p)
     return _pol(p)
 
 
 @router.put("/policies/{policy_id}")
-def update_policy(policy_id: int, body: PolicyIn, db: Session = Depends(get_db)) -> dict:
+def update_policy(policy_id: int, body: PolicyIn, db: Session = Depends(get_db),
+                  actor: Actor = Depends(get_actor)) -> dict:
     p = db.get(models.PayerPolicy, policy_id)
     if p is None:
         raise HTTPException(404, "policy not found")
     for k, v in body.model_dump().items():
         setattr(p, k, v)
+    log_change(db, actor, "policy", "update", f"{body.payer}/{body.code}", body.model_dump())
     db.commit()
     db.refresh(p)
     return _pol(p)
 
 
 @router.delete("/policies/{policy_id}")
-def delete_policy(policy_id: int, db: Session = Depends(get_db)) -> dict:
+def delete_policy(policy_id: int, db: Session = Depends(get_db),
+                  actor: Actor = Depends(get_actor)) -> dict:
     p = db.get(models.PayerPolicy, policy_id)
     if p is None:
         raise HTTPException(404, "policy not found")
+    log_change(db, actor, "policy", "delete", f"{p.payer}/{p.code}", {})
     db.delete(p)
     db.commit()
     return {"deleted": policy_id}
@@ -238,7 +245,8 @@ def _next_cui(db: Session) -> str:
 
 
 @router.post("/ontology/concepts")
-def create_concept(body: ConceptIn, db: Session = Depends(get_db)) -> dict:
+def create_concept(body: ConceptIn, db: Session = Depends(get_db),
+                   actor: Actor = Depends(get_actor)) -> dict:
     if not body.name.strip():
         raise HTTPException(400, "concept name is required")
     cui = body.cui.strip() or _next_cui(db)
@@ -249,26 +257,32 @@ def create_concept(body: ConceptIn, db: Session = Depends(get_db)) -> dict:
         maps_to=[m.model_dump() for m in body.maps_to],
     )
     db.add(c)
+    log_change(db, actor, "ontology", "create", f"{cui}:{body.name.strip()}",
+               {"maps_to": [m.model_dump() for m in body.maps_to]})
     db.commit()
     db.refresh(c)
     return _concept(c)
 
 
 @router.put("/ontology/concepts/{cid}")
-def update_concept(cid: int, body: ConceptIn, db: Session = Depends(get_db)) -> dict:
+def update_concept(cid: int, body: ConceptIn, db: Session = Depends(get_db),
+                   actor: Actor = Depends(get_actor)) -> dict:
     c = db.get(models.OntologyConcept, cid)
     if c is None:
         raise HTTPException(404, "concept not found")
     c.name = body.name.strip() or c.name
     c.semantic_type = body.semantic_type
     c.maps_to = [m.model_dump() for m in body.maps_to]
+    log_change(db, actor, "ontology", "update", f"{c.cui}:{c.name}",
+               {"maps_to": c.maps_to})
     db.commit()
     db.refresh(c)
     return _concept(c)
 
 
 @router.delete("/ontology/concepts/{cid}")
-def delete_concept(cid: int, db: Session = Depends(get_db)) -> dict:
+def delete_concept(cid: int, db: Session = Depends(get_db),
+                   actor: Actor = Depends(get_actor)) -> dict:
     c = db.get(models.OntologyConcept, cid)
     if c is None:
         raise HTTPException(404, "concept not found")
@@ -277,6 +291,7 @@ def delete_concept(cid: int, db: Session = Depends(get_db)) -> dict:
         (models.OntologyEdge.src_cui == c.cui) | (models.OntologyEdge.dst_cui == c.cui)
     )).all():
         db.delete(e)
+    log_change(db, actor, "ontology", "delete", f"{c.cui}:{c.name}", {})
     db.delete(c)
     db.commit()
     return {"deleted": cid}
@@ -289,7 +304,8 @@ class EdgeIn(BaseModel):
 
 
 @router.post("/ontology/edges")
-def create_edge(body: EdgeIn, db: Session = Depends(get_db)) -> dict:
+def create_edge(body: EdgeIn, db: Session = Depends(get_db),
+                actor: Actor = Depends(get_actor)) -> dict:
     if body.src_cui == body.dst_cui:
         raise HTTPException(400, "an edge cannot link a concept to itself")
     valid = {c.cui for c in db.scalars(select(models.OntologyConcept)).all()}
@@ -305,16 +321,19 @@ def create_edge(body: EdgeIn, db: Session = Depends(get_db)) -> dict:
         raise HTTPException(409, "edge already exists")
     e = models.OntologyEdge(src_cui=body.src_cui, rel=body.rel, dst_cui=body.dst_cui)
     db.add(e)
+    log_change(db, actor, "ontology", "create", f"{body.src_cui}-{body.rel}->{body.dst_cui}", {})
     db.commit()
     db.refresh(e)
     return _edge(e)
 
 
 @router.delete("/ontology/edges/{eid}")
-def delete_edge(eid: int, db: Session = Depends(get_db)) -> dict:
+def delete_edge(eid: int, db: Session = Depends(get_db),
+                actor: Actor = Depends(get_actor)) -> dict:
     e = db.get(models.OntologyEdge, eid)
     if e is None:
         raise HTTPException(404, "edge not found")
+    log_change(db, actor, "ontology", "delete", f"{e.src_cui}-{e.rel}->{e.dst_cui}", {})
     db.delete(e)
     db.commit()
     return {"deleted": eid}
@@ -340,20 +359,23 @@ class GuidelineIn(BaseModel):
 
 
 @router.post("/ontology/guidelines")
-def create_guideline(body: GuidelineIn, db: Session = Depends(get_db)) -> dict:
+def create_guideline(body: GuidelineIn, db: Session = Depends(get_db),
+                     actor: Actor = Depends(get_actor)) -> dict:
     if len(body.text.strip()) < 10:
         raise HTTPException(400, "guideline text too short")
     g = models.GuidelineChunk(source=body.source.strip() or "ClientOverlay",
                               section=body.section, text=body.text.strip(),
                               specialty=body.specialty)
     db.add(g)
+    log_change(db, actor, "guideline", "create", f"{g.source}/{g.section}", {"specialty": g.specialty})
     db.commit()
     db.refresh(g)
     return _guideline(g)
 
 
 @router.put("/ontology/guidelines/{gid}")
-def update_guideline(gid: int, body: GuidelineIn, db: Session = Depends(get_db)) -> dict:
+def update_guideline(gid: int, body: GuidelineIn, db: Session = Depends(get_db),
+                     actor: Actor = Depends(get_actor)) -> dict:
     g = db.get(models.GuidelineChunk, gid)
     if g is None:
         raise HTTPException(404, "guideline not found")
@@ -361,19 +383,242 @@ def update_guideline(gid: int, body: GuidelineIn, db: Session = Depends(get_db))
     g.section = body.section
     g.text = body.text.strip() or g.text
     g.specialty = body.specialty
+    log_change(db, actor, "guideline", "update", f"{g.source}/{g.section}", {"specialty": g.specialty})
     db.commit()
     db.refresh(g)
     return _guideline(g)
 
 
 @router.delete("/ontology/guidelines/{gid}")
-def delete_guideline(gid: int, db: Session = Depends(get_db)) -> dict:
+def delete_guideline(gid: int, db: Session = Depends(get_db),
+                     actor: Actor = Depends(get_actor)) -> dict:
     g = db.get(models.GuidelineChunk, gid)
     if g is None:
         raise HTTPException(404, "guideline not found")
+    log_change(db, actor, "guideline", "delete", f"{g.source}/{g.section}", {})
     db.delete(g)
     db.commit()
     return {"deleted": gid}
+
+
+# ---------------------------------------------------------------------------
+# Reference Data admin — code sets + the deterministic edit tables (NCCI / MUE /
+# modifiers). These are read live by validation.py, so client overlays and edits
+# here change the validation gates on the next coding run.
+# ---------------------------------------------------------------------------
+def _refcode(c: models.ReferenceCode) -> dict:
+    return {"id": c.id, "code_system": c.code_system, "code": c.code, "description": c.description,
+            "billable": c.billable, "modality": c.modality, "sex_restriction": c.sex_restriction,
+            "age_min": c.age_min, "age_max": c.age_max, "source": c.source,
+            "effective_start": c.effective_start, "effective_end": c.effective_end}
+
+
+@router.get("/reference/codes")
+def list_refcodes(system: str = "", q: str = "", limit: int = 200,
+                  db: Session = Depends(get_db)) -> list[dict]:
+    stmt = select(models.ReferenceCode)
+    if system:
+        stmt = stmt.where(models.ReferenceCode.code_system == system)
+    rows = db.scalars(stmt.order_by(models.ReferenceCode.code_system, models.ReferenceCode.code)).all()
+    if q:
+        ql = q.lower()
+        rows = [c for c in rows if ql in c.code.lower() or ql in c.description.lower()]
+    return [_refcode(c) for c in rows[:limit]]
+
+
+class RefCodeIn(BaseModel):
+    code_system: str
+    code: str
+    description: str
+    billable: bool = True
+    modality: str = ""
+    sex_restriction: str = ""
+    age_min: int = 0
+    age_max: int = 130
+    source: str = "ClientOverlay"
+
+
+@router.post("/reference/codes")
+def create_refcode(body: RefCodeIn, db: Session = Depends(get_db),
+                   actor: Actor = Depends(get_actor)) -> dict:
+    if db.scalar(select(models.ReferenceCode).where(
+        models.ReferenceCode.code_system == body.code_system, models.ReferenceCode.code == body.code
+    )):
+        raise HTTPException(409, f"{body.code_system}:{body.code} already exists")
+    c = models.ReferenceCode(**body.model_dump())
+    db.add(c)
+    log_change(db, actor, "reference", "create", f"{body.code_system}:{body.code}", {"desc": body.description})
+    db.commit()
+    db.refresh(c)
+    return _refcode(c)
+
+
+@router.put("/reference/codes/{cid}")
+def update_refcode(cid: int, body: RefCodeIn, db: Session = Depends(get_db),
+                   actor: Actor = Depends(get_actor)) -> dict:
+    c = db.get(models.ReferenceCode, cid)
+    if c is None:
+        raise HTTPException(404, "code not found")
+    for k, v in body.model_dump().items():
+        setattr(c, k, v)
+    log_change(db, actor, "reference", "update", f"{c.code_system}:{c.code}", {"desc": c.description})
+    db.commit()
+    db.refresh(c)
+    return _refcode(c)
+
+
+@router.delete("/reference/codes/{cid}")
+def delete_refcode(cid: int, db: Session = Depends(get_db),
+                   actor: Actor = Depends(get_actor)) -> dict:
+    c = db.get(models.ReferenceCode, cid)
+    if c is None:
+        raise HTTPException(404, "code not found")
+    log_change(db, actor, "reference", "delete", f"{c.code_system}:{c.code}", {})
+    db.delete(c)
+    db.commit()
+    return {"deleted": cid}
+
+
+# --- NCCI PTP bundling edits ------------------------------------------------
+def _ncci(e: models.NcciEdit) -> dict:
+    return {"id": e.id, "column1": e.column1, "column2": e.column2,
+            "modifier_allowed": e.modifier_allowed, "rationale": e.rationale, "source": e.source}
+
+
+@router.get("/reference/ncci")
+def list_ncci(db: Session = Depends(get_db)) -> list[dict]:
+    return [_ncci(e) for e in db.scalars(select(models.NcciEdit).order_by(models.NcciEdit.column1)).all()]
+
+
+class NcciIn(BaseModel):
+    column1: str
+    column2: str
+    modifier_allowed: bool = True
+    rationale: str = ""
+    source: str = "ClientOverlay"
+
+
+@router.post("/reference/ncci")
+def create_ncci(body: NcciIn, db: Session = Depends(get_db),
+                actor: Actor = Depends(get_actor)) -> dict:
+    e = models.NcciEdit(**body.model_dump())
+    db.add(e)
+    log_change(db, actor, "ncci", "create", f"{body.column1}|{body.column2}",
+               {"modifier_allowed": body.modifier_allowed})
+    db.commit()
+    db.refresh(e)
+    return _ncci(e)
+
+
+@router.delete("/reference/ncci/{eid}")
+def delete_ncci(eid: int, db: Session = Depends(get_db),
+                actor: Actor = Depends(get_actor)) -> dict:
+    e = db.get(models.NcciEdit, eid)
+    if e is None:
+        raise HTTPException(404, "edit not found")
+    log_change(db, actor, "ncci", "delete", f"{e.column1}|{e.column2}", {})
+    db.delete(e)
+    db.commit()
+    return {"deleted": eid}
+
+
+# --- MUE limits -------------------------------------------------------------
+def _mue(m: models.MueLimit) -> dict:
+    return {"id": m.id, "code": m.code, "max_units": m.max_units, "rationale": m.rationale, "source": m.source}
+
+
+@router.get("/reference/mue")
+def list_mue(db: Session = Depends(get_db)) -> list[dict]:
+    return [_mue(m) for m in db.scalars(select(models.MueLimit).order_by(models.MueLimit.code)).all()]
+
+
+class MueIn(BaseModel):
+    code: str
+    max_units: int
+    rationale: str = ""
+    source: str = "ClientOverlay"
+
+
+@router.post("/reference/mue")
+def create_mue(body: MueIn, db: Session = Depends(get_db),
+               actor: Actor = Depends(get_actor)) -> dict:
+    if db.scalar(select(models.MueLimit).where(models.MueLimit.code == body.code)):
+        raise HTTPException(409, f"MUE for {body.code} already exists")
+    m = models.MueLimit(**body.model_dump())
+    db.add(m)
+    log_change(db, actor, "mue", "create", body.code, {"max_units": body.max_units})
+    db.commit()
+    db.refresh(m)
+    return _mue(m)
+
+
+@router.put("/reference/mue/{mid}")
+def update_mue(mid: int, body: MueIn, db: Session = Depends(get_db),
+               actor: Actor = Depends(get_actor)) -> dict:
+    m = db.get(models.MueLimit, mid)
+    if m is None:
+        raise HTTPException(404, "MUE not found")
+    for k, v in body.model_dump().items():
+        setattr(m, k, v)
+    log_change(db, actor, "mue", "update", m.code, {"max_units": m.max_units})
+    db.commit()
+    db.refresh(m)
+    return _mue(m)
+
+
+@router.delete("/reference/mue/{mid}")
+def delete_mue(mid: int, db: Session = Depends(get_db),
+               actor: Actor = Depends(get_actor)) -> dict:
+    m = db.get(models.MueLimit, mid)
+    if m is None:
+        raise HTTPException(404, "MUE not found")
+    log_change(db, actor, "mue", "delete", m.code, {})
+    db.delete(m)
+    db.commit()
+    return {"deleted": mid}
+
+
+# --- Modifier rules ---------------------------------------------------------
+def _mod(m: models.ModifierRule) -> dict:
+    return {"id": m.id, "modifier": m.modifier, "description": m.description,
+            "applies_to": m.applies_to, "notes": m.notes}
+
+
+@router.get("/reference/modifiers")
+def list_modifiers(db: Session = Depends(get_db)) -> list[dict]:
+    return [_mod(m) for m in db.scalars(select(models.ModifierRule).order_by(models.ModifierRule.modifier)).all()]
+
+
+class ModifierIn(BaseModel):
+    modifier: str
+    description: str
+    applies_to: str = ""
+    notes: str = ""
+
+
+@router.post("/reference/modifiers")
+def create_modifier(body: ModifierIn, db: Session = Depends(get_db),
+                    actor: Actor = Depends(get_actor)) -> dict:
+    if db.scalar(select(models.ModifierRule).where(models.ModifierRule.modifier == body.modifier)):
+        raise HTTPException(409, f"modifier {body.modifier} already exists")
+    m = models.ModifierRule(**body.model_dump())
+    db.add(m)
+    log_change(db, actor, "modifier", "create", body.modifier, {})
+    db.commit()
+    db.refresh(m)
+    return _mod(m)
+
+
+@router.delete("/reference/modifiers/{mid}")
+def delete_modifier(mid: int, db: Session = Depends(get_db),
+                    actor: Actor = Depends(get_actor)) -> dict:
+    m = db.get(models.ModifierRule, mid)
+    if m is None:
+        raise HTTPException(404, "modifier not found")
+    log_change(db, actor, "modifier", "delete", m.modifier, {})
+    db.delete(m)
+    db.commit()
+    return {"deleted": mid}
 
 
 # ---------------------------------------------------------------------------

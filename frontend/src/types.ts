@@ -210,6 +210,53 @@ export interface Guideline {
   specialty: string;
 }
 
+export interface AuditChange {
+  id: string;
+  at: string;
+  actor: string;
+  role: string;
+  area: string;
+  action: string;
+  target: string;
+  detail: Record<string, any>;
+}
+export interface RefCode {
+  id: number;
+  code_system: string;
+  code: string;
+  description: string;
+  billable: boolean;
+  modality: string;
+  sex_restriction: string;
+  age_min: number;
+  age_max: number;
+  source: string;
+  effective_start?: string;
+  effective_end?: string;
+}
+export interface Ncci {
+  id: number;
+  column1: string;
+  column2: string;
+  modifier_allowed: boolean;
+  rationale: string;
+  source: string;
+}
+export interface Mue {
+  id: number;
+  code: string;
+  max_units: number;
+  rationale: string;
+  source: string;
+}
+export interface Modifier {
+  id: number;
+  modifier: string;
+  description: string;
+  applies_to: string;
+  notes: string;
+}
+
 export interface Dashboard {
   total_encounters: number;
   coded: number;

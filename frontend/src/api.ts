@@ -1,9 +1,16 @@
 const BASE = (import.meta as any).env?.VITE_API_BASE ?? "/api";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  // Attribute every mutation to the active role for the admin change-log.
+  const role = (typeof localStorage !== "undefined" && localStorage.getItem("ace_role")) || "Admin";
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...init,
+    headers: {
+      "Content-Type": "application/json",
+      "X-Actor": `${role.toLowerCase().replace(/\s+/g, "_")}:demo`,
+      "X-Role": role,
+      ...(init?.headers ?? {}),
+    },
   });
   if (!res.ok) {
     let detail = res.statusText;
@@ -91,6 +98,22 @@ export const api = {
   putConfig: (key: string, value: any) =>
     req(`/admin/config/${key}`, { method: "PUT", body: JSON.stringify({ value }) }),
   resetConfig: () => req("/admin/config/reset", { method: "POST" }),
+  adminAudit: () => req<import("./types").AuditChange[]>("/admin/audit"),
+  // --- Reference Data admin (drives the validation gates) ---
+  refCodes: (system = "", q = "") => req<import("./types").RefCode[]>(`/reference/codes?system=${encodeURIComponent(system)}&q=${encodeURIComponent(q)}`),
+  createRefCode: (c: Partial<import("./types").RefCode>) => req<import("./types").RefCode>("/reference/codes", { method: "POST", body: JSON.stringify(c) }),
+  updateRefCode: (id: number, c: Partial<import("./types").RefCode>) => req<import("./types").RefCode>(`/reference/codes/${id}`, { method: "PUT", body: JSON.stringify(c) }),
+  deleteRefCode: (id: number) => req(`/reference/codes/${id}`, { method: "DELETE" }),
+  ncci: () => req<import("./types").Ncci[]>("/reference/ncci"),
+  createNcci: (e: Partial<import("./types").Ncci>) => req<import("./types").Ncci>("/reference/ncci", { method: "POST", body: JSON.stringify(e) }),
+  deleteNcci: (id: number) => req(`/reference/ncci/${id}`, { method: "DELETE" }),
+  mue: () => req<import("./types").Mue[]>("/reference/mue"),
+  createMue: (m: Partial<import("./types").Mue>) => req<import("./types").Mue>("/reference/mue", { method: "POST", body: JSON.stringify(m) }),
+  updateMue: (id: number, m: Partial<import("./types").Mue>) => req<import("./types").Mue>(`/reference/mue/${id}`, { method: "PUT", body: JSON.stringify(m) }),
+  deleteMue: (id: number) => req(`/reference/mue/${id}`, { method: "DELETE" }),
+  modifiers: () => req<import("./types").Modifier[]>("/reference/modifiers"),
+  createModifier: (m: Partial<import("./types").Modifier>) => req<import("./types").Modifier>("/reference/modifiers", { method: "POST", body: JSON.stringify(m) }),
+  deleteModifier: (id: number) => req(`/reference/modifiers/${id}`, { method: "DELETE" }),
   dashboard: () => req<import("./types").Dashboard>("/dashboard/stats"),
   kg: () => req<{ nodes: any[]; links: any[] }>("/kg/graph"),
   referenceSummary: () => req<any>("/reference/summary"),

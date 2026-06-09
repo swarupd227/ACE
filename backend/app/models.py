@@ -294,6 +294,22 @@ class AppConfig(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class ConfigAudit(Base):
+    """Append-only change log for every admin/governance edit — config changes,
+    payer-policy / ontology / guideline / reference-data / golden-set edits.
+    Distinct from the per-encounter audit_ledger; this is the platform-admin trail."""
+    __tablename__ = "config_audit"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    actor: Mapped[str] = mapped_column(String(60), default="system")
+    role: Mapped[str] = mapped_column(String(40), default="")
+    area: Mapped[str] = mapped_column(String(40))     # config|policy|ontology|guideline|reference|ncci|mue|modifier|golden|connector
+    action: Mapped[str] = mapped_column(String(16))   # create|update|delete|reset
+    target: Mapped[str] = mapped_column(String(160), default="")
+    detail: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
 class GoldenCase(Base):
     """Frozen golden-set case for the evaluation harness."""
     __tablename__ = "golden_cases"

@@ -6,10 +6,12 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import config_store
+from .. import config_store, models
 from ..db import get_db
+from ._admin_audit import Actor, get_actor, log_change
 
 router = APIRouter()
 
@@ -28,15 +30,33 @@ class ConfigPatch(BaseModel):
 
 
 @router.put("/admin/config/{key}")
-def put_config(key: str, body: ConfigPatch, db: Session = Depends(get_db)) -> dict:
+def put_config(key: str, body: ConfigPatch, db: Session = Depends(get_db),
+               actor: Actor = Depends(get_actor)) -> dict:
     if key not in config_store.DEFAULTS:
         raise HTTPException(404, f"unknown config key: {key}")
     config_store.set_key(db, key, body.value)
+    log_change(db, actor, "config", "update", key, {"value": body.value})
+    db.commit()
     return {"key": key, "value": body.value}
 
 
 @router.post("/admin/config/reset")
-def reset_config(db: Session = Depends(get_db)) -> dict:
+def reset_config(db: Session = Depends(get_db), actor: Actor = Depends(get_actor)) -> dict:
     for k, v in config_store.DEFAULTS.items():
         config_store.set_key(db, k, copy.deepcopy(v))
+    log_change(db, actor, "config", "reset", "all", {})
+    db.commit()
     return {"reset": True}
+
+
+# --- Admin change log (append-only governance trail) -----------------------
+@router.get("/admin/audit")
+def admin_audit(limit: int = 100, db: Session = Depends(get_db)) -> list[dict]:
+    rows = db.scalars(
+        select(models.ConfigAudit).order_by(models.ConfigAudit.at.desc()).limit(limit)
+    ).all()
+    return [
+        {"id": r.id, "at": r.at.isoformat(), "actor": r.actor, "role": r.role,
+         "area": r.area, "action": r.action, "target": r.target, "detail": r.detail}
+        for r in rows
+    ]

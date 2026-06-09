@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
-import { SlidersHorizontal, ShieldAlert, FileCheck2, Timer, Layers, Users, Save, RotateCcw, Plus, Trash2, Check } from "lucide-react";
+import { SlidersHorizontal, ShieldAlert, FileCheck2, Timer, Layers, Users, Save, RotateCcw, Plus, Trash2, Check, History } from "lucide-react";
 import { api } from "../api";
 import { Spinner } from "../lib";
 
@@ -195,6 +195,55 @@ function RosterTab({ cfg }: { cfg: any }) {
   );
 }
 
+const AREA_TONE: Record<string, string> = {
+  config: "bg-ace-50 text-ace-700 ring-ace-200",
+  policy: "bg-amber-50 text-amber-700 ring-amber-200",
+  ontology: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+  guideline: "bg-sky-50 text-sky-700 ring-sky-200",
+  reference: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  ncci: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  mue: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  modifier: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  golden: "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200",
+};
+
+function ChangeLogTab() {
+  const { data, isLoading } = useQuery({ queryKey: ["adminAudit"], queryFn: api.adminAudit, refetchInterval: 10000 });
+  if (isLoading) return <div className="grid place-items-center h-40"><Spinner className="h-5 w-5 text-ace-500" /></div>;
+  const rows = data ?? [];
+  return (
+    <div className="card overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-2">
+        <History size={16} className="text-slate-400" />
+        <span className="font-semibold text-slate-700 text-sm">Governance change log</span>
+        <span className="text-xs text-slate-400">· append-only · every admin edit, who & when · {rows.length} entries</span>
+      </div>
+      {rows.length === 0 ? (
+        <div className="p-8 text-center text-sm text-slate-400">No changes recorded yet. Edit a config, policy, the KG, or reference data — it lands here.</div>
+      ) : (
+        <table className="w-full text-sm">
+          <thead><tr className="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-200">
+            <th className="px-3 py-2">When</th><th className="px-3 py-2">Actor</th><th className="px-3 py-2">Area</th>
+            <th className="px-3 py-2">Action</th><th className="px-3 py-2">Target</th><th className="px-3 py-2">Detail</th>
+          </tr></thead>
+          <tbody className="divide-y divide-slate-100">
+            {rows.map((r) => (
+              <tr key={r.id} className="hover:bg-slate-50/70 align-top">
+                <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{new Date(r.at).toLocaleString()}</td>
+                <td className="px-3 py-2 text-xs"><span className="font-medium text-slate-700">{r.role || r.actor}</span></td>
+                <td className="px-3 py-2"><span className={clsx("pill ring-1", AREA_TONE[r.area] ?? "bg-slate-100 text-slate-600 ring-slate-200")}>{r.area}</span></td>
+                <td className="px-3 py-2 text-xs font-medium text-slate-600">{r.action}</td>
+                <td className="px-3 py-2 font-mono text-xs text-slate-700">{r.target}</td>
+                <td className="px-3 py-2 text-xs text-slate-400 max-w-xs truncate">{Object.keys(r.detail || {}).length ? JSON.stringify(r.detail) : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 const TABS: [string, string, any][] = [
   ["routing", "Routing & Calibration", SlidersHorizontal],
   ["bounded", "Bounded Autonomy", ShieldAlert],
@@ -202,6 +251,7 @@ const TABS: [string, string, any][] = [
   ["sla", "SLA Targets", Timer],
   ["specialties", "Specialty Accelerator", Layers],
   ["roster", "Users & Roster", Users],
+  ["changelog", "Change Log", History],
 ];
 
 export default function Admin() {
@@ -237,6 +287,7 @@ export default function Admin() {
       {tab === "sla" && <SlaTab cfg={cfg} />}
       {tab === "specialties" && <SpecialtiesTab cfg={cfg} />}
       {tab === "roster" && <RosterTab cfg={cfg} />}
+      {tab === "changelog" && <ChangeLogTab />}
     </div>
   );
 }

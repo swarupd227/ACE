@@ -5,6 +5,7 @@ import { Search, Plus, Save, Trash2, X, ShieldCheck, Lock, Unlock, Network, Data
 import { api } from "../api";
 import OntologyGraph from "../components/OntologyGraph";
 import KgBuilder from "../components/KgBuilder";
+import RefDataAdmin from "../components/RefDataAdmin";
 import { Spinner } from "../lib";
 import type { Policy, Guideline } from "../types";
 
@@ -193,34 +194,7 @@ function GuidelinesTab() {
   );
 }
 
-function SourcesTab() {
-  const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: api.meta });
-  const { data: ref } = useQuery({ queryKey: ["refsum"], queryFn: api.referenceSummary });
-  return (
-    <div className="grid md:grid-cols-2 gap-4">
-      <div className="card p-5">
-        <div className="flex items-center gap-2 mb-3"><Database size={16} className="text-ace-600" /><h2 className="font-bold text-slate-800">Data provenance</h2></div>
-        <ul className="space-y-2 text-sm">
-          {meta && Object.entries(meta.provenance).map(([k, v]) => (
-            <li key={k} className="flex justify-between gap-3"><span className="font-mono text-slate-700">{k}</span><span className="text-xs text-slate-500 text-right">{v as string}</span></li>
-          ))}
-        </ul>
-      </div>
-      <div className="card p-5">
-        <h2 className="font-bold text-slate-800 mb-3">Loaded reference data</h2>
-        {ref && <div className="text-sm text-slate-600 grid grid-cols-2 gap-1">
-          <span>ICD-10-CM: {ref.code_systems?.ICD10CM ?? 0}</span><span>CPT: {ref.code_systems?.CPT ?? 0}</span>
-          <span>HCPCS: {ref.code_systems?.HCPCS ?? 0}</span><span>NCCI edits: {ref.ncci_edits}</span>
-          <span>MUE limits: {ref.mue_limits}</span><span>Payer policies: {ref.payer_policies}</span>
-          <span>Guidelines: {ref.guidelines}</span><span>Ontology concepts: {ref.ontology_concepts}</span>
-        </div>}
-        <p className="mt-3 text-xs text-slate-400">Effective-dated; production swaps in licensed AMA CPT and SNOMED/UMLS ontology (same shape).</p>
-      </div>
-    </div>
-  );
-}
-
-type Tab = "policies" | "builder" | "guidelines" | "graph" | "sources";
+type Tab = "policies" | "builder" | "guidelines" | "graph" | "refdata";
 
 export default function PolicyAdmin() {
   const [tab, setTab] = useState<Tab>("policies");
@@ -229,7 +203,7 @@ export default function PolicyAdmin() {
     ["builder", "KG Builder", Boxes],
     ["guidelines", "Coding Guidelines", BookOpen],
     ["graph", "Explore Graph", Network],
-    ["sources", "Data Sources", Database],
+    ["refdata", "Reference Data", Database],
   ];
   return (
     <div className="space-y-4 fadeup">
@@ -250,7 +224,7 @@ export default function PolicyAdmin() {
       {tab === "builder" && <KgBuilder />}
       {tab === "guidelines" && <GuidelinesTab />}
       {tab === "graph" && <GraphTab />}
-      {tab === "sources" && <SourcesTab />}
+      {tab === "refdata" && <RefDataAdmin />}
     </div>
   );
 }
