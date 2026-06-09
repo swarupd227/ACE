@@ -117,10 +117,12 @@ function GraphTab() {
 }
 
 const BLANK_GL: Partial<Guideline> = { source: "ClientOverlay", section: "", text: "", specialty: "" };
-const SPECIALTIES = ["", "Radiology", "E&M", "ED", "Pathology", "Surgical"];
+const FALLBACK_SPECS = ["Radiology", "E&M", "ED", "Pathology", "Surgical"];
 
 function GuidelineEditor({ initial, onClose }: { initial: Partial<Guideline>; onClose: () => void }) {
   const qc = useQueryClient();
+  const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: api.meta });
+  const SPECIALTIES = ["", ...(meta?.specialties?.length ? meta.specialties : FALLBACK_SPECS)];
   const [g, setG] = useState<Partial<Guideline>>({ ...initial });
   const isNew = !initial.id;
   const save = useMutation({

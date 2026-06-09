@@ -31,7 +31,8 @@ def meta(db: Session = Depends(get_db)) -> dict:
         "model_hard": e["model_hard"],
         "model_version": llm_client.model_version(llm),
         "self_consistency_samples": settings.ace_self_consistency_samples,
-        "specialties": ["Radiology", "E&M", "ED", "Pathology", "Surgical"],
+        # live from config_store so admin-added specialties appear everywhere
+        "specialties": [s["name"] for s in (config_store.all_config(db).get("specialties") or []) if s.get("enabled", True)],
         "provenance": {
             "ICD10CM": "REAL public-domain subset (CMS/NCHS)",
             "HCPCS": "REAL public-domain subset (CMS)",

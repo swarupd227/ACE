@@ -16,6 +16,8 @@ Electronically signed by Dr. A. Reyes, MD.`;
 export default function Integrations() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["integrations"], queryFn: api.integrations });
+  const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: api.meta });
+  const specs = meta?.specialties?.length ? meta.specialties : ["Radiology", "E&M", "ED", "Pathology", "Surgical"];
   const [form, setForm] = useState({ specialty: "Radiology", modality: "CT", payer: "Medicare", source_system: "eClinicalWorks", report_text: "" });
   const [last, setLast] = useState<any>(null);
 
@@ -68,7 +70,7 @@ export default function Integrations() {
           <div className="flex items-center gap-2 mb-3"><FileInput size={16} className="text-ace-600" /><h2 className="font-bold text-slate-800">Ingest a report (live)</h2></div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
             <select className="rounded border border-slate-200 px-2 py-1.5 text-sm" value={form.specialty} onChange={(e) => set("specialty", e.target.value)}>
-              {["Radiology", "E&M", "ED", "Pathology", "Surgical"].map((s) => <option key={s}>{s}</option>)}
+              {specs.map((s) => <option key={s}>{s}</option>)}
             </select>
             <input className="rounded border border-slate-200 px-2 py-1.5 text-sm" placeholder="Modality (CT)" value={form.modality} onChange={(e) => set("modality", e.target.value)} />
             <input className="rounded border border-slate-200 px-2 py-1.5 text-sm" placeholder="Payer" value={form.payer} onChange={(e) => set("payer", e.target.value)} />

@@ -45,13 +45,18 @@ export default function Worklist() {
   };
   const stbRate = coded.length ? Math.round((counts.STB / coded.length) * 100) : 0;
 
+  const specs = meta?.specialties ?? [];
+  const specProse = specs.length === 0 ? "Multi-specialty"
+    : specs.length === 1 ? specs[0]
+    : specs.slice(0, -1).join(", ") + " & " + specs[specs.length - 1];
+
   return (
     <div className="space-y-5 fadeup">
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900">Coder Worklist</h1>
           <p className="text-sm text-slate-500">
-            Radiology &amp; E&amp;M encounters · confidence-routed into Straight-Through Billing, QA, or Manual
+            {specProse} encounters · confidence-routed into Straight-Through Billing, QA, or Manual
           </p>
         </div>
         {mayCode ? (

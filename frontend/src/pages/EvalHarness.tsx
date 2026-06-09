@@ -5,11 +5,13 @@ import { api } from "../api";
 import { Spinner, pct } from "../lib";
 import type { Golden } from "../types";
 
-const SPECS = ["Radiology", "E&M", "ED", "Pathology", "Surgical"];
+const FALLBACK_SPECS = ["Radiology", "E&M", "ED", "Pathology", "Surgical"];
 const BLANK_G: Partial<Golden> = { specialty: "Radiology", chart_text: "", truth: { icd: [], cpt: [] }, irr: 0.9, ambiguous: false };
 
 function GoldenEditor({ initial, onClose }: { initial: Partial<Golden>; onClose: () => void }) {
   const qc = useQueryClient();
+  const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: api.meta });
+  const SPECS = meta?.specialties?.length ? meta.specialties : FALLBACK_SPECS;
   const [g, setG] = useState<Partial<Golden>>({ ...initial });
   const isNew = !initial.id;
   const save = useMutation({
