@@ -59,7 +59,7 @@ export default function Worklist() {
             className="btn-brand"
             disabled={!meta?.llm_available}
             onClick={() => setShowBatch(true)}
-            title={!meta?.llm_available ? "Configure ANTHROPIC_API_KEY to enable coding" : ""}
+            title={!meta?.llm_available ? "Configure a reasoning model in Admin → Reasoning Model to enable coding" : ""}
           >
             <Play size={16} /> Run autonomous coding
           </button>

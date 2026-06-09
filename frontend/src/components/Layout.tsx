@@ -87,7 +87,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </span>
             )}
             <span className="pill bg-brand-50 text-brand-700 ring-1 ring-brand-300">
-              {meta?.llm_mode === "anthropic" ? "Claude (frontier)" : meta?.llm_mode ?? "…"}
+              {!meta ? "…" : meta.llm_mode === "anthropic" ? "Claude (Anthropic)" : meta.llm_mode === "openai_compatible" ? "OpenAI-compatible" : meta.llm_mode}
             </span>
             <RoleSwitcher />
           </div>

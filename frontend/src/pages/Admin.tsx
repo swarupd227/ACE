@@ -153,9 +153,9 @@ function SpecialtiesTab({ cfg }: { cfg: any }) {
   return (
     <div className="card p-4 max-w-2xl">
       <h3 className="font-bold text-slate-800 mb-1">Specialty accelerator</h3>
-      <p className="text-xs text-slate-500 mb-3">Enable/disable specialties and set the model tier. <b>Hard</b> = Opus + self-consistency. New specialties onboard via config + a golden set — not a rebuild.</p>
+      <p className="text-xs text-slate-500 mb-3">Enable/disable specialties and set the model tier. <b>Hard</b> = the hard-chart model (set in Reasoning Model) + self-consistency. New specialties onboard via config + a golden set — not a rebuild.</p>
       <table className="w-full text-sm">
-        <thead><tr className="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-200"><th className="py-2">Specialty</th><th className="py-2">Enabled</th><th className="py-2">Hard (Opus + self-consistency)</th></tr></thead>
+        <thead><tr className="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-200"><th className="py-2">Specialty</th><th className="py-2">Enabled</th><th className="py-2">Hard (hard-chart model + self-consistency)</th></tr></thead>
         <tbody className="divide-y divide-slate-100">
           {sp.local.map((s: any, i: number) => (
             <tr key={s.name}>
