@@ -13,6 +13,7 @@ const ACCESS: Record<string, Role[]> = {
   "/integrations": ["Admin", "Coder"],
   "/eval": ["Admin", "Supervisor"],
   "/learning": ["Admin", "QA Auditor", "Supervisor"],
+  "/audit": ["Admin", "QA Auditor", "Supervisor"],
   "/admin": ["Admin"],
 };
 

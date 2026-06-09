@@ -453,3 +453,111 @@ def eval_run_stream() -> StreamingResponse:
             db.close()
 
     return sse_response(work)
+
+
+# --- Global audit timeline -------------------------------------------------
+# One unified, filterable trail that merges the two append-only ledgers:
+#   • coding  — per-encounter pipeline/decision events (audit_ledger / AuditEntry)
+#   • governance — admin & config changes (config_audit / ConfigAudit)
+# This is the compliance "single pane of glass"; the per-chart Audit packet and the
+# Admin Change Log remain as the scoped drill-downs.
+@router.get("/audit/global")
+def global_audit(
+    source: str = "",      # "" (all) | coding | governance
+    q: str = "",           # free-text over actor / category / action / target / detail
+    encounter: str = "",   # MRN or encounter_id substring
+    limit: int = 250,
+    db: Session = Depends(get_db),
+) -> dict:
+    events: list[dict] = []
+
+    if source in ("", "coding"):
+        rows = db.scalars(
+            select(models.AuditEntry).order_by(models.AuditEntry.ts.desc()).limit(1000)
+        ).all()
+        enc_ids = {r.encounter_id for r in rows if r.encounter_id}
+        encs = {}
+        if enc_ids:
+            encs = {
+                e.id: e for e in db.scalars(
+                    select(models.Encounter).where(models.Encounter.id.in_(enc_ids))
+                ).all()
+            }
+        for r in rows:
+            e = encs.get(r.encounter_id)
+            events.append({
+                "id": r.id,
+                "ts": r.ts.isoformat(),
+                "source": "coding",
+                "actor": r.actor or "system",
+                "role": "",
+                "category": r.stage,
+                "action": r.event,
+                "target": (e.mrn if e else r.encounter_id) or "",
+                "specialty": (e.specialty if e else ""),
+                "encounter_id": r.encounter_id or "",
+                "run_id": r.run_id or "",
+                "model_version": r.model_version or "",
+                "detail": r.detail or {},
+            })
+
+    if source in ("", "governance"):
+        rows = db.scalars(
+            select(models.ConfigAudit).order_by(models.ConfigAudit.at.desc()).limit(1000)
+        ).all()
+        for r in rows:
+            events.append({
+                "id": r.id,
+                "ts": r.at.isoformat(),
+                "source": "governance",
+                "actor": r.actor or "system",
+                "role": r.role or "",
+                "category": r.area,
+                "action": r.action,
+                "target": r.target or "",
+                "specialty": "",
+                "encounter_id": "",
+                "run_id": "",
+                "model_version": "",
+                "detail": r.detail or {},
+            })
+
+    if encounter:
+        el = encounter.lower()
+        events = [
+            ev for ev in events
+            if el in (ev["target"] or "").lower() or el in (ev["encounter_id"] or "").lower()
+        ]
+    if q:
+        ql = q.lower()
+        def _hay(ev: dict) -> str:
+            return " ".join([
+                ev["actor"], ev["category"], ev["action"], ev["target"],
+                ev["role"], ev["model_version"], str(ev["detail"]),
+            ]).lower()
+        events = [ev for ev in events if ql in _hay(ev)]
+
+    events.sort(key=lambda ev: ev["ts"], reverse=True)
+    matched = len(events)
+
+    # Facets computed over the full matched set (so the chips are honest counts).
+    def _tally(key: str) -> dict:
+        out: dict[str, int] = {}
+        for ev in events:
+            out[ev[key]] = out.get(ev[key], 0) + 1
+        return dict(sorted(out.items(), key=lambda kv: kv[1], reverse=True))
+
+    facets = {
+        "by_source": _tally("source"),
+        "by_category": _tally("category"),
+        "by_actor": _tally("actor"),
+    }
+    summary = {
+        "matched": matched,
+        "coding_events": facets["by_source"].get("coding", 0),
+        "governance_events": facets["by_source"].get("governance", 0),
+        "distinct_actors": len(facets["by_actor"]),
+        "newest": events[0]["ts"] if events else None,
+        "oldest": events[-1]["ts"] if events else None,
+    }
+    return {"events": events[:limit], "summary": summary, "facets": facets}

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
   LayoutList, LayoutDashboard, BarChart3, ShieldCheck, FlaskConical, GraduationCap,
-  Cpu, Stethoscope, Plug, SlidersHorizontal, UserCog,
+  Cpu, Stethoscope, Plug, SlidersHorizontal, UserCog, ScrollText,
 } from "lucide-react";
 import { api } from "../api";
 import { useRole, ROLES, canAccess } from "../role";
@@ -17,6 +17,7 @@ const nav = [
   { to: "/integrations", label: "Integrations & Ingestion", icon: Plug },
   { to: "/eval", label: "Evaluation Harness", icon: FlaskConical },
   { to: "/learning", label: "Closed-Loop Learning", icon: GraduationCap },
+  { to: "/audit", label: "Audit Log", icon: ScrollText },
   { to: "/admin", label: "Admin / Configuration", icon: SlidersHorizontal },
 ];
 

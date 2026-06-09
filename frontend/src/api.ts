@@ -99,6 +99,15 @@ export const api = {
     req(`/admin/config/${key}`, { method: "PUT", body: JSON.stringify({ value }) }),
   resetConfig: () => req("/admin/config/reset", { method: "POST" }),
   adminAudit: () => req<import("./types").AuditChange[]>("/admin/audit"),
+  globalAudit: (p: { source?: string; q?: string; encounter?: string; limit?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (p.source) qs.set("source", p.source);
+    if (p.q) qs.set("q", p.q);
+    if (p.encounter) qs.set("encounter", p.encounter);
+    if (p.limit) qs.set("limit", String(p.limit));
+    const s = qs.toString();
+    return req<import("./types").GlobalAudit>(`/audit/global${s ? `?${s}` : ""}`);
+  },
   llmStatus: () => req<import("./types").LlmStatus>("/admin/llm/status"),
   testLlm: () => req<{ ok: boolean; model: string; latency_ms?: number; sample?: any; error?: string }>("/admin/llm/test", { method: "POST" }),
   // --- Reference Data admin (drives the validation gates) ---

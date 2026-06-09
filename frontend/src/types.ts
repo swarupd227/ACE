@@ -230,6 +230,37 @@ export interface AuditChange {
   target: string;
   detail: Record<string, any>;
 }
+export interface AuditEvent {
+  id: string;
+  ts: string;
+  source: "coding" | "governance";
+  actor: string;
+  role: string;
+  category: string;
+  action: string;
+  target: string;
+  specialty: string;
+  encounter_id: string;
+  run_id: string;
+  model_version: string;
+  detail: Record<string, any>;
+}
+export interface GlobalAudit {
+  events: AuditEvent[];
+  summary: {
+    matched: number;
+    coding_events: number;
+    governance_events: number;
+    distinct_actors: number;
+    newest: string | null;
+    oldest: string | null;
+  };
+  facets: {
+    by_source: Record<string, number>;
+    by_category: Record<string, number>;
+    by_actor: Record<string, number>;
+  };
+}
 export interface RefCode {
   id: number;
   code_system: string;

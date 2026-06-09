@@ -9,6 +9,7 @@ import Integrations from "./pages/Integrations";
 import EvalHarness from "./pages/EvalHarness";
 import Learning from "./pages/Learning";
 import Cdi from "./pages/Cdi";
+import AuditLog from "./pages/AuditLog";
 import Admin from "./pages/Admin";
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/integrations" element={<Integrations />} />
         <Route path="/eval" element={<EvalHarness />} />
         <Route path="/learning" element={<Learning />} />
+        <Route path="/audit" element={<AuditLog />} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
     </Layout>
