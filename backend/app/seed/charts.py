@@ -351,6 +351,39 @@ CHARTS = [
             "Electronically signed by Dr. M. Okafor, MD, Orthopedic Surgeon."
         ),
     ),
+    # 20 — OB/GYN (obstetrics) → expect 76805 + Z34.82
+    dict(
+        mrn="OB80001", patient_name="Priya Nadkarni", age=29, sex="F", specialty="OB/GYN",
+        modality="", encounter_type="", payer="Anthem", pos="11", dos="2026-04-23",
+        client="Riverbend Women's Health", source_system="eClinicalWorks", report_type="ultrasound_report",
+        scenario="OB/GYN — obstetric anatomy ultrasound",
+        chart_text=(
+            "OBSTETRIC ULTRASOUND REPORT\n"
+            "STUDY: Transabdominal obstetric ultrasound, single intrauterine gestation, 20 weeks.\n"
+            "INDICATION: Routine second-trimester fetal anatomy survey, uncomplicated pregnancy.\n"
+            "FINDINGS: Single live intrauterine fetus, cephalic. Biometry consistent with 20w1d. Four-chamber "
+            "heart, stomach, bladder, kidneys, spine and cranial anatomy appear normal. Posterior placenta, "
+            "not previa. Amniotic fluid normal.\n"
+            "IMPRESSION: Normal 20-week fetal anatomy survey; uncomplicated intrauterine pregnancy.\n"
+            "Performed in the office. Electronically signed by Dr. L. Mensah, MD, OB/GYN."
+        ),
+    ),
+    # 21 — OB/GYN (gynecology) → expect 57454 + N87.1
+    dict(
+        mrn="GY80002", patient_name="Carla Jimenez", age=42, sex="F", specialty="OB/GYN",
+        modality="", encounter_type="", payer="Medicare", pos="11", dos="2026-04-23",
+        client="Riverbend Women's Health", source_system="PracticeAdmin", report_type="procedure_note",
+        scenario="OB/GYN — colposcopy with cervical biopsy",
+        chart_text=(
+            "COLPOSCOPY PROCEDURE NOTE\n"
+            "INDICATION: Abnormal cervical cytology (HSIL) on screening Pap.\n"
+            "PROCEDURE: Colposcopy of the cervix with cervical biopsy and endocervical curettage.\n"
+            "FINDINGS: Acetowhite epithelium with coarse punctation at the squamocolumnar junction; biopsy "
+            "taken. Pathology returned moderate cervical dysplasia (CIN II).\n"
+            "IMPRESSION: Moderate cervical dysplasia (CIN II).\n"
+            "Electronically signed by Dr. L. Mensah, MD, OB/GYN."
+        ),
+    ),
 ]
 
 
@@ -493,4 +526,19 @@ GOLDEN_CASES = [
              "impingement.\nPROCEDURE PERFORMED: Right shoulder arthroscopy with subacromial decompression "
              "and partial acromioplasty.\nFINDINGS: Subacromial spurring with bursal-sided partial-thickness "
              "cuff fraying; decompression performed.\nElectronically signed by orthopedic surgeon.")),
+    dict(specialty="OB/GYN", irr=0.90, ambiguous=False,
+         truth={"icd": ["Z34.82"], "cpt": ["76805"]},
+         chart_text=(
+             "OBSTETRIC ULTRASOUND REPORT\nSTUDY: Transabdominal obstetric ultrasound, single intrauterine "
+             "gestation, 20 weeks.\nINDICATION: Routine second-trimester fetal anatomy survey, uncomplicated "
+             "pregnancy.\nFINDINGS: Single live fetus, biometry at 20w; normal anatomy survey; posterior "
+             "placenta, not previa; normal fluid.\nIMPRESSION: Normal 20-week anatomy survey, uncomplicated "
+             "pregnancy.\nElectronically signed by OB/GYN.")),
+    dict(specialty="OB/GYN", irr=0.88, ambiguous=False,
+         truth={"icd": ["N87.1"], "cpt": ["57454"]},
+         chart_text=(
+             "COLPOSCOPY PROCEDURE NOTE\nINDICATION: Abnormal cervical cytology (HSIL) on Pap.\n"
+             "PROCEDURE: Colposcopy of the cervix with cervical biopsy and endocervical curettage.\n"
+             "FINDINGS: Acetowhite epithelium with punctation; biopsy returned moderate cervical dysplasia "
+             "(CIN II).\nIMPRESSION: Moderate cervical dysplasia (CIN II).\nElectronically signed by OB/GYN.")),
 ]

@@ -65,6 +65,16 @@ ICD10CM = [
     # non-billable parents (specificity gate should reject these)
     ("M17.1", "Unilateral primary osteoarthritis of knee", False, "M17"),
     ("M75.10", "Unspecified rotator cuff tear or rupture, not specified as traumatic", False, "M75.1"),
+    # OB/GYN (added via the specialty accelerator — no engine changes)
+    ("Z34.82", "Encounter for supervision of normal pregnancy, second trimester", True, "Z34.8"),
+    ("Z34.83", "Encounter for supervision of normal pregnancy, third trimester", True, "Z34.8"),
+    ("N87.1", "Moderate cervical dysplasia (CIN II)", True, "N87"),
+    ("N87.0", "Mild cervical dysplasia (CIN I)", True, "N87"),
+    ("N93.9", "Abnormal uterine and vaginal bleeding, unspecified", True, "N93"),
+    ("N83.20", "Unspecified ovarian cysts", True, "N83.2"),
+    # non-billable parents (specificity gate should reject these)
+    ("Z34.8", "Encounter for supervision of other normal pregnancy", False, "Z34"),
+    ("N87", "Dysplasia of cervix uteri", False, "N87"),
     # non-billable parents (specificity gate should reject these)
     ("E11.4", "Type 2 diabetes mellitus with neurological complications", False, "E11"),
     ("M25.56", "Pain in knee", False, "M25.5"),
@@ -132,6 +142,12 @@ CPT = [
     ("27447", "Arthroplasty, knee, condyle and plateau; medial AND lateral compartments (total knee)", "ORTHO"),
     ("29826", "Arthroscopy, shoulder, surgical; decompression of subacromial space with partial acromioplasty", "ORTHO"),
     ("20550", "Injection(s); single tendon sheath, or ligament, aponeurosis", "ORTHO"),
+    # OB/GYN — DEMO placeholder
+    ("76805", "Ultrasound, pregnant uterus, >=14 weeks, transabdominal; single or first gestation", "OBGYN"),
+    ("57454", "Colposcopy of the cervix with biopsy(s) of the cervix and endocervical curettage", "OBGYN"),
+    ("58100", "Endometrial biopsy, without cervical dilation, any method (separate procedure)", "OBGYN"),
+    ("58300", "Insertion of intrauterine device (IUD)", "OBGYN"),
+    ("59400", "Routine obstetric care; antepartum care, vaginal delivery, and postpartum care (global)", "OBGYN"),
 ]
 
 HCPCS = [
@@ -183,6 +199,8 @@ MUE = [
     ("93000", 1, "Routine 12-lead ECG, one per day typical"),
     ("27447", 1, "Total knee arthroplasty, one per knee per day"),
     ("29826", 1, "Shoulder arthroscopic decompression, one per shoulder per day"),
+    ("57454", 1, "Colposcopy with biopsy, one per day"),
+    ("58100", 1, "Endometrial biopsy, one per day"),
 ]
 
 # --- Payer policy (representative) ---
@@ -213,6 +231,10 @@ PAYER_POLICY = [
      "limitation after failed conservative therapy.", False, "", ["M17"]),
     ("Anthem", "27447", "Prior authorization required for elective total knee arthroplasty.",
      True, "Auth # required on claim", ["M17"]),
+    ("Anthem", "76805", "Obstetric ultrasound covered for pregnancy dating, viability and the fetal "
+     "anatomy survey.", False, "", ["Z34", "O09", "O26"]),
+    ("Medicare", "57454", "Colposcopy with cervical biopsy covered for abnormal cervical cytology or "
+     "documented dysplasia.", False, "", ["N87", "R87"]),
 ]
 
 # --- Medical ontology (concept graph for Graph-RAG) ---
@@ -246,6 +268,12 @@ ONTOLOGY_CONCEPTS = [
     ("C0035328", "Rotator cuff tear", "Disease", [{"system": "ICD10CM", "code": "M75.101"}]),
     ("C0022742", "Knee joint structure", "Body Part", []),
     ("C0037004", "Shoulder joint structure", "Body Part", []),
+    # OB/GYN concepts (added with the specialty)
+    ("C0032961", "Pregnancy", "Finding", [{"system": "ICD10CM", "code": "Z34.82"}]),
+    ("C0206630", "Cervical dysplasia", "Disease", [{"system": "ICD10CM", "code": "N87.1"}]),
+    ("C0151706", "Abnormal uterine bleeding", "Sign or Symptom", [{"system": "ICD10CM", "code": "N93.9"}]),
+    ("C0007874", "Cervix uteri structure", "Body Part", []),
+    ("C0042149", "Uterine structure", "Body Part", []),
 ]
 # (src_cui, rel, dst_cui)
 ONTOLOGY_EDGES = [
@@ -264,6 +292,8 @@ ONTOLOGY_EDGES = [
     ("C0004238", "associated_with", "C0030252"), # atrial fibrillation -> palpitations
     ("C0409959", "finding_site", "C0022742"),    # knee osteoarthritis -> knee joint
     ("C0035328", "finding_site", "C0037004"),    # rotator cuff tear -> shoulder joint
+    ("C0206630", "finding_site", "C0007874"),    # cervical dysplasia -> cervix
+    ("C0151706", "finding_site", "C0042149"),    # abnormal uterine bleeding -> uterus
 ]
 
 # --- Guideline chunks (ICD-10-CM Official Guidelines are public domain; paraphrased) ---
@@ -327,4 +357,11 @@ GUIDELINES = [
      "arthroscopic knee meniscectomy = 29881; major-joint aspiration/injection = 20610. Append RT/LT for "
      "laterality. For osteoarthritis, code primary (M17.1x) unless post-traumatic or secondary is "
      "documented; honor the global surgical package and do not unbundle.", "Orthopedics"),
+    ("OB/GYN Coding Guidance", "Procedures",
+     "Code the OB/GYN service documented: obstetric ultrasound (>=14 weeks, transabdominal) = 76805; "
+     "colposcopy of the cervix with biopsy = 57454; endometrial biopsy = 58100; IUD insertion = 58300. "
+     "For routine pregnancy supervision, use Z34.8x by trimester (not an O-code) when uncomplicated. "
+     "Code cervical dysplasia to specificity (CIN I = N87.0, CIN II = N87.1). When one provider gives "
+     "antepartum + delivery + postpartum care, use the global obstetric package (e.g., 59400) rather than "
+     "itemizing visits.", "OB/GYN"),
 ]

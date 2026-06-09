@@ -230,6 +230,15 @@ SPECIALTY_GUIDANCE = {
         "- For osteoarthritis, code primary OA (M17.1x for knee) unless post-traumatic/secondary is "
         "documented; honor the global surgical package and do not unbundle component services."
     ),
+    "OB/GYN": (
+        "OB/GYN RULES:\n"
+        "- Code the procedure documented: obstetric ultrasound (>=14 wks, transabdominal) = 76805; "
+        "colposcopy of cervix with biopsy = 57454; endometrial biopsy = 58100; IUD insertion = 58300.\n"
+        "- For routine, uncomplicated pregnancy supervision use Z34.8x by trimester (not an O-code).\n"
+        "- Code cervical dysplasia to specificity: CIN I = N87.0, CIN II = N87.1.\n"
+        "- When one provider gives antepartum + delivery + postpartum care, use the global obstetric "
+        "package (e.g., 59400) instead of itemizing individual visits."
+    ),
     "Surgical": (
         "SURGICAL RULES:\n"
         "- Assign the CPT for the procedure actually performed (operative note).\n"
