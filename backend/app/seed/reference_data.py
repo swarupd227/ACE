@@ -83,6 +83,14 @@ ICD10CM = [
     ("Z12.11", "Encounter for screening for malignant neoplasm of colon", True, "Z12.1"),
     # non-billable parent (specificity gate should reject this)
     ("K29.7", "Gastritis, unspecified", False, "K29"),
+    # Dermatology (added via the specialty accelerator — no engine changes)
+    ("L57.0", "Actinic keratosis", True, "L57"),
+    ("C44.91", "Basal cell carcinoma of skin, unspecified", True, "C44.9"),
+    ("L82.1", "Other seborrheic keratosis", True, "L82"),
+    ("B07.9", "Viral wart, unspecified", True, "B07"),
+    ("D48.5", "Neoplasm of uncertain behavior of skin", True, "D48"),
+    # non-billable parent (specificity gate should reject this)
+    ("C44.9", "Other and unspecified malignant neoplasm of skin, unspecified", False, "C44"),
     # non-billable parents (specificity gate should reject these)
     ("E11.4", "Type 2 diabetes mellitus with neurological complications", False, "E11"),
     ("M25.56", "Pain in knee", False, "M25.5"),
@@ -162,6 +170,11 @@ CPT = [
     ("45385", "Colonoscopy, flexible; with removal of lesion(s)/polyp(s) by snare technique", "GI"),
     ("43235", "Esophagogastroduodenoscopy (EGD), flexible; diagnostic", "GI"),
     ("43239", "Esophagogastroduodenoscopy (EGD), flexible; with biopsy, single or multiple", "GI"),
+    # Dermatology — DEMO placeholder
+    ("11102", "Tangential biopsy of skin (e.g., shave); single lesion", "DERM"),
+    ("11104", "Punch biopsy of skin; single lesion", "DERM"),
+    ("17000", "Destruction of premalignant lesion (e.g., actinic keratosis); first lesion", "DERM"),
+    ("17110", "Destruction of benign lesions other than skin tags; up to 14 lesions", "DERM"),
 ]
 
 HCPCS = [
@@ -219,6 +232,8 @@ MUE = [
     ("58100", 1, "Endometrial biopsy, one per day"),
     ("45385", 1, "Colonoscopy with polypectomy, one per day"),
     ("43239", 1, "EGD with biopsy, one per day"),
+    ("11104", 1, "Punch biopsy single lesion, one per lesion"),
+    ("17000", 1, "Destruction of first premalignant lesion, one per day"),
 ]
 
 # --- Payer policy (representative) ---
@@ -257,6 +272,10 @@ PAYER_POLICY = [
      "findings; report the most extensive technique performed.", False, "", ["K63", "Z12", "K57"]),
     ("Medicare", "43239", "EGD with biopsy covered for dyspepsia, reflux, or suspected mucosal disease "
      "requiring tissue diagnosis.", False, "", ["K21", "K29", "K25"]),
+    ("Medicare", "17000", "Destruction of premalignant lesions (actinic keratosis) covered; first lesion "
+     "17000, additional lesions reported separately.", False, "", ["L57"]),
+    ("Medicare", "11104", "Skin biopsy covered for a lesion suspicious for malignancy or of uncertain "
+     "behavior.", False, "", ["C44", "D48", "L82"]),
 ]
 
 # --- Medical ontology (concept graph for Graph-RAG) ---
@@ -302,6 +321,9 @@ ONTOLOGY_CONCEPTS = [
     ("C0017152", "Gastritis", "Disease", [{"system": "ICD10CM", "code": "K29.70"}]),
     ("C0009368", "Colon structure", "Body Part", []),
     ("C0038351", "Stomach structure", "Body Part", []),
+    # Dermatology concepts (added with the specialty; skin structure C1123023 already exists, reused)
+    ("C0022602", "Actinic keratosis", "Disease", [{"system": "ICD10CM", "code": "L57.0"}]),
+    ("C0007117", "Basal cell carcinoma", "Neoplastic Process", [{"system": "ICD10CM", "code": "C44.91"}]),
 ]
 # (src_cui, rel, dst_cui)
 ONTOLOGY_EDGES = [
@@ -324,6 +346,8 @@ ONTOLOGY_EDGES = [
     ("C0151706", "finding_site", "C0042149"),    # abnormal uterine bleeding -> uterus
     ("C0009376", "finding_site", "C0009368"),    # colonic polyp -> colon
     ("C0017152", "finding_site", "C0038351"),    # gastritis -> stomach
+    ("C0022602", "finding_site", "C1123023"),    # actinic keratosis -> skin
+    ("C0007117", "finding_site", "C1123023"),    # basal cell carcinoma -> skin
 ]
 
 # --- Guideline chunks (ICD-10-CM Official Guidelines are public domain; paraphrased) ---
@@ -401,4 +425,11 @@ GUIDELINES = [
      "when a therapeutic procedure is done in the same session. Code the finding (e.g., colon polyp K63.5, "
      "gastritis K29.70); for a screening colonoscopy that finds a polyp, sequence the screening Z-code "
      "first.", "GI / Endoscopy"),
+    ("Dermatology Coding Guidance", "Procedures",
+     "Code the dermatologic procedure performed: shave/tangential biopsy = 11102; punch biopsy = 11104; "
+     "destruction of a premalignant lesion (actinic keratosis), first lesion = 17000; destruction of benign "
+     "lesions (e.g., warts), up to 14 = 17110. When a biopsy and a same-lesion destruction/excision are done "
+     "together, the biopsy is bundled — report only the more extensive service. Code the lesion diagnosis "
+     "(e.g., actinic keratosis L57.0, basal cell carcinoma C44.91); use 'uncertain behavior' (D48.5) when "
+     "biopsying before a histologic diagnosis.", "Dermatology"),
 ]

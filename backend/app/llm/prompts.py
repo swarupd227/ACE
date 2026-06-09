@@ -249,6 +249,16 @@ SPECIALTY_GUIDANCE = {
         "- Code the finding (e.g., colon polyp K63.5, gastritis K29.70, GERD K21.9). For a screening "
         "colonoscopy that finds a polyp, sequence the screening Z12.11 first, then the finding."
     ),
+    "Dermatology": (
+        "DERMATOLOGY RULES:\n"
+        "- Code the procedure performed: shave/tangential biopsy = 11102; punch biopsy = 11104; destruction "
+        "of a premalignant lesion (actinic keratosis), first lesion = 17000; destruction of benign lesions "
+        "(e.g., warts) = 17110.\n"
+        "- A biopsy of the same lesion that is then destroyed/excised is bundled — report only the more "
+        "extensive service; do not unbundle.\n"
+        "- Code the lesion diagnosis (actinic keratosis L57.0, basal cell carcinoma C44.91, seborrheic "
+        "keratosis L82.1); use uncertain-behavior (D48.5) when biopsying before a histologic diagnosis."
+    ),
     "Surgical": (
         "SURGICAL RULES:\n"
         "- Assign the CPT for the procedure actually performed (operative note).\n"

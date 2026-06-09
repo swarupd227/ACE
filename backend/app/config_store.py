@@ -37,6 +37,7 @@ DEFAULTS: dict = {
         {"name": "Orthopedics", "enabled": True, "hard": False},
         {"name": "OB/GYN", "enabled": True, "hard": False},
         {"name": "GI / Endoscopy", "enabled": True, "hard": False},
+        {"name": "Dermatology", "enabled": True, "hard": False},
     ],
     "roster": [
         {"name": "Priya N.", "role": "Coder"},

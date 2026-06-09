@@ -418,6 +418,41 @@ CHARTS = [
             "Electronically signed by Dr. S. Whitfield, MD, Gastroenterologist."
         ),
     ),
+    # 24 — Dermatology → expect 17000 + L57.0
+    dict(
+        mrn="DE10001", patient_name="Gordon Hayes", age=72, sex="M", specialty="Dermatology",
+        modality="", encounter_type="", payer="Medicare", pos="11", dos="2026-04-25",
+        client="Riverbend Dermatology", source_system="eClinicalWorks", report_type="procedure_note",
+        scenario="Dermatology — cryotherapy destruction of actinic keratosis",
+        chart_text=(
+            "DERMATOLOGY PROCEDURE NOTE\n"
+            "INDICATION: Rough, scaly lesion on the left dorsal forearm, clinically consistent with actinic "
+            "keratosis in a sun-damaged patient.\n"
+            "PROCEDURE: Cryotherapy (liquid nitrogen) destruction of a single premalignant lesion (actinic "
+            "keratosis), first lesion treated.\n"
+            "FINDINGS: One actinic keratosis treated with a freeze-thaw cycle; patient tolerated well.\n"
+            "IMPRESSION: Actinic keratosis, destroyed by cryotherapy.\n"
+            "Electronically signed by Dr. E. Solis, MD, Dermatologist."
+        ),
+    ),
+    # 25 — Dermatology → expect 11104 + C44.91
+    dict(
+        mrn="DE10002", patient_name="Bianca Rossi", age=64, sex="F", specialty="Dermatology",
+        modality="", encounter_type="", payer="Medicare", pos="11", dos="2026-04-25",
+        client="Riverbend Dermatology", source_system="eClinicalWorks", report_type="procedure_note",
+        scenario="Dermatology — punch biopsy of a suspicious lesion",
+        chart_text=(
+            "DERMATOLOGY PROCEDURE NOTE\n"
+            "INDICATION: Pearly, telangiectatic papule on the right nasal ala, clinically suspicious for "
+            "basal cell carcinoma.\n"
+            "PROCEDURE: 3 mm punch biopsy of the right nasal ala lesion; single lesion, specimen to "
+            "pathology.\n"
+            "PATHOLOGY: Sections show nests of basaloid cells with peripheral palisading — basal cell "
+            "carcinoma.\n"
+            "IMPRESSION: Basal cell carcinoma, skin of nose (biopsy-confirmed).\n"
+            "Electronically signed by Dr. E. Solis, MD, Dermatologist."
+        ),
+    ),
 ]
 
 
@@ -590,4 +625,18 @@ GOLDEN_CASES = [
              "PROCEDURE: EGD to the second portion of the duodenum; erythematous gastric antrum biopsied.\n"
              "FINDINGS: Antral biopsy returned chronic gastritis without bleeding; esophagus and duodenum "
              "normal.\nIMPRESSION: Gastritis without bleeding.\nElectronically signed by gastroenterologist.")),
+    dict(specialty="Dermatology", irr=0.90, ambiguous=False,
+         truth={"icd": ["L57.0"], "cpt": ["17000"]},
+         chart_text=(
+             "DERMATOLOGY PROCEDURE NOTE\nINDICATION: Scaly lesion on the forearm, clinically consistent "
+             "with actinic keratosis.\nPROCEDURE: Cryotherapy (liquid nitrogen) destruction of a single "
+             "premalignant lesion (actinic keratosis), first lesion.\nIMPRESSION: Actinic keratosis "
+             "destroyed by cryotherapy.\nElectronically signed by dermatologist.")),
+    dict(specialty="Dermatology", irr=0.88, ambiguous=False,
+         truth={"icd": ["C44.91"], "cpt": ["11104"]},
+         chart_text=(
+             "DERMATOLOGY PROCEDURE NOTE\nINDICATION: Pearly telangiectatic papule on the nose, suspicious "
+             "for basal cell carcinoma.\nPROCEDURE: 3 mm punch biopsy of the lesion, single site.\n"
+             "PATHOLOGY: Basaloid nests with peripheral palisading — basal cell carcinoma.\nIMPRESSION: "
+             "Basal cell carcinoma of skin (biopsy-confirmed).\nElectronically signed by dermatologist.")),
 ]
