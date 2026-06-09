@@ -107,10 +107,40 @@
   reduction** (manual baseline → AI-assisted), **exception rate**, and the **automation-maturity pathway**
   (current position vs the ≥80% target); note the **100%-audit → 95%-certification** governance ramp.
 
+## 9.5 Admin, configurability & RBAC (3 min) — the Nous platform layer
+*Switch the top-bar **Role** to **Admin** for this section. This is the "anyone can demo a coding model;
+nobody hands you a configurable platform" beat.*
+
+- **Build the Knowledge Graph live** — `Policy & Knowledge Admin → KG Builder`. *"The ontology isn't a
+  picture; it's editable, and the agent reads it on every run."* Click **Add concept** → e.g.
+  `Pulmonary embolism` (semantic type *Disease or Syndrome*), map it to `ICD10CM:I26.99` and `CPT:71275`,
+  Create. Add a **relationship** (`Pulmonary embolism —finding_site→ Lung`). Flip to **Explore Graph** —
+  the new node is already in the Cytoscape graph. *"On the next chart that mentions this finding, that
+  concept and its codes are surfaced to the coding agent as grounded candidates — this is how a client
+  curates the KG without engineering. Production swaps in licensed SNOMED CT / UMLS at the same shape."*
+- **Coding Guidelines** tab → add a public guideline (source / section / specialty / text). *"Retrieved
+  into the agent's context and used for citation verification — your coding rules, governed in one place."*
+- **Admin / Configuration** — *"Every threshold is a setting, not a code change."* Show the tabs:
+  **Routing & Calibration** (drag the STB threshold 0.90 → 0.99 and Save), **Bounded Autonomy** toggles,
+  **Eligibility**, **SLA Targets**, **Specialty Accelerator** (enable a specialty / set its model tier),
+  **Users & Roster**. *"On the next run that chart re-routes STB → QA — the engine reads this config at
+  runtime."* (You already proved this earlier if you ran a chart after the change.)
+- **RBAC by role** — use the **Role** dropdown to switch personas; the app reshapes per role:
+  - **Admin** — full surface (Policy/KG, Integrations, Admin Config, everything).
+  - **Coder** — Worklist / CDI / Dashboard only; **can** run coding, override, escalate; **cannot** see
+    Admin, Policy/KG, or Integrations.
+  - **QA Auditor** — Control Tower + override/reassign/rollback; cannot run autonomous coding (Worklist
+    shows a **view-only** pill and **queued** rows instead of Run/Code buttons).
+  - **CDI Specialist** — CDI queue + physician-response actions; coding actions are gated off.
+  - **Supervisor** — Control Tower assignment + reassign/rollback; read across dashboards.
+  *"Nav AND every action button respect the role — and in production this maps to your SSO groups and
+  tenant scopes (US-region, no co-mingling)."* Switch back to **Admin** to finish.
+
 ## Close (30 sec)
 *"Working today, not slideware. Radiology depth your coders will recognize, E&M and ED on the same
-accelerator, every decision defensible, and it bounds itself when it can't be sure. The blueprint and a
-fast-timeline proposal are in your hands."*
+accelerator, every decision defensible, and it bounds itself when it can't be sure. And it's a
+**platform** — your admins build the knowledge graph, tune the thresholds, and govern who can do what,
+without calling us. The blueprint and a fast-timeline proposal are in your hands."*
 
 ---
 ### Fallbacks / gotchas

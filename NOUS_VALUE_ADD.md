@@ -45,8 +45,9 @@ Admin → Specialty Accelerator (enable/disable, model tier); Policy Admin clien
 The agent is grounded in a **payer-policy + medical-ontology graph** and may only emit codes it surfaces — a
 structural hallucination control that also **drives the deterministic medical-necessity gate**. Building and
 *maintaining* this graph (payer-bulletin ingestion, ontology curation, versioning, per-client overlays) is
-operational IP, not a one-off. *In the app:* Policy & Knowledge Admin (editable, interactive graph);
-per-chart "Knowledge used" evidence.
+operational IP, not a one-off. *In the app:* Policy & Knowledge Admin → **KG Builder** (admins add/edit
+ontology concepts, code mappings, and relationships — read by Graph-RAG on every run) + editable **Coding
+Guidelines**, an interactive Cytoscape graph, and per-chart "Knowledge used" evidence.
 
 ### 5. Admin-configurable platform + operating model
 It is a **platform an admin operates**, not a demo: routing thresholds, the 4-factor weights, self-consistency,

@@ -177,6 +177,206 @@ def delete_policy(policy_id: int, db: Session = Depends(get_db)) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Knowledge Graph Builder — editable medical ontology (concepts + edges) and
+# coding guidelines. These are read live by graph_rag.retrieve() every coding
+# run, so edits here change what the coding agent is grounded on (real, not a
+# diagram). Concepts surface as ONTOLOGY PATHS (with their mapped codes) and
+# guidelines surface as GUIDELINE EXCERPTS in the agent's retrieval context.
+# ---------------------------------------------------------------------------
+REL_TYPES = ["is_a", "finding_site", "causative_agent", "associated_with",
+             "part_of", "due_to", "indicates"]
+SEMANTIC_TYPES = ["Disease or Syndrome", "Finding", "Sign or Symptom", "Body Part",
+                  "Procedure", "Pharmacologic Substance", "Neoplastic Process",
+                  "Pathologic Function", "Injury or Poisoning"]
+
+
+def _concept(c: models.OntologyConcept) -> dict:
+    return {"id": c.id, "cui": c.cui, "name": c.name,
+            "semantic_type": c.semantic_type, "maps_to": c.maps_to or []}
+
+
+def _edge(e: models.OntologyEdge) -> dict:
+    return {"id": e.id, "src_cui": e.src_cui, "rel": e.rel, "dst_cui": e.dst_cui}
+
+
+@router.get("/ontology/concepts")
+def list_concepts(db: Session = Depends(get_db)) -> list[dict]:
+    rows = db.scalars(select(models.OntologyConcept).order_by(models.OntologyConcept.name)).all()
+    return [_concept(c) for c in rows]
+
+
+@router.get("/ontology/edges")
+def list_edges(db: Session = Depends(get_db)) -> list[dict]:
+    rows = db.scalars(select(models.OntologyEdge)).all()
+    return [_edge(e) for e in rows]
+
+
+@router.get("/ontology/meta")
+def ontology_meta() -> dict:
+    return {"rel_types": REL_TYPES, "semantic_types": SEMANTIC_TYPES}
+
+
+class CodeMap(BaseModel):
+    system: str
+    code: str
+
+
+class ConceptIn(BaseModel):
+    cui: str = ""
+    name: str
+    semantic_type: str = ""
+    maps_to: list[CodeMap] = []
+
+
+def _next_cui(db: Session) -> str:
+    # Client-authored concepts get a stable C9xxxxx id distinct from seeded ontology.
+    existing = {c.cui for c in db.scalars(select(models.OntologyConcept)).all()}
+    n = 9000001
+    while f"C{n}" in existing:
+        n += 1
+    return f"C{n}"
+
+
+@router.post("/ontology/concepts")
+def create_concept(body: ConceptIn, db: Session = Depends(get_db)) -> dict:
+    if not body.name.strip():
+        raise HTTPException(400, "concept name is required")
+    cui = body.cui.strip() or _next_cui(db)
+    if db.scalar(select(models.OntologyConcept).where(models.OntologyConcept.cui == cui)):
+        raise HTTPException(409, f"concept {cui} already exists")
+    c = models.OntologyConcept(
+        cui=cui, name=body.name.strip(), semantic_type=body.semantic_type,
+        maps_to=[m.model_dump() for m in body.maps_to],
+    )
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return _concept(c)
+
+
+@router.put("/ontology/concepts/{cid}")
+def update_concept(cid: int, body: ConceptIn, db: Session = Depends(get_db)) -> dict:
+    c = db.get(models.OntologyConcept, cid)
+    if c is None:
+        raise HTTPException(404, "concept not found")
+    c.name = body.name.strip() or c.name
+    c.semantic_type = body.semantic_type
+    c.maps_to = [m.model_dump() for m in body.maps_to]
+    db.commit()
+    db.refresh(c)
+    return _concept(c)
+
+
+@router.delete("/ontology/concepts/{cid}")
+def delete_concept(cid: int, db: Session = Depends(get_db)) -> dict:
+    c = db.get(models.OntologyConcept, cid)
+    if c is None:
+        raise HTTPException(404, "concept not found")
+    # Also drop any edges touching this concept so the graph stays consistent.
+    for e in db.scalars(select(models.OntologyEdge).where(
+        (models.OntologyEdge.src_cui == c.cui) | (models.OntologyEdge.dst_cui == c.cui)
+    )).all():
+        db.delete(e)
+    db.delete(c)
+    db.commit()
+    return {"deleted": cid}
+
+
+class EdgeIn(BaseModel):
+    src_cui: str
+    rel: str
+    dst_cui: str
+
+
+@router.post("/ontology/edges")
+def create_edge(body: EdgeIn, db: Session = Depends(get_db)) -> dict:
+    if body.src_cui == body.dst_cui:
+        raise HTTPException(400, "an edge cannot link a concept to itself")
+    valid = {c.cui for c in db.scalars(select(models.OntologyConcept)).all()}
+    for side in (body.src_cui, body.dst_cui):
+        if side not in valid:
+            raise HTTPException(400, f"unknown concept {side}")
+    dup = db.scalar(select(models.OntologyEdge).where(
+        models.OntologyEdge.src_cui == body.src_cui,
+        models.OntologyEdge.rel == body.rel,
+        models.OntologyEdge.dst_cui == body.dst_cui,
+    ))
+    if dup:
+        raise HTTPException(409, "edge already exists")
+    e = models.OntologyEdge(src_cui=body.src_cui, rel=body.rel, dst_cui=body.dst_cui)
+    db.add(e)
+    db.commit()
+    db.refresh(e)
+    return _edge(e)
+
+
+@router.delete("/ontology/edges/{eid}")
+def delete_edge(eid: int, db: Session = Depends(get_db)) -> dict:
+    e = db.get(models.OntologyEdge, eid)
+    if e is None:
+        raise HTTPException(404, "edge not found")
+    db.delete(e)
+    db.commit()
+    return {"deleted": eid}
+
+
+# --- Coding guidelines (indexed text that grounds retrieval + citation) -----
+def _guideline(g: models.GuidelineChunk) -> dict:
+    return {"id": g.id, "source": g.source, "section": g.section,
+            "text": g.text, "specialty": g.specialty}
+
+
+@router.get("/ontology/guidelines")
+def list_guidelines(db: Session = Depends(get_db)) -> list[dict]:
+    rows = db.scalars(select(models.GuidelineChunk).order_by(models.GuidelineChunk.source)).all()
+    return [_guideline(g) for g in rows]
+
+
+class GuidelineIn(BaseModel):
+    source: str
+    section: str = ""
+    text: str
+    specialty: str = ""
+
+
+@router.post("/ontology/guidelines")
+def create_guideline(body: GuidelineIn, db: Session = Depends(get_db)) -> dict:
+    if len(body.text.strip()) < 10:
+        raise HTTPException(400, "guideline text too short")
+    g = models.GuidelineChunk(source=body.source.strip() or "ClientOverlay",
+                              section=body.section, text=body.text.strip(),
+                              specialty=body.specialty)
+    db.add(g)
+    db.commit()
+    db.refresh(g)
+    return _guideline(g)
+
+
+@router.put("/ontology/guidelines/{gid}")
+def update_guideline(gid: int, body: GuidelineIn, db: Session = Depends(get_db)) -> dict:
+    g = db.get(models.GuidelineChunk, gid)
+    if g is None:
+        raise HTTPException(404, "guideline not found")
+    g.source = body.source.strip() or g.source
+    g.section = body.section
+    g.text = body.text.strip() or g.text
+    g.specialty = body.specialty
+    db.commit()
+    db.refresh(g)
+    return _guideline(g)
+
+
+@router.delete("/ontology/guidelines/{gid}")
+def delete_guideline(gid: int, db: Session = Depends(get_db)) -> dict:
+    g = db.get(models.GuidelineChunk, gid)
+    if g is None:
+        raise HTTPException(404, "guideline not found")
+    db.delete(g)
+    db.commit()
+    return {"deleted": gid}
+
+
+# ---------------------------------------------------------------------------
 # Integrations / Ingestion — simulated PMS/EHR connectivity + real batch ingest
 # ---------------------------------------------------------------------------
 SOURCE_SYSTEMS = [

@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
-import { Search, Plus, Save, Trash2, X, ShieldCheck, Lock, Unlock, Network, Database } from "lucide-react";
+import { Search, Plus, Save, Trash2, X, ShieldCheck, Lock, Unlock, Network, Database, BookOpen, Boxes } from "lucide-react";
 import { api } from "../api";
 import OntologyGraph from "../components/OntologyGraph";
+import KgBuilder from "../components/KgBuilder";
 import { Spinner } from "../lib";
-import type { Policy } from "../types";
+import type { Policy, Guideline } from "../types";
 
 const BLANK: Partial<Policy> = { payer: "", code: "", medical_necessity: "", requires_auth: false, covered_dx: [], source: "ClientOverlay" };
 
@@ -106,7 +107,90 @@ function PoliciesTab() {
 function GraphTab() {
   const { data } = useQuery({ queryKey: ["kg"], queryFn: api.kg });
   if (!data) return <div className="grid place-items-center h-40"><Spinner className="h-5 w-5 text-ace-500" /></div>;
-  return <OntologyGraph nodes={data.nodes} links={data.links} />;
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-slate-400">Live view of the knowledge graph. Reflects edits made in the KG Builder tab.</p>
+      <OntologyGraph nodes={data.nodes} links={data.links} />
+    </div>
+  );
+}
+
+const BLANK_GL: Partial<Guideline> = { source: "ClientOverlay", section: "", text: "", specialty: "" };
+const SPECIALTIES = ["", "Radiology", "E&M", "ED", "Pathology", "Surgical"];
+
+function GuidelineEditor({ initial, onClose }: { initial: Partial<Guideline>; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [g, setG] = useState<Partial<Guideline>>({ ...initial });
+  const isNew = !initial.id;
+  const save = useMutation({
+    mutationFn: () => (isNew ? api.createGuideline(g) : api.updateGuideline(initial.id!, g)),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["kgGuidelines"] }); qc.invalidateQueries({ queryKey: ["refsum"] }); onClose(); },
+  });
+  const set = (k: keyof Guideline, v: any) => setG((x) => ({ ...x, [k]: v }));
+  return (
+    <div className="rounded-lg border-2 border-ace-200 bg-ace-50/40 p-3 space-y-2">
+      <div className="grid grid-cols-3 gap-2">
+        <input className="rounded border border-slate-200 px-2 py-1.5 text-sm" placeholder="Source (e.g. ICD-10-CM Guidelines)" value={g.source ?? ""} onChange={(e) => set("source", e.target.value)} />
+        <input className="rounded border border-slate-200 px-2 py-1.5 text-sm" placeholder="Section (e.g. I.C.9)" value={g.section ?? ""} onChange={(e) => set("section", e.target.value)} />
+        <select className="rounded border border-slate-200 px-2 py-1.5 text-sm" value={g.specialty ?? ""} onChange={(e) => set("specialty", e.target.value)}>
+          {SPECIALTIES.map((s) => <option key={s} value={s}>{s || "All specialties"}</option>)}
+        </select>
+      </div>
+      <textarea className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm" rows={3} placeholder="Guideline text the agent should follow / cite" value={g.text ?? ""} onChange={(e) => set("text", e.target.value)} />
+      <div className="flex justify-end gap-2">
+        <button className="btn-ghost py-1.5" onClick={onClose}><X size={14} /> Cancel</button>
+        <button className="btn-primary py-1.5" disabled={!g.source || !g.text || save.isPending} onClick={() => save.mutate()}>
+          {save.isPending ? <Spinner className="h-4 w-4" /> : <Save size={14} />} {isNew ? "Create" : "Save"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GuidelinesTab() {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({ queryKey: ["kgGuidelines"], queryFn: api.kgGuidelines });
+  const [q, setQ] = useState("");
+  const [editing, setEditing] = useState<number | "new" | null>(null);
+  const del = useMutation({ mutationFn: (id: number) => api.deleteGuideline(id), onSuccess: () => { qc.invalidateQueries({ queryKey: ["kgGuidelines"] }); qc.invalidateQueries({ queryKey: ["refsum"] }); } });
+  const list = (data ?? []).filter((g) => !q || `${g.source} ${g.section} ${g.specialty} ${g.text}`.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="relative">
+          <Search size={15} className="absolute left-2.5 top-2.5 text-slate-400" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search guidelines…" className="w-72 rounded-lg border border-slate-200 pl-8 pr-3 py-2 text-sm" />
+        </div>
+        <button className="btn-primary" onClick={() => setEditing("new")}><Plus size={15} /> Add guideline</button>
+      </div>
+      <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2.5 text-xs text-emerald-800 flex items-center gap-2">
+        <ShieldCheck size={14} /> Guidelines are retrieved (lexically) into the agent's context and used for citation verification — public sources only (no copyrighted CPT Assistant / Coding Clinic text).
+      </div>
+      {editing === "new" && <GuidelineEditor initial={BLANK_GL} onClose={() => setEditing(null)} />}
+      {isLoading ? <div className="grid place-items-center h-32"><Spinner className="h-5 w-5 text-ace-500" /></div> : (
+        <div className="space-y-2">
+          {list.map((g) => editing === g.id ? (
+            <GuidelineEditor key={g.id} initial={g} onClose={() => setEditing(null)} />
+          ) : (
+            <div key={g.id} className="card p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-slate-700 text-sm">{g.source}</span>
+                  {g.section && <span className="pill bg-slate-100 text-slate-600 ring-1 ring-slate-200">{g.section}</span>}
+                  <span className="pill bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200">{g.specialty || "All"}</span>
+                </div>
+                <div className="flex gap-1 whitespace-nowrap">
+                  <button className="btn-ghost py-1" onClick={() => setEditing(g.id)}>Edit</button>
+                  <button className="text-rose-400 hover:text-rose-600" onClick={() => del.mutate(g.id)}><Trash2 size={14} /></button>
+                </div>
+              </div>
+              <p className="mt-1.5 text-sm text-slate-600">{g.text}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function SourcesTab() {
@@ -136,14 +220,22 @@ function SourcesTab() {
   );
 }
 
+type Tab = "policies" | "builder" | "guidelines" | "graph" | "sources";
+
 export default function PolicyAdmin() {
-  const [tab, setTab] = useState<"policies" | "graph" | "sources">("policies");
-  const tabs: [typeof tab, string, any][] = [["policies", "Payer Policies", ShieldCheck], ["graph", "Explore Graph", Network], ["sources", "Data Sources", Database]];
+  const [tab, setTab] = useState<Tab>("policies");
+  const tabs: [Tab, string, any][] = [
+    ["policies", "Payer Policies", ShieldCheck],
+    ["builder", "KG Builder", Boxes],
+    ["guidelines", "Coding Guidelines", BookOpen],
+    ["graph", "Explore Graph", Network],
+    ["sources", "Data Sources", Database],
+  ];
   return (
     <div className="space-y-4 fadeup">
       <div>
         <h1 className="text-2xl font-extrabold text-slate-900">Policy &amp; Knowledge Admin</h1>
-        <p className="text-sm text-slate-500">Manage the payer policies and knowledge that ground coding. Edits drive the medical-necessity gate.</p>
+        <p className="text-sm text-slate-500">Build and curate the knowledge that grounds coding — payer policies, the medical ontology, and guidelines. Edits take effect on the next coding run.</p>
       </div>
       <div className="flex gap-1 border-b border-slate-200">
         {tabs.map(([k, label, Icon]) => (
@@ -155,6 +247,8 @@ export default function PolicyAdmin() {
         ))}
       </div>
       {tab === "policies" && <PoliciesTab />}
+      {tab === "builder" && <KgBuilder />}
+      {tab === "guidelines" && <GuidelinesTab />}
       {tab === "graph" && <GraphTab />}
       {tab === "sources" && <SourcesTab />}
     </div>

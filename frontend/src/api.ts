@@ -62,6 +62,24 @@ export const api = {
   updatePolicy: (id: number, p: Partial<import("./types").Policy>) =>
     req<import("./types").Policy>(`/policies/${id}`, { method: "PUT", body: JSON.stringify(p) }),
   deletePolicy: (id: number) => req(`/policies/${id}`, { method: "DELETE" }),
+  // --- Knowledge Graph Builder (ontology concepts + edges + guidelines) ---
+  ontologyMeta: () => req<{ rel_types: string[]; semantic_types: string[] }>("/ontology/meta"),
+  concepts: () => req<import("./types").Concept[]>("/ontology/concepts"),
+  createConcept: (c: Partial<import("./types").Concept>) =>
+    req<import("./types").Concept>("/ontology/concepts", { method: "POST", body: JSON.stringify(c) }),
+  updateConcept: (id: number, c: Partial<import("./types").Concept>) =>
+    req<import("./types").Concept>(`/ontology/concepts/${id}`, { method: "PUT", body: JSON.stringify(c) }),
+  deleteConcept: (id: number) => req(`/ontology/concepts/${id}`, { method: "DELETE" }),
+  edges: () => req<import("./types").Edge[]>("/ontology/edges"),
+  createEdge: (e: import("./types").EdgeIn) =>
+    req<import("./types").Edge>("/ontology/edges", { method: "POST", body: JSON.stringify(e) }),
+  deleteEdge: (id: number) => req(`/ontology/edges/${id}`, { method: "DELETE" }),
+  kgGuidelines: () => req<import("./types").Guideline[]>("/ontology/guidelines"),
+  createGuideline: (g: Partial<import("./types").Guideline>) =>
+    req<import("./types").Guideline>("/ontology/guidelines", { method: "POST", body: JSON.stringify(g) }),
+  updateGuideline: (id: number, g: Partial<import("./types").Guideline>) =>
+    req<import("./types").Guideline>(`/ontology/guidelines/${id}`, { method: "PUT", body: JSON.stringify(g) }),
+  deleteGuideline: (id: number) => req(`/ontology/guidelines/${id}`, { method: "DELETE" }),
   patchLearning: (id: string, applied: boolean) =>
     req(`/learning/${id}`, { method: "PATCH", body: JSON.stringify({ applied }) }),
   deleteLearning: (id: string) => req(`/learning/${id}`, { method: "DELETE" }),

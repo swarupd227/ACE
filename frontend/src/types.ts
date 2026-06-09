@@ -180,6 +180,36 @@ export interface Policy {
   source: string;
 }
 
+export interface CodeMap {
+  system: string;
+  code: string;
+}
+export interface Concept {
+  id: number;
+  cui: string;
+  name: string;
+  semantic_type: string;
+  maps_to: CodeMap[];
+}
+export interface Edge {
+  id: number;
+  src_cui: string;
+  rel: string;
+  dst_cui: string;
+}
+export interface EdgeIn {
+  src_cui: string;
+  rel: string;
+  dst_cui: string;
+}
+export interface Guideline {
+  id: number;
+  source: string;
+  section: string;
+  text: string;
+  specialty: string;
+}
+
 export interface Dashboard {
   total_encounters: number;
   coded: number;
