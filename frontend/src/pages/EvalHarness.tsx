@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FlaskConical, Play, Plus, Save, Trash2, X, Database } from "lucide-react";
 import { api } from "../api";
+import AgentConsole from "../components/AgentConsole";
 import { Spinner, pct } from "../lib";
 import type { Golden } from "../types";
 
@@ -96,7 +97,8 @@ function GoldenManager() {
 export default function EvalHarness() {
   const { data: summary } = useQuery({ queryKey: ["evalSummary"], queryFn: api.evalSummary });
   const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: api.meta });
-  const run = useMutation({ mutationFn: api.evalRun });
+  const [showConsole, setShowConsole] = useState(false);
+  const [result, setResult] = useState<any>(null);
 
   return (
     <div className="space-y-5 fadeup">
@@ -105,8 +107,8 @@ export default function EvalHarness() {
           <h1 className="text-2xl font-extrabold text-slate-900">Evaluation Harness</h1>
           <p className="text-sm text-slate-500">Frozen golden sets, adjudicated truth, honest metrics — accuracy reported against consensus with the IRR ceiling.</p>
         </div>
-        <button className="btn-primary" disabled={run.isPending || !meta?.llm_available} onClick={() => run.mutate()}>
-          {run.isPending ? <Spinner className="h-4 w-4" /> : <Play size={16} />} Run evaluation
+        <button className="btn-primary" disabled={!meta?.llm_available} onClick={() => setShowConsole(true)}>
+          <Play size={16} /> Run evaluation
         </button>
       </div>
 
@@ -122,13 +124,11 @@ export default function EvalHarness() {
 
       <GoldenManager />
 
-      {run.isError && <div className="card p-4 text-rose-600 text-sm">{(run.error as Error).message}</div>}
-
-      {run.data && (
+      {result && (
         <div className="space-y-4">
           <div className="card p-5 bg-ace-900 text-white">
             <div className="text-xs uppercase tracking-wide text-slate-300">Overall chart-level accuracy (vs adjudicated consensus)</div>
-            <div className="text-4xl font-extrabold tabular-nums mt-1">{pct(run.data.overall_chart_accuracy)}</div>
+            <div className="text-4xl font-extrabold tabular-nums mt-1">{pct(result.overall_chart_accuracy)}</div>
           </div>
 
           <div className="card overflow-hidden">
@@ -140,7 +140,7 @@ export default function EvalHarness() {
                 <th className="px-4 py-3">STB share</th><th className="px-4 py-3">IRR ceiling</th>
               </tr></thead>
               <tbody className="divide-y divide-slate-100">
-                {run.data.by_specialty.map((s: any) => (
+                {result.by_specialty.map((s: any) => (
                   <tr key={s.specialty}>
                     <td className="px-4 py-3 font-medium text-slate-700">{s.specialty}</td>
                     <td className="px-4 py-3">{s.size}</td>
@@ -163,11 +163,22 @@ export default function EvalHarness() {
         </div>
       )}
 
-      {!run.data && (
+      {!result && !showConsole && (
         <div className="card p-4 text-sm text-slate-500">
           Run the harness to execute the live pipeline over the frozen golden sets and compute per-specialty
-          accuracy, citation validity, and STB share. (Requires the reasoning model.)
+          accuracy, citation validity, and STB share. (Requires the reasoning model.) Progress streams live
+          per case — each golden chart is coded by the real pipeline (~20s each).
         </div>
+      )}
+
+      {showConsole && (
+        <AgentConsole
+          url="/eval/run/stream"
+          title="golden set"
+          label="Evaluation Harness"
+          onClose={() => setShowConsole(false)}
+          onDone={(d) => setResult(d)}
+        />
       )}
     </div>
   );

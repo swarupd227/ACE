@@ -3,17 +3,21 @@ from __future__ import annotations
 
 import re
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from .. import models
 from ..config import settings
-from ..db import get_db
+from ..db import SessionLocal, get_db
 from ..llm.client import LLMUnavailable
 from ..pipeline import orchestrator
 from ._admin_audit import Actor, get_actor, log_change
+from ._sse import sse_response
 
 router = APIRouter()
 HIDDEN = "__golden__"
@@ -346,10 +350,16 @@ def _modality_from_text(t: str) -> str:
     return ""
 
 
-@router.post("/eval/run")
-def eval_run(db: Session = Depends(get_db)) -> dict:
+def _eval_core(db: Session, emit) -> dict:
+    """Run the live pipeline over the frozen golden set, emitting per-case
+    progress. Returns the aggregate summary. `emit(dict)` streams SSE events."""
     from .. import config_store
     from ..llm import client as _llm
+
+    def say(actor, msg, level="info"):
+        emit({"type": "log", "actor": actor, "msg": msg, "level": level,
+              "ts": datetime.now(timezone.utc).isoformat()})
+
     if not _llm.llm_available(config_store.all_config(db).get("llm")):
         raise LLMUnavailable("LLM not configured — eval requires the reasoning model")
 
@@ -361,6 +371,9 @@ def eval_run(db: Session = Depends(get_db)) -> dict:
         db.delete(e)
     db.commit()
 
+    total = len(golden)
+    say("Evaluation Harness", f"scoring {total} adjudicated golden case(s) against the live pipeline…", "head")
+    emit({"type": "progress", "done": 0, "total": total})
     results = []
     agg: dict[str, dict] = {}
     for i, g in enumerate(golden):
@@ -374,10 +387,7 @@ def eval_run(db: Session = Depends(get_db)) -> dict:
         )
         db.add(enc)
         db.flush()
-        try:
-            run = orchestrator.run_coding(db, enc.id)
-        except LLMUnavailable:
-            raise
+        run = orchestrator.run_coding(db, enc.id)
         pred_icd = {c.code for c in run.codes if c.code_system == "ICD10CM" and c.status == "accepted"}
         pred_cpt = {c.code for c in run.codes if c.code_system in ("CPT", "HCPCS") and c.status == "accepted"}
         truth_icd = set(g.truth.get("icd", []))
@@ -400,6 +410,11 @@ def eval_run(db: Session = Depends(get_db)) -> dict:
             "predicted_icd": sorted(pred_icd), "predicted_cpt": sorted(pred_cpt),
             "icd_ok": icd_ok, "cpt_ok": cpt_ok, "chart_ok": chart_ok, "lane": run.routing_lane,
         })
+        pred = (sorted(pred_cpt) + sorted(pred_icd)) or ["(none)"]
+        say(f"  case {i + 1}/{total} · {g.specialty}",
+            f"predicted {', '.join(pred)} — {'PASS' if chart_ok else 'MISS'}",
+            "good" if chart_ok else "bad")
+        emit({"type": "progress", "done": i + 1, "total": total})
 
     by_spec = []
     for a in agg.values():
@@ -415,4 +430,26 @@ def eval_run(db: Session = Depends(get_db)) -> dict:
         })
     db.commit()
     overall_chart = round(sum(r["chart_ok"] for r in results) / len(results), 3) if results else 0.0
+    say("Evaluation Harness", f"done · overall chart accuracy {round(overall_chart * 100)}% on {len(results)} case(s)", "good")
     return {"overall_chart_accuracy": overall_chart, "by_specialty": by_spec, "cases": results}
+
+
+@router.post("/eval/run")
+def eval_run(db: Session = Depends(get_db)) -> dict:
+    """Synchronous eval (kept for API/back-compat); the UI uses the streaming variant."""
+    return _eval_core(db, lambda ev: None)
+
+
+@router.get("/eval/run/stream")
+def eval_run_stream() -> StreamingResponse:
+    """Run the eval harness and STREAM per-case progress as SSE (so the UI shows
+    live progress instead of an opaque spinner)."""
+    def work(emit):
+        db = SessionLocal()
+        try:
+            summary = _eval_core(db, emit)
+            emit({"type": "done", **summary})
+        finally:
+            db.close()
+
+    return sse_response(work)
