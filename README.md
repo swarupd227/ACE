@@ -22,6 +22,20 @@ docker compose up --build
 The stack seeds its database (reference codes, NCCI/MUE, payer + ontology knowledge graph, guidelines,
 synthetic charts, golden set) automatically on first boot.
 
+## Helper scripts
+One-command lifecycle (Windows PowerShell `.ps1` or macOS/Linux `.sh`):
+
+| Task | PowerShell | bash |
+|---|---|---|
+| **Pristine demo** (wipe + rebuild + reseed + pre-code) | `.\scripts\reset-demo.ps1` | `./scripts/reset-demo.sh` |
+| …reset without the slow pre-code | `.\scripts\reset-demo.ps1 -NoCode` | `./scripts/reset-demo.sh --no-code` |
+| **Redeploy** after code changes (rebuild + **force-recreate**) | `.\scripts\redeploy.ps1` | `./scripts/redeploy.sh` |
+| …just the frontend | `.\scripts\redeploy.ps1 web` | `./scripts/redeploy.sh web` |
+
+> Plain `docker compose up -d` after a rebuild sometimes **doesn't recreate** a container, so the browser
+> keeps serving the old build. `redeploy` uses `--force-recreate` to avoid that; it also prints the served
+> JS bundle hash so you can confirm a fresh deploy. Always **hard-refresh** the browser (Ctrl+Shift+R).
+
 ### The one secret
 ACE makes **real Claude calls** for reasoning. Put a key in `.env`:
 ```
