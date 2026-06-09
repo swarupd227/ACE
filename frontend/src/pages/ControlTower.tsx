@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import { Clock, AlertTriangle, UserCheck, Flag, Stethoscope, ArrowRight, Layers } from "lucide-react";
 import { api } from "../api";
+import { useRole, can } from "../role";
 import { Spinner, LaneBadge } from "../lib";
 import type { CtItem, CtQueue } from "../types";
 
@@ -24,6 +25,8 @@ export default function ControlTower() {
   const [activeKey, setActiveKey] = useState<string>("QA");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [assignee, setAssignee] = useState("");
+  const { role } = useRole();
+  const mayAssign = can(role, "assign");
 
   const assign = useMutation({
     mutationFn: () => api.assign(Array.from(selected), assignee),
@@ -76,7 +79,7 @@ export default function ControlTower() {
       </div>
 
       {/* Assignment bar */}
-      {selected.size > 0 && (
+      {mayAssign && selected.size > 0 && (
         <div className="card p-3 flex items-center gap-3 bg-ace-50 border-ace-200">
           <UserCheck size={16} className="text-ace-600" />
           <span className="text-sm font-medium text-slate-700">{selected.size} selected</span>
@@ -105,8 +108,8 @@ export default function ControlTower() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-200">
-                <th className="px-3 py-2 w-8"><input type="checkbox" checked={allSel}
-                  onChange={() => setSelected(allSel ? new Set() : new Set(items.map((i) => i.run_id)))} /></th>
+                <th className="px-3 py-2 w-8">{mayAssign && <input type="checkbox" checked={allSel}
+                  onChange={() => setSelected(allSel ? new Set() : new Set(items.map((i) => i.run_id)))} />}</th>
                 <th className="px-3 py-2">Patient / MRN</th>
                 <th className="px-3 py-2">Specialty</th>
                 <th className="px-3 py-2">Lane</th>
@@ -119,7 +122,7 @@ export default function ControlTower() {
             <tbody className="divide-y divide-slate-100">
               {items.map((it: CtItem) => (
                 <tr key={it.run_id} className={clsx("hover:bg-slate-50/70", selected.has(it.run_id) && "bg-ace-50/40")}>
-                  <td className="px-3 py-2"><input type="checkbox" checked={selected.has(it.run_id)} onChange={() => toggle(it.run_id)} /></td>
+                  <td className="px-3 py-2">{mayAssign && <input type="checkbox" checked={selected.has(it.run_id)} onChange={() => toggle(it.run_id)} />}</td>
                   <td className="px-3 py-2">
                     <div className="font-medium text-slate-800 flex items-center gap-1.5">
                       {it.patient_name}

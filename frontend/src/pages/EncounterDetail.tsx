@@ -7,6 +7,7 @@ import {
   Stethoscope, MessageSquareWarning, CheckCircle2, ArrowRightLeft, AlertTriangle, Flag, Undo2, Network,
 } from "lucide-react";
 import { api } from "../api";
+import { useRole, can } from "../role";
 import AgentConsole, { CODING_STEPS } from "../components/AgentConsole";
 import { ConfidenceBar, LaneBadge, Spinner, SystemBadge, confColor, laneColor, laneLabel, pct } from "../lib";
 import type { CodeResult, EncounterDetail as Detail } from "../types";
@@ -29,6 +30,7 @@ function CodeCard({ code, onSelect, selected, onHighlight }: {
 }) {
   const qc = useQueryClient();
   const { id } = useParams();
+  const { role } = useRole();
   const [showOverride, setShowOverride] = useState(false);
   const [ovCode, setOvCode] = useState("");
   const [ovReason, setOvReason] = useState("");
@@ -142,12 +144,18 @@ function CodeCard({ code, onSelect, selected, onHighlight }: {
 
       {/* Coder workspace */}
       <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-        <button className="btn-ghost py-1.5" disabled={accept.isPending} onClick={() => accept.mutate()}>
-          <Check size={14} /> Accept
-        </button>
-        <button className="btn-ghost py-1.5" onClick={() => setShowOverride((s) => !s)}>
-          Override
-        </button>
+        {can(role, "override") ? (
+          <>
+            <button className="btn-ghost py-1.5" disabled={accept.isPending} onClick={() => accept.mutate()}>
+              <Check size={14} /> Accept
+            </button>
+            <button className="btn-ghost py-1.5" onClick={() => setShowOverride((s) => !s)}>
+              Override
+            </button>
+          </>
+        ) : (
+          <span className="text-xs text-slate-400">view-only ({role})</span>
+        )}
         {code.accepted_by && <span className="text-xs text-emerald-600">✓ accepted</span>}
       </div>
       {showOverride && (
@@ -167,6 +175,7 @@ export default function EncounterDetail() {
   const { id } = useParams();
   const { data, isLoading } = useQuery({ queryKey: ["encounter", id], queryFn: () => api.encounter(id!) });
   const qc = useQueryClient();
+  const { role } = useRole();
   const [highlight, setHighlight] = useState<number[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [showAudit, setShowAudit] = useState(false);
@@ -216,9 +225,11 @@ export default function EncounterDetail() {
             )}
             {run && <div className="text-[11px] text-slate-400 font-mono">{run.model_version}</div>}
             {run && <div className="text-[11px] text-slate-400">{(run.latency_ms / 1000).toFixed(1)}s</div>}
-            <button className="btn-ghost py-1.5" onClick={() => setShowConsole(true)}>
-              <Cpu size={14} /> Watch agent re-run
-            </button>
+            {can(role, "code") && (
+              <button className="btn-ghost py-1.5" onClick={() => setShowConsole(true)}>
+                <Cpu size={14} /> Watch agent re-run
+              </button>
+            )}
             <button className="btn-ghost py-1.5" onClick={() => setShowAudit((s) => !s)}>
               <ShieldCheck size={14} /> Audit packet
             </button>
@@ -382,6 +393,10 @@ function WorkflowActions({ run }: { run: any }) {
     onSuccess: inval,
   });
   const rollback = useMutation({ mutationFn: () => api.rollback(run.id), onSuccess: inval });
+  const { role } = useRole();
+  const mayReassign = can(role, "reassign");
+  const mayEscalate = can(role, "escalate");
+  const mayRollback = can(role, "rollback");
   const lanes: { key: "STB" | "QA" | "MANUAL"; label: string; reason: string }[] = [
     { key: "STB", label: "STB", reason: "Approved for straight-through billing" },
     { key: "QA", label: "QA", reason: "Sent for QA verification" },
@@ -391,6 +406,10 @@ function WorkflowActions({ run }: { run: any }) {
   return (
     <div className="card p-4">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        {!mayReassign && !mayEscalate && !mayRollback && (
+          <span className="text-sm text-slate-400">Workflow actions are view-only for the {role} role.</span>
+        )}
+        {mayReassign && (
         <div className="flex items-center gap-2">
           <ArrowRightLeft size={16} className="text-ace-600" />
           <span className="text-sm font-semibold text-slate-700">Reassign queue:</span>
@@ -410,8 +429,10 @@ function WorkflowActions({ run }: { run: any }) {
             </button>
           ))}
         </div>
+        )}
 
         <div className="flex items-center gap-2">
+          {mayEscalate && (
           <button
             className="btn-ghost py-1.5"
             disabled={escalate.isPending || run.escalated}
@@ -420,6 +441,7 @@ function WorkflowActions({ run }: { run: any }) {
             <AlertTriangle size={14} className="text-amber-500" />
             {run.escalated ? "Escalated" : "Escalate to senior reviewer"}
           </button>
+          )}
           {run.escalated && (
             <span className="pill bg-amber-50 text-amber-700 ring-1 ring-amber-200">
               <Flag size={11} /> {run.escalated_to} · high priority
@@ -427,7 +449,7 @@ function WorkflowActions({ run }: { run: any }) {
           )}
         </div>
 
-        {run.modified && (
+        {run.modified && mayRollback && (
           <button className="btn-ghost py-1.5" disabled={rollback.isPending} onClick={() => rollback.mutate()}
                   title="Discard human edits and restore the original AI recommendation">
             <Undo2 size={14} className="text-slate-500" /> {rollback.isPending ? "Reverting…" : "Revert to AI recommendation"}
@@ -443,6 +465,8 @@ function WorkflowActions({ run }: { run: any }) {
 
 function CdiPanel({ encId }: { encId: string }) {
   const qc = useQueryClient();
+  const { role } = useRole();
+  const mayCdi = can(role, "cdi_respond");
   const [scanConsole, setScanConsole] = useState(false);
   const { data: queries } = useQuery({ queryKey: ["cdi", encId], queryFn: () => api.cdiForEncounter(encId) });
   const respond = useMutation({
@@ -462,9 +486,11 @@ function CdiPanel({ encId }: { encId: string }) {
           <span className="font-semibold text-slate-700 text-sm">CDI / Physician Queries</span>
           {list.length > 0 && <span className="pill bg-amber-50 text-amber-700 ring-1 ring-amber-200">{list.length}</span>}
         </div>
-        <button className="btn-ghost py-1.5" onClick={() => setScanConsole(true)}>
-          <MessageSquareWarning size={14} /> Scan for CDI opportunities
-        </button>
+        {mayCdi && (
+          <button className="btn-ghost py-1.5" onClick={() => setScanConsole(true)}>
+            <MessageSquareWarning size={14} /> Scan for CDI opportunities
+          </button>
+        )}
       </div>
 
       {scanConsole && (
@@ -491,15 +517,19 @@ function CdiPanel({ encId }: { encId: string }) {
             <p className="mt-1 text-sm text-slate-700">{q.question}</p>
             {q.clinical_indicators && <p className="mt-1 text-xs text-slate-500"><b>Indicators:</b> {q.clinical_indicators}</p>}
             {q.status !== "answered" ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {q.options.map((o) => (
-                  <button key={o} disabled={respond.isPending}
-                    onClick={() => respond.mutate({ id: q.id, resp: o })}
-                    className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs hover:bg-ace-50 hover:border-ace-300">
-                    {o}
-                  </button>
-                ))}
-              </div>
+              mayCdi ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {q.options.map((o) => (
+                    <button key={o} disabled={respond.isPending}
+                      onClick={() => respond.mutate({ id: q.id, resp: o })}
+                      className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs hover:bg-ace-50 hover:border-ace-300">
+                      {o}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-2 text-xs text-slate-400">Awaiting CDI / physician response.</div>
+              )
             ) : (
               <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-600">
                 <CheckCircle2 size={14} className="text-emerald-600" /> Answered: <b>{q.physician_response}</b> → re-coded

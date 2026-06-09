@@ -7,7 +7,9 @@
 #>
 param([switch]$NoCode)
 
-$ErrorActionPreference = "Stop"
+# Note: NOT "Stop" — docker compose writes build progress to stderr, which Windows
+# PowerShell would otherwise treat as a terminating error.
+$ErrorActionPreference = "Continue"
 Set-Location (Split-Path -Parent $PSScriptRoot)
 
 if (-not (Test-Path ".env")) {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import { Play, ArrowRight, Clock, Zap, Flag } from "lucide-react";
 import { api } from "../api";
+import { useRole, can } from "../role";
 import AgentConsole, { CODING_STEPS } from "../components/AgentConsole";
 import { ConfidenceBar, LaneBadge, Spinner, laneColor } from "../lib";
 import type { EncounterRow, Lane } from "../types";
@@ -32,6 +33,8 @@ export default function Worklist() {
   const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: api.meta });
   const [consoleEnc, setConsoleEnc] = useState<{ id: string; name: string } | null>(null);
   const [showBatch, setShowBatch] = useState(false);
+  const { role } = useRole();
+  const mayCode = can(role, "code");
 
   const list = rows ?? [];
   const coded = list.filter((r) => r.routing_lane);
@@ -51,14 +54,18 @@ export default function Worklist() {
             Radiology &amp; E&amp;M encounters · confidence-routed into Straight-Through Billing, QA, or Manual
           </p>
         </div>
-        <button
-          className="btn-brand"
-          disabled={!meta?.llm_available}
-          onClick={() => setShowBatch(true)}
-          title={!meta?.llm_available ? "Configure ANTHROPIC_API_KEY to enable coding" : ""}
-        >
-          <Play size={16} /> Run autonomous coding
-        </button>
+        {mayCode ? (
+          <button
+            className="btn-brand"
+            disabled={!meta?.llm_available}
+            onClick={() => setShowBatch(true)}
+            title={!meta?.llm_available ? "Configure ANTHROPIC_API_KEY to enable coding" : ""}
+          >
+            <Play size={16} /> Run autonomous coding
+          </button>
+        ) : (
+          <span className="pill bg-slate-100 text-slate-500 ring-1 ring-slate-200">view-only ({role})</span>
+        )}
       </div>
 
       {/* Lane summary */}
@@ -130,13 +137,17 @@ export default function Worklist() {
                 </td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
                   {!r.routing_lane ? (
-                    <button
-                      className="btn-ghost py-1.5"
-                      disabled={!meta?.llm_available}
-                      onClick={() => setConsoleEnc({ id: r.id, name: r.patient_name })}
-                    >
-                      <Play size={14} /> Code
-                    </button>
+                    mayCode ? (
+                      <button
+                        className="btn-ghost py-1.5"
+                        disabled={!meta?.llm_available}
+                        onClick={() => setConsoleEnc({ id: r.id, name: r.patient_name })}
+                      >
+                        <Play size={14} /> Code
+                      </button>
+                    ) : (
+                      <span className="text-xs text-slate-300">queued</span>
+                    )
                   ) : (
                     <Link to={`/encounter/${r.id}`} className="btn-ghost py-1.5">
                       Review <ArrowRight size={14} />

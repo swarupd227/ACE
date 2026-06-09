@@ -4,11 +4,14 @@ import { useState } from "react";
 import clsx from "clsx";
 import { MessageSquareWarning, Stethoscope, ArrowRight, CheckCircle2 } from "lucide-react";
 import { api } from "../api";
+import { useRole, can } from "../role";
 import { Spinner } from "../lib";
 import type { CdiQuery } from "../types";
 
 function QueryCard({ q }: { q: CdiQuery }) {
   const qc = useQueryClient();
+  const { role } = useRole();
+  const mayRespond = can(role, "cdi_respond");
   const [picked, setPicked] = useState<string>("");
   const respond = useMutation({
     mutationFn: (resp: string) => api.cdiRespond(q.id, resp),
@@ -49,7 +52,8 @@ function QueryCard({ q }: { q: CdiQuery }) {
           <div className="text-[11px] uppercase tracking-wide text-slate-400 mb-1.5 flex items-center gap-1">
             <Stethoscope size={12} /> Physician response (non-leading options)
           </div>
-          <div className="flex flex-wrap gap-2">
+          {!mayRespond && <div className="text-xs text-slate-400 mb-1">Open to CDI Specialist / physician.</div>}
+          <div className={clsx("flex flex-wrap gap-2", !mayRespond && "opacity-40 pointer-events-none")}>
             {q.options.map((o) => (
               <button
                 key={o}

@@ -9,7 +9,9 @@
 #>
 param([string]$Service = "")
 
-$ErrorActionPreference = "Stop"
+# Note: NOT "Stop" — docker compose writes build progress to stderr, which Windows
+# PowerShell would otherwise treat as a terminating error.
+$ErrorActionPreference = "Continue"
 Set-Location (Split-Path -Parent $PSScriptRoot)
 
 if ($Service) {
@@ -19,6 +21,7 @@ if ($Service) {
   Write-Host "Rebuilding + recreating all services..." -ForegroundColor Cyan
   docker compose up -d --build --force-recreate
 }
+if ($LASTEXITCODE -ne 0) { Write-Host "docker compose failed (exit $LASTEXITCODE)" -ForegroundColor Red; exit 1 }
 
 Start-Sleep -Seconds 4
 try {
