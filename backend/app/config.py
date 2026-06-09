@@ -15,9 +15,13 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql+psycopg://ace:ace_dev_pw@db:5432/ace"
 
-    # LLM
-    llm_mode: str = "anthropic"  # anthropic | local
+    # LLM — env holds the initial defaults + the secrets. The ACTIVE provider /
+    # model / endpoint is admin-configurable at runtime via config_store (key
+    # "llm"). API keys always stay here in the environment — never in the
+    # database, never shown in the UI.
+    llm_mode: str = "anthropic"  # anthropic | local  (initial default only)
     anthropic_api_key: str = ""
+    openai_api_key: str = ""     # for any OpenAI-compatible endpoint (Azure OpenAI, OpenAI, vLLM, …)
     ace_model_default: str = "claude-sonnet-4-5"
     ace_model_hard: str = "claude-opus-4-1"
     local_llm_base_url: str = "http://host.docker.internal:11434/v1"

@@ -99,6 +99,8 @@ export const api = {
     req(`/admin/config/${key}`, { method: "PUT", body: JSON.stringify({ value }) }),
   resetConfig: () => req("/admin/config/reset", { method: "POST" }),
   adminAudit: () => req<import("./types").AuditChange[]>("/admin/audit"),
+  llmStatus: () => req<import("./types").LlmStatus>("/admin/llm/status"),
+  testLlm: () => req<{ ok: boolean; model: string; latency_ms?: number; sample?: any; error?: string }>("/admin/llm/test", { method: "POST" }),
   // --- Reference Data admin (drives the validation gates) ---
   refCodes: (system = "", q = "") => req<import("./types").RefCode[]>(`/reference/codes?system=${encodeURIComponent(system)}&q=${encodeURIComponent(q)}`),
   createRefCode: (c: Partial<import("./types").RefCode>) => req<import("./types").RefCode>("/reference/codes", { method: "POST", body: JSON.stringify(c) }),

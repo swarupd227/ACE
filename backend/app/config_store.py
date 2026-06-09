@@ -46,6 +46,13 @@ DEFAULTS: dict = {
         {"name": "eClinicalWorks", "type": "EHR", "channel": "FHIR R4 / HL7 v2", "enabled": True},
         {"name": "Cerner", "type": "EHR", "channel": "FHIR R4 / HL7 v2", "enabled": True},
     ],
+    "llm": {
+        "provider": "anthropic",            # anthropic | openai_compatible
+        "model_default": "claude-sonnet-4-5",
+        "model_hard": "claude-opus-4-1",
+        "base_url": "",                     # required for openai_compatible (Azure OpenAI / OpenAI / vLLM / Ollama)
+        "max_tokens": 4096,
+    },
 }
 
 # Human-friendly metadata for the Admin UI (label + type hints).
@@ -59,6 +66,7 @@ META: dict = {
     "specialties": "Enabled specialties and their model-tier (hard = Opus + self-consistency)",
     "roster": "Coders / auditors available for assignment",
     "connectors": "Source systems (PMS/EHR) shown on the Integrations screen",
+    "llm": "The reasoning model — provider, default/hard models and endpoint (API keys stay in the environment)",
 }
 
 

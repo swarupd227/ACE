@@ -1,10 +1,14 @@
 """LLM client with two real backends and an honest failure mode.
 
-- anthropic : real Claude calls, structured output forced via tool-use.
-- local     : any OpenAI-compatible endpoint (e.g. Ollama) using JSON mode.
+- anthropic          : real Claude calls, structured output forced via tool-use.
+- openai_compatible  : any OpenAI-compatible endpoint (Azure OpenAI, OpenAI,
+                       vLLM, Ollama, …) using JSON mode.
 
-If no backend is reachable we raise LLMUnavailable; callers route the chart to
-the manual queue rather than fabricating codes. There is no synthetic "model."
+The ACTIVE provider / model / endpoint is admin-configurable at runtime (passed
+in as `llm` from config_store). API keys are NEVER in that config — they always
+come from the environment (settings). If no backend is reachable we raise
+LLMUnavailable; callers route the chart to the manual queue rather than
+fabricating codes. There is no synthetic "model."
 """
 from __future__ import annotations
 
@@ -20,18 +24,40 @@ class LLMUnavailable(RuntimeError):
     pass
 
 
-def model_version() -> str:
-    if settings.llm_mode == "anthropic":
-        return f"anthropic/{settings.ace_model_default}"
-    return f"local/{settings.local_llm_model}"
+def effective_llm(llm: dict | None = None) -> dict:
+    """Merge the admin config-store 'llm' dict with env defaults + secrets.
+    Returns a normalized config. Secrets always come from the environment."""
+    llm = llm or {}
+    provider = llm.get("provider") or ("anthropic" if settings.llm_mode == "anthropic" else "openai_compatible")
+    return {
+        "provider": provider,
+        "model_default": llm.get("model_default") or settings.ace_model_default,
+        "model_hard": llm.get("model_hard") or settings.ace_model_hard,
+        "base_url": (llm.get("base_url") or settings.local_llm_base_url or "").rstrip("/"),
+        "max_tokens": int(llm.get("max_tokens") or 4096),
+        # secrets — env only
+        "anthropic_api_key": settings.anthropic_api_key,
+        "openai_api_key": settings.openai_api_key,
+    }
 
 
-def _anthropic_json(
-    system: str, user: str, schema: dict[str, Any], model: str, temperature: float
-) -> dict[str, Any]:
+def llm_available(llm: dict | None = None) -> bool:
+    e = effective_llm(llm)
+    if e["provider"] == "anthropic":
+        return bool(e["anthropic_api_key"])
+    return bool(e["base_url"])  # OpenAI-compatible: needs an endpoint (key optional, e.g. Ollama)
+
+
+def model_version(llm: dict | None = None) -> str:
+    e = effective_llm(llm)
+    tag = "anthropic" if e["provider"] == "anthropic" else "openai"
+    return f"{tag}/{e['model_default']}"
+
+
+def _anthropic_json(system, user, schema, model, temperature, e) -> dict[str, Any]:
     import anthropic
 
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    client = anthropic.Anthropic(api_key=e["anthropic_api_key"])
     tool = {
         "name": "emit_result",
         "description": "Return the structured coding result. Every field is required.",
@@ -39,7 +65,7 @@ def _anthropic_json(
     }
     resp = client.messages.create(
         model=model,
-        max_tokens=4096,
+        max_tokens=e["max_tokens"],
         temperature=temperature,
         system=system,
         tools=[tool],
@@ -48,17 +74,16 @@ def _anthropic_json(
     )
     for block in resp.content:
         if block.type == "tool_use" and block.name == "emit_result":
-            return block.input  # already a dict matching the schema
+            return block.input
     raise LLMUnavailable("Anthropic returned no tool_use block")
 
 
-def _local_json(
-    system: str, user: str, schema: dict[str, Any], model: str, temperature: float
-) -> dict[str, Any]:
+def _openai_json(system, user, schema, model, temperature, e) -> dict[str, Any]:
     # OpenAI-compatible chat completions with JSON object response format.
     payload = {
-        "model": model or settings.local_llm_model,
+        "model": model,
         "temperature": temperature,
+        "max_tokens": e["max_tokens"],
         "messages": [
             {"role": "system", "content": system + "\n\nReturn ONLY a JSON object matching this schema:\n" + json.dumps(schema)},
             {"role": "user", "content": user},
@@ -66,9 +91,12 @@ def _local_json(
         "response_format": {"type": "json_object"},
         "stream": False,
     }
-    url = settings.local_llm_base_url.rstrip("/") + "/chat/completions"
+    headers = {}
+    if e["openai_api_key"]:
+        headers["Authorization"] = f"Bearer {e['openai_api_key']}"
+    url = e["base_url"] + "/chat/completions"
     with httpx.Client(timeout=120) as hc:
-        r = hc.post(url, json=payload)
+        r = hc.post(url, json=payload, headers=headers)
         r.raise_for_status()
         data = r.json()
     content = data["choices"][0]["message"]["content"]
@@ -83,26 +111,29 @@ def complete_json(
     hard: bool = False,
     temperature: float = 0.0,
     samples: int = 1,
+    llm: dict | None = None,
 ) -> list[dict[str, Any]]:
-    """Return `samples` structured results. Used at temperature>0 for self-consistency."""
-    if not settings.llm_available:
+    """Return `samples` structured results. `llm` is the runtime config-store
+    config; secrets are pulled from the environment regardless."""
+    e = effective_llm(llm)
+    if not llm_available(llm):
         raise LLMUnavailable(
-            "No LLM backend configured. Set ANTHROPIC_API_KEY (LLM_MODE=anthropic) "
-            "or a reachable LOCAL_LLM_BASE_URL (LLM_MODE=local)."
+            "No LLM backend configured. For the 'anthropic' provider set ANTHROPIC_API_KEY; "
+            "for 'openai_compatible' set the endpoint (and OPENAI_API_KEY if the endpoint needs it)."
         )
 
-    model = settings.ace_model_hard if hard else settings.ace_model_default
+    model = e["model_hard"] if hard else e["model_default"]
     out: list[dict[str, Any]] = []
     errors: list[str] = []
     for _ in range(max(1, samples)):
         try:
-            if settings.llm_mode == "anthropic":
-                out.append(_anthropic_json(system, user, schema, model, temperature))
+            if e["provider"] == "anthropic":
+                out.append(_anthropic_json(system, user, schema, model, temperature, e))
             else:
-                out.append(_local_json(system, user, schema, settings.local_llm_model, temperature))
+                out.append(_openai_json(system, user, schema, model, temperature, e))
         except Exception as exc:  # transient network / parse / rate-limit on a single sample
             errors.append(f"{type(exc).__name__}: {exc}")
     # Self-consistency tolerates partial failures: only fail if EVERY sample failed.
     if not out:
-        raise LLMUnavailable(f"{settings.llm_mode} call failed for all {samples} sample(s): {errors}")
+        raise LLMUnavailable(f"{e['provider']} call failed for all {samples} sample(s): {errors}")
     return out

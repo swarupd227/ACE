@@ -210,6 +210,16 @@ export interface Guideline {
   specialty: string;
 }
 
+export interface LlmStatus {
+  provider: string;
+  model_default: string;
+  model_hard: string;
+  base_url: string;
+  active: string;
+  available: boolean;
+  anthropic_key_present: boolean;
+  openai_key_present: boolean;
+}
 export interface AuditChange {
   id: string;
   at: string;

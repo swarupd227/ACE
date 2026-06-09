@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
-import { SlidersHorizontal, ShieldAlert, FileCheck2, Timer, Layers, Users, Save, RotateCcw, Plus, Trash2, Check, History, Plug } from "lucide-react";
+import { SlidersHorizontal, ShieldAlert, FileCheck2, Timer, Layers, Users, Save, RotateCcw, Plus, Trash2, Check, History, Plug, Cpu, PlugZap } from "lucide-react";
 import { api } from "../api";
 import { Spinner } from "../lib";
 
@@ -195,6 +195,88 @@ function RosterTab({ cfg }: { cfg: any }) {
   );
 }
 
+function ModelTab({ cfg }: { cfg: any }) {
+  const m = useSaver("llm", cfg.llm);
+  const { data: status, refetch } = useQuery({ queryKey: ["llmStatus"], queryFn: api.llmStatus });
+  const [test, setTest] = useState<{ ok: boolean; model: string; latency_ms?: number; error?: string } | null>(null);
+  const runTest = useMutation({ mutationFn: api.testLlm, onSuccess: (r) => { setTest(r); refetch(); } });
+  const set = (k: string, v: any) => m.setLocal({ ...m.local, [k]: v });
+  const isOpenAI = m.local.provider === "openai_compatible";
+  const keyOk = status && (m.local.provider === "anthropic" ? status.anthropic_key_present : true);
+  return (
+    <div className="grid lg:grid-cols-2 gap-4 max-w-5xl">
+      <div className="card p-4">
+        <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2"><Cpu size={16} className="text-ace-600" /> Reasoning model</h3>
+        <p className="text-xs text-slate-500 mb-3">Pick the provider and models. API keys stay in the server environment — never entered or shown here. Changes apply on the next coding run.</p>
+        <label className="block text-sm text-slate-600 mb-2">Provider
+          <select value={m.local.provider} onChange={(e) => set("provider", e.target.value)} className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-sm">
+            <option value="anthropic">Anthropic (Claude)</option>
+            <option value="openai_compatible">OpenAI-compatible (Azure OpenAI · OpenAI · vLLM · Ollama)</option>
+          </select>
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block text-sm text-slate-600">Default model
+            <input value={m.local.model_default} onChange={(e) => set("model_default", e.target.value)} className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-sm font-mono" />
+          </label>
+          <label className="block text-sm text-slate-600">Hard-chart model
+            <input value={m.local.model_hard} onChange={(e) => set("model_hard", e.target.value)} className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-sm font-mono" />
+          </label>
+        </div>
+        {isOpenAI && (
+          <label className="block text-sm text-slate-600 mt-2">Endpoint base URL
+            <input value={m.local.base_url} onChange={(e) => set("base_url", e.target.value)} placeholder="https://<resource>.openai.azure.com/openai/deployments/<deployment>" className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-sm font-mono" />
+          </label>
+        )}
+        <label className="block text-sm text-slate-600 mt-2">Max output tokens
+          <input type="number" min={256} max={16000} value={m.local.max_tokens} onChange={(e) => set("max_tokens", parseInt(e.target.value || "4096"))} className="mt-1 w-28 rounded border border-slate-200 px-2 py-1.5 text-sm" />
+        </label>
+        <SaveBar dirty={m.dirty} saving={m.save.isPending} onSave={() => m.save.mutate()} />
+      </div>
+
+      <div className="card p-4">
+        <h3 className="font-bold text-slate-800 mb-2">Live status</h3>
+        {status ? (
+          <div className="space-y-2 text-sm">
+            <Row label="Active model" value={status.active} mono />
+            <Row label="Backend reachable" badge={status.available ? "ready" : "not configured"} ok={status.available} />
+            <Row label="Anthropic key" badge={status.anthropic_key_present ? "present" : "missing"} ok={status.anthropic_key_present} />
+            <Row label="OpenAI-compatible key" badge={status.openai_key_present ? "present" : "not set"} ok={status.openai_key_present} muted={!status.openai_key_present} />
+            {m.local.provider === "anthropic" && !status.anthropic_key_present && (
+              <p className="text-xs text-amber-600">Set ANTHROPIC_API_KEY in the server environment to enable this provider.</p>
+            )}
+          </div>
+        ) : <Spinner className="h-5 w-5 text-ace-500" />}
+        <div className="mt-4 border-t border-slate-100 pt-3">
+          <button className="btn-primary py-1.5" disabled={runTest.isPending} onClick={() => runTest.mutate()}>
+            {runTest.isPending ? <Spinner className="h-4 w-4" /> : <PlugZap size={14} />} Test connection
+          </button>
+          <p className="text-xs text-slate-400 mt-1">Sends a tiny structured prompt with the saved config and checks the reply. Save first to test a new model.</p>
+          {test && (
+            <div className={clsx("mt-2 rounded-lg p-2.5 text-sm ring-1", test.ok ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : "bg-rose-50 text-rose-700 ring-rose-200")}>
+              {test.ok ? (
+                <span className="flex items-center gap-1.5"><Check size={14} /> {test.model} responded with valid structured output{test.latency_ms != null ? ` · ${test.latency_ms} ms` : ""}.</span>
+              ) : (
+                <span>Test failed for {test.model}: {test.error}</span>
+              )}
+            </div>
+          )}
+        </div>
+        {!keyOk && <div className="mt-2 text-xs text-slate-400">Tip: switch providers, Save, then Test.</div>}
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value, badge, ok, mono, muted }: any) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-slate-500">{label}</span>
+      {value != null ? <span className={clsx("text-slate-800", mono && "font-mono text-xs")}>{value}</span>
+        : <span className={clsx("pill ring-1", muted ? "bg-slate-100 text-slate-500 ring-slate-200" : ok ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-rose-50 text-rose-700 ring-rose-200")}>{badge}</span>}
+    </div>
+  );
+}
+
 function ConnectorsTab({ cfg }: { cfg: any }) {
   const c = useSaver("connectors", cfg.connectors ?? []);
   const upd = (i: number, patch: any) => c.setLocal(c.local.map((m: any, j: number) => (j === i ? { ...m, ...patch } : m)));
@@ -269,6 +351,7 @@ function ChangeLogTab() {
 }
 
 const TABS: [string, string, any][] = [
+  ["model", "Reasoning Model", Cpu],
   ["routing", "Routing & Calibration", SlidersHorizontal],
   ["bounded", "Bounded Autonomy", ShieldAlert],
   ["eligibility", "Eligibility", FileCheck2],
@@ -306,6 +389,7 @@ export default function Admin() {
         ))}
       </div>
 
+      {tab === "model" && <ModelTab cfg={cfg} />}
       {tab === "routing" && <RoutingTab cfg={cfg} />}
       {tab === "bounded" && <BoundedTab cfg={cfg} />}
       {tab === "eligibility" && <EligibilityTab cfg={cfg} />}

@@ -291,7 +291,9 @@ def _modality_from_text(t: str) -> str:
 
 @router.post("/eval/run")
 def eval_run(db: Session = Depends(get_db)) -> dict:
-    if not settings.llm_available:
+    from .. import config_store
+    from ..llm import client as _llm
+    if not _llm.llm_available(config_store.all_config(db).get("llm")):
         raise LLMUnavailable("LLM not configured — eval requires the reasoning model")
 
     golden = db.scalars(select(models.GoldenCase)).all()

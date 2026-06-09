@@ -1,10 +1,13 @@
 """Health + metadata (LLM mode, model, data provenance) for the UI."""
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
+from .. import config_store
 from ..config import settings
-from ..llm.client import model_version
+from ..db import get_db
+from ..llm import client as llm_client
 
 router = APIRouter()
 
@@ -15,16 +18,18 @@ def health() -> dict:
 
 
 @router.get("/meta")
-def meta() -> dict:
+def meta(db: Session = Depends(get_db)) -> dict:
+    llm = config_store.all_config(db).get("llm")
+    e = llm_client.effective_llm(llm)
     return {
         "product": "ACE — Autonomous Coding Engine",
         "framing": "Engine inside RevAmp Coding Studio",
         "env": settings.ace_env,
-        "llm_mode": settings.llm_mode,
-        "llm_available": settings.llm_available,
-        "model_default": settings.ace_model_default,
-        "model_hard": settings.ace_model_hard,
-        "model_version": model_version(),
+        "llm_mode": e["provider"],
+        "llm_available": llm_client.llm_available(llm),
+        "model_default": e["model_default"],
+        "model_hard": e["model_hard"],
+        "model_version": llm_client.model_version(llm),
         "self_consistency_samples": settings.ace_self_consistency_samples,
         "specialties": ["Radiology", "E&M", "ED", "Pathology", "Surgical"],
         "provenance": {

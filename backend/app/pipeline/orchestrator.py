@@ -110,19 +110,20 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     if enc is None:
         raise ValueError("encounter not found")
 
-    run = models.CodingRun(encounter_id=enc.id, status="RUNNING", model_version=model_version())
+    # --- admin-configurable runtime settings (incl. the active LLM) ---
+    cfg = config_store.all_config(db)
+    llmc = cfg.get("llm")
+    stb_t = cfg["routing"]["stb_threshold"]
+    qa_t = cfg["routing"]["qa_threshold"]
+    weights = cfg["confidence_weights"]
+    ba = cfg["bounded_autonomy"]
+
+    run = models.CodingRun(encounter_id=enc.id, status="RUNNING", model_version=model_version(llmc))
     db.add(run)
     db.flush()
     t0 = time.time()
     numbered, lookup = _number_chart(enc.chart_text)
     log: list[dict] = []
-
-    # --- admin-configurable runtime settings ---
-    cfg = config_store.all_config(db)
-    stb_t = cfg["routing"]["stb_threshold"]
-    qa_t = cfg["routing"]["qa_threshold"]
-    weights = cfg["confidence_weights"]
-    ba = cfg["bounded_autonomy"]
 
     # --- agentic event stream (no-op unless an emitter is passed) ---
     emit = emit or (lambda *a, **k: None)
@@ -178,12 +179,12 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
 
     # --- Stage 1+2 — analysis (conditioning + summary + extraction) ---
     step("1", "Conditioning")
-    say("Conditioning + Extraction Agent", f"invoking {model_version()} — sectioning, summary, structured extraction…", "tool")
+    say("Conditioning + Extraction Agent", f"invoking {model_version(llmc)} — sectioning, summary, structured extraction…", "tool")
     try:
         analysis = complete_json(
             prompts.ANALYSIS_SYSTEM,
             prompts.build_analysis_user(numbered, enc.specialty),
-            prompts.ANALYSIS_SCHEMA, temperature=0.0,
+            prompts.ANALYSIS_SCHEMA, temperature=0.0, llm=llmc,
         )[0]
     except LLMUnavailable as e:
         log.append({"stage": "1_analysis", "title": "Clinical Analysis", "error": str(e)})
@@ -230,12 +231,12 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         rag_ctx += ("\n\n## PHYSICIAN CDI CLARIFICATIONS (authoritative — apply these)\n" + extra_context)
     step("3", "Cited coding")
     say("Coding Agent",
-        f"assigning cited codes · {'Opus' if hard else 'Sonnet'} tier · self-consistency {samples}×…", "tool")
+        f"assigning cited codes · {'hard' if hard else 'standard'} model · self-consistency {samples}×…", "tool")
     try:
         coding_samples = complete_json(
             prompts.CODING_SYSTEM,
             prompts.build_coding_user(numbered, enc.specialty, analysis, rag_ctx),
-            prompts.CODING_SCHEMA, hard=hard, temperature=temp, samples=samples,
+            prompts.CODING_SCHEMA, hard=hard, temperature=temp, samples=samples, llm=llmc,
         )
     except LLMUnavailable as e:
         log.append({"stage": "3_coding", "title": "Code Generation", "error": str(e)})
@@ -382,6 +383,7 @@ def cdi_scan(db: Session, encounter_id: str, emit=None) -> list[models.CdiQuery]
     enc = db.get(models.Encounter, encounter_id)
     if enc is None:
         raise ValueError("encounter not found")
+    llmc = config_store.all_config(db).get("llm")
     say("CDI Agent", f"reviewing documentation for {enc.patient_name} · {enc.specialty}", "head")
     run = db.scalars(
         select(models.CodingRun).where(models.CodingRun.encounter_id == enc.id)
@@ -391,12 +393,12 @@ def cdi_scan(db: Session, encounter_id: str, emit=None) -> list[models.CdiQuery]
         {"code_system": c.code_system, "code": c.code, "role": c.role, "description": c.description}
         for c in (run.codes if run else [])
     ]
-    say("CDI Agent", f"checking {len(codes)} assigned code(s) for documentation gaps · invoking {model_version()}…", "tool")
+    say("CDI Agent", f"checking {len(codes)} assigned code(s) for documentation gaps · invoking {model_version(llmc)}…", "tool")
     numbered, _ = _number_chart(enc.chart_text)
     result = complete_json(
         prompts.CDI_SYSTEM,
         prompts.build_cdi_user(numbered, enc.specialty, codes),
-        prompts.CDI_SCHEMA, temperature=0.0,
+        prompts.CDI_SCHEMA, temperature=0.0, llm=llmc,
     )[0]
     nq = len(result.get("queries", []))
     say("CDI Agent",
