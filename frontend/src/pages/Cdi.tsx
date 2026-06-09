@@ -114,7 +114,7 @@ export default function Cdi() {
         </div>
       ) : (
         <div className="card p-8 text-center text-sm text-slate-400">
-          No CDI queries yet. Open an encounter (e.g. the anemia E&M chart) and click <b>Scan for CDI opportunities</b>.
+          No CDI queries yet. Open any encounter and click <b>Scan for CDI opportunities</b> to check its documentation for gaps.
         </div>
       )}
     </div>

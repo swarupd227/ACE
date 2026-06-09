@@ -61,7 +61,7 @@ export default function Integrations() {
           <div className="flex items-center gap-2 mb-2"><Cable size={16} className="text-ace-600" /><h2 className="font-bold text-slate-800">Inbound channels</h2></div>
           <ul className="space-y-1.5 text-sm text-slate-600">{data.channels.map((ch) => <li key={ch}>• {ch}</li>)}</ul>
           <div className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-500 flex items-center gap-2">
-            <Code2 size={14} /> Live REST API + OpenAPI at <a href="http://localhost:8000/docs" target="_blank" className="text-ace-600 hover:underline">/docs</a>. Batch = "Run autonomous coding" on the worklist.
+            <Code2 size={14} /> Live REST API with an OpenAPI spec ({data.api_docs ?? "/docs"} on the API service). Batch = "Run autonomous coding" on the worklist.
           </div>
         </div>
 
