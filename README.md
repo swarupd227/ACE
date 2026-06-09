@@ -1,13 +1,18 @@
 # ACE — Autonomous Coding Engine
 
-**A self-contained, agentic medical-coding demo built for Vee Healthtek (by Nous Infosystems).**
-ACE translates clinical documentation into audit-defensible codes (ICD-10-CM / CPT / HCPCS + modifiers),
-routes each chart into **Straight-Through Billing / QA / Manual** by calibrated confidence, and proves
-every decision with a chart-line + guideline evidence chain. Framed as the engine inside **RevAmp's
-Coding Studio**.
+**A self-contained, agentic medical-coding application — built by Nous Infosystems for Vee Healthtek.**
 
-> Specialties in this build: **Radiology** (anchor) + **E&M**. See `DESIGN.md` for the full design,
-> the SOW/Use-Case/transcript reconciliation, and the production (Azure/Foundry) mapping.
+ACE turns clinical documentation into audit-defensible codes (ICD-10-CM / CPT / HCPCS + modifiers),
+routes each chart into **Straight-Through Billing / QA / Manual** by a calibrated confidence score, and
+proves every decision with a chart-line + guideline evidence chain. It is framed as the engine inside
+Vee Healthtek's **RevAmp Coding Studio**.
+
+> **Specialties in this build:** Radiology, E&M, ED, Pathology, Surgical, Cardiology — all running on one
+> "specialty accelerator." New specialties onboard as content + config, not a rebuild.
+
+> **Confidential.** Prepared for Vee Healthtek; not for redistribution. See [`LICENSE`](LICENSE).
+
+---
 
 ## Quick start
 
@@ -16,87 +21,139 @@ cp .env.example .env          # then add your ANTHROPIC_API_KEY
 docker compose up --build
 ```
 
-- UI:  http://localhost:8080
-- API: http://localhost:8000/api/health  ·  docs at http://localhost:8000/docs
+- **UI:** http://localhost:8080
+- **API:** http://localhost:8000/api/health · OpenAPI docs at http://localhost:8000/docs
 
-The stack seeds its database (reference codes, NCCI/MUE, payer + ontology knowledge graph, guidelines,
-synthetic charts, golden set) automatically on first boot.
+The stack seeds its database automatically on first boot (reference codes, NCCI/MUE/modifiers, the
+payer + ontology knowledge graph, guidelines, synthetic charts, and the golden eval set).
 
-## Helper scripts
-One-command lifecycle (Windows PowerShell `.ps1` or macOS/Linux `.sh`):
+### The one secret
+ACE makes **real Claude calls** for reasoning. Put a key in `.env`:
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+The active model is then **changeable at runtime** in **Admin → Reasoning Model** (Anthropic or any
+OpenAI-compatible endpoint — Azure OpenAI, OpenAI, vLLM, Ollama). API keys always stay in the
+environment, never in the database or the UI. **If no model is reachable, ACE never fabricates codes** —
+it routes every chart to the manual queue with reason `LLM_UNAVAILABLE`.
+
+### Helper scripts (Windows PowerShell `.ps1` / macOS-Linux `.sh`)
 
 | Task | PowerShell | bash |
 |---|---|---|
 | **Pristine demo** (wipe + rebuild + reseed + pre-code) | `.\scripts\reset-demo.ps1` | `./scripts/reset-demo.sh` |
 | …reset without the slow pre-code | `.\scripts\reset-demo.ps1 -NoCode` | `./scripts/reset-demo.sh --no-code` |
-| **Redeploy** after code changes (rebuild + **force-recreate**) | `.\scripts\redeploy.ps1` | `./scripts/redeploy.sh` |
+| **Redeploy** after code changes (rebuild + force-recreate) | `.\scripts\redeploy.ps1` | `./scripts/redeploy.sh` |
 | …just the frontend | `.\scripts\redeploy.ps1 web` | `./scripts/redeploy.sh web` |
 
 > Plain `docker compose up -d` after a rebuild sometimes **doesn't recreate** a container, so the browser
-> keeps serving the old build. `redeploy` uses `--force-recreate` to avoid that; it also prints the served
-> JS bundle hash so you can confirm a fresh deploy. Always **hard-refresh** the browser (Ctrl+Shift+R).
+> keeps serving the old build. `redeploy` uses `--force-recreate` and prints the served JS bundle hash.
+> Always **hard-refresh** the browser (Ctrl+Shift+R).
 
-### The one secret
-ACE makes **real Claude calls** for reasoning. Put a key in `.env`:
-```
-LLM_MODE=anthropic
-ANTHROPIC_API_KEY=sk-ant-...
-```
-Air-gapped alternative: `LLM_MODE=local` pointing `LOCAL_LLM_BASE_URL` at an OpenAI-compatible server
-(e.g. Ollama). **If no LLM is reachable, ACE never fabricates codes** — it routes every chart to the
-manual queue with reason `LLM_UNAVAILABLE`.
+---
 
-## The five-stage (plus Stage 0) pipeline
+## The pipeline (Stage 0–5)
+
 | Stage | What it does | What it prevents |
 |---|---|---|
-| 0 · Eligibility | required docs, approved specialty/procedure, exclusions (trauma, interventional, incomplete) | coding ineligible charts |
-| 1 · Conditioning | section ID, copy-forward/contradiction/unsigned flags, **chart summary** | reasoning on bad input |
-| 2 · Extraction | structured slots: laterality, contrast, view count, encounter type, negation, temporality | lost specificity |
-| 3 · Cited coding | Graph-RAG-grounded; every code must cite chart lines + guideline; self-consistency on hard charts | fabricated / uncitable codes |
-| 4 · Validation gates | deterministic: existence, specificity, NCCI, MUE, modifiers, sex/age, payer necessity | compliance failures |
-| 5 · Calibration & routing | 4-factor calibrated confidence → STB/QA/Manual + bounded-autonomy rules | confident wrong answers |
+| **0 · Eligibility** | required docs, approved specialty, exclusions (trauma, interventional, incomplete) | coding ineligible charts |
+| **1 · Conditioning** | section ID, copy-forward / contradiction / unsigned flags, **chart summary** | reasoning on bad input |
+| **2 · Extraction** | structured slots: laterality, contrast, view count, encounter type, negation | lost specificity |
+| **RAG · Graph-RAG** | candidate codes from code sets + ontology graph + payer policy + learned corrections | ungrounded guesses |
+| **3 · Cited coding** | every code cites chart lines + guideline; self-consistency on hard charts | fabricated / uncitable codes |
+| **3b · Citation check** | each cited span verified against the chart | unsupported codes |
+| **4 · Validation gates** | deterministic: existence, specificity, NCCI, MUE, modifiers, sex/age, payer necessity | compliance failures |
+| **5 · Calibration & routing** | 4-factor calibrated confidence → STB / QA / Manual + bounded-autonomy hard rules | confident-but-wrong auto-billing |
 
-## Demo storyline (see DEMO_SCRIPT.md for the full runbook)
-1. **Control Tower** → the manager's live operating view: work queues (STB/QA/Manual/Escalated/CDI), SLA aging, and workforce assignment.
-2. **Worklist** → run autonomous coding → watch the **STB/QA/Manual** split.
-3. **Scenario 1** (chest X-ray) → clean codes (71046-26), cited, high 4-factor confidence → **STB**.
-4. **Scenario 2** (CT abdomen+pelvis) → single **74177** (bundling/NCCI) + modifier logic on the gates checklist.
-5. **Scenario 3** (rule-out, normal film) → **avoids overcoding** pneumonia (specificity control).
-6. **Scenario 4** (incomplete / interventional) → **eligibility → Manual** with reason.
-7. **ED** → standard visit + **critical care → QA via bounded autonomy**; **E&M** → MDM leveling.
-8. **CDI / Physician Queries** → scan the anemia chart → compliant query → physician answer **re-codes** D64.9 → D50.9.
-9. **Override a code** → **Closed-Loop Learning** populates and shifts later similar charts.
-10. **Policy & Knowledge Admin** (edit a payer policy → it drives the necessity gate), **Evaluation Harness**, **Audit packet**, **Dashboard** round out the story.
+**Grounding rule:** the coding agent may only emit codes that retrieval surfaces — so "don't hallucinate"
+is a structural property, not a prompt we hope holds.
 
-Specialties: **Radiology, E&M, ED, Pathology, Surgical**. Screens (operational tools, not slideware):
-Worklist · **Control Tower** (queues + SLA + assignment) · CDI · Dashboard (STB, accuracy, manual-effort
-& TAT reduction, exception rate, maturity pathway) · **Policy & Knowledge Admin** (editable, drives
-coding) · **Integrations & Ingestion** (simulated EHR connectors + live ingest + REST/batch) · Evaluation
-Harness · Closed-Loop Learning (apply/withdraw exemplars) · Encounter detail. Traceability to the
-Use-Case acceptance criteria is in `REQUIREMENTS_TRACEABILITY.md`. **Agentic UX:** clicking **Code**
-(or "Watch agent re-run") opens a **live Agent Console** that streams the run over **SSE** —
-eligibility → conditioning/extraction agent → Graph-RAG → coding agent → validation gates → routing,
-with real LLM latency. The same live console streams the **CDI scan** (agent reasoning) and the **batch
-run** (per-chart progress). The Policy & Knowledge Admin **Explore Graph** tab is an **interactive
-Cytoscape force-directed ontology graph** (fcose layout, search, zoom, drag, click-to-inspect) in the
-style of Microsoft's Ontology-Playground. Human controls: accept / override-with-reason / **reassign** / **escalate** /
-**revert-to-AI (rollback)** — all audit-logged. The architecture/pipeline is shown **per-chart** (Stage 0–5
-trace), not as a standalone diagram.
+---
+
+## What's in the app
+
+**Operational screens** (tools you work in, not slideware):
+
+- **Worklist** — the three-lane queue (STB / QA / Manual) by confidence.
+- **Control Tower** — live work queues, SLA aging, and workforce assignment.
+- **Encounter detail** — chart ↔ citation highlight, 4-factor confidence, validation gates, the Stage 0–5
+  trace, the per-chart "knowledge used" panel, the audit packet, and human controls (accept /
+  override-with-reason / reassign / escalate / **revert-to-AI**), all audit-logged.
+- **CDI / Physician Queries** — the agent drafts compliant, non-leading queries; the answer re-codes the chart.
+- **Closed-Loop Learning** — coder corrections become exemplars that shift later similar charts.
+- **Evaluation Harness** — accuracy vs adjudicated consensus with the inter-rater-reliability ceiling;
+  admins can curate the golden set.
+- **Performance Dashboard** — STB rate, calibrated accuracy, manual-effort & TAT reduction, exception
+  rate, and the maturity pathway.
+- **Integrations & Ingestion** — simulated PMS/EHR connectors (FHIR/HL7/EDI/REST) + live ingest.
+
+**Admin / configuration** (an operator runs the platform — no code, no redeploy):
+
+- **Admin → Configuration** — routing thresholds, the 4-factor weights, self-consistency, bounded-autonomy
+  rules, eligibility, SLA targets, the **Specialty Accelerator**, users & roster, **Connectors**, the
+  **Reasoning Model** (provider/model/endpoint + a Test-connection button), and an append-only **Change Log**.
+- **Policy & Knowledge Admin** — editable payer policies that drive the necessity gate, a **KG Builder**
+  (add ontology concepts, map them to codes, draw relationships — read by Graph-RAG on the next run),
+  editable **Coding Guidelines**, an interactive **Cytoscape** ontology graph, and **Reference Data**
+  (code sets + NCCI / MUE / modifier edits that drive the gates).
+- **Role-based access** — Admin / Coder / QA Auditor / CDI Specialist / Supervisor; both navigation and
+  action buttons respect the role (maps to SSO in production).
+
+**Agentic UX:** clicking **Code** (or "Watch agent re-run") opens a **live Agent Console** that streams
+the run over Server-Sent Events — eligibility → conditioning/extraction → Graph-RAG → coding → validation
+→ routing — with real model latency. The same console streams the CDI scan and the batch run.
+
+---
 
 ## Data provenance (honest by design)
-- **ICD-10-CM / HCPCS** — real public-domain subsets (CMS/NCHS).
-- **CPT** — **DEMO placeholder** (real 70000-series numbers, our own descriptors, *not* AMA text);
-  swap in a licensed AMA distribution for production (same table shape).
-- **NCCI/MUE** — modeled on real CMS edit logic (subset).
-- **Charts** — synthetic, PHI-free. The pipeline genuinely codes them; no answers are pre-stored.
+
+- **ICD-10-CM / HCPCS** — real public-domain subsets (CMS / NCHS).
+- **CPT** — **DEMO placeholder** (real numbers, our own descriptors, *not* AMA text); swap in a licensed
+  AMA distribution for production (same table shape).
+- **NCCI / MUE** — modeled on real CMS edit logic (subset).
+- **Ontology** — a demo concept set; production swaps in licensed SNOMED CT / UMLS at the same shape.
+- **Charts** — synthetic and PHI-free. The pipeline genuinely codes them; no answers are pre-stored.
+
+---
 
 ## Tech
-FastAPI + SQLAlchemy + Postgres/pgvector · Anthropic Claude (local fallback) ·
-React + TypeScript + Vite + Tailwind · all via `docker compose`.
 
-## Architecture
+FastAPI + SQLAlchemy 2 + PostgreSQL/pgvector · Anthropic Claude (or any OpenAI-compatible model) ·
+React + TypeScript + Vite + Tailwind + Cytoscape · all via `docker compose`.
+
 ```
-web (nginx + React)  ──/api──▶  api (FastAPI + orchestrator)  ──▶  db (postgres + pgvector)
-                                         │
-                                         └─▶ Claude (frontier) or local LLM
+web (nginx + React)  ──/api──▶  api (FastAPI + agentic orchestrator)  ──▶  db (postgres + pgvector)
+                                          │
+                                          └─▶  Claude (default) or any OpenAI-compatible endpoint
 ```
+
+Cloud target: **Azure + Azure AI Foundry**, US-region, multi-tenant.
+
+---
+
+## Repository layout
+
+```
+backend/      FastAPI app — pipeline/ (orchestrator, validation), knowledge/ (graph_rag),
+              routes/, llm/ (client, prompts), seed/ (reference_data, charts), config_store.py
+frontend/     React + TypeScript + Vite app (pages/, components/)
+scripts/      reset-demo / redeploy helpers (.ps1 + .sh)
+deck/         ACE_Architecture.pptx + ACE_demo.mp4 (+ build_deck.js to regenerate)
+e2e/          Playwright end-to-end demo capture
+docker-compose.yml
+```
+
+## Documentation
+
+| Doc | What it is |
+|---|---|
+| [`DESIGN.md`](DESIGN.md) | Full design; SOW / Use-Case / transcript reconciliation; Azure/Foundry mapping |
+| [`BLUEPRINT.md`](BLUEPRINT.md) | AI architecture & workflow blueprint, mapped to the running code |
+| [`PROPOSAL.md`](PROPOSAL.md) | Outcome-based proposal and timeline |
+| [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md) | Step-by-step demo runbook |
+| [`NOUS_VALUE_ADD.md`](NOUS_VALUE_ADD.md) | What's defensible / hard-to-replicate vs commodity |
+| [`REQUIREMENTS_TRACEABILITY.md`](REQUIREMENTS_TRACEABILITY.md) | Use-Case + SOW requirements → where each is met |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Dev setup, conventions, and the specialty-accelerator recipe |
+| [`deck/README.md`](deck/README.md) | How to regenerate the architecture deck and demo video |

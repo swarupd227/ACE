@@ -1,0 +1,33 @@
+ACE — Autonomous Coding Engine
+Copyright (c) 2026 Nous Infosystems. All rights reserved.
+
+CONFIDENTIAL AND PROPRIETARY
+
+This software and its documentation were prepared by Nous Infosystems for
+Vee Healthtek. It is confidential and proprietary, provided solely for
+evaluation and demonstration in connection with that engagement.
+
+No part of this repository may be copied, reproduced, distributed, published,
+or disclosed to any third party, in whole or in part, without the prior written
+permission of Nous Infosystems.
+
+THIRD-PARTY DATA AND LICENSING NOTICE
+
+This repository is engineered to be "real" while respecting licensing
+boundaries. In particular:
+
+  - ICD-10-CM and HCPCS content are public-domain subsets (CMS / NCHS).
+  - CPT codes are shown as a clearly-labeled DEMO placeholder: real numbers
+    with our own descriptors, NOT the copyrighted AMA CPT text. A licensed
+    AMA CPT distribution must be supplied for any production use.
+  - NCCI / MUE edits are modeled on public CMS edit logic (a subset).
+  - The clinical ontology is a small demo set; production deployments are
+    expected to license SNOMED CT and/or UMLS.
+  - All patient charts in this build are synthetic and contain no PHI.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+OR OTHER DEALINGS IN THE SOFTWARE.
