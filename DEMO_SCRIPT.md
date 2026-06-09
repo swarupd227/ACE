@@ -133,10 +133,10 @@ nobody hands you a configurable platform" beat.*
   and **Orthopedics** (total knee arthroplasty → 27447, joint injection → 20610) in the worklist.
   *"Both were added with no pipeline changes — just their codes, a few knowledge-graph concepts, payer
   policy, coding guidance and a golden set, plus a config entry. The same engine that does Radiology now
-  does cardiac, ortho, women's health, GI endoscopy, dermatology, urology, anesthesia and eye care, and
-  the Evaluation Harness already scores them. That's how thirteen specialties — Radiology, E&M, ED,
-  Pathology, Surgical, Cardiology, Orthopedics, OB/GYN, GI / Endoscopy, Dermatology, Urology, Anesthesia
-  and Ophthalmology — run on one accelerator. New specialties are content, not a rebuild."*
+  does cardiac, ortho, women's health, GI endoscopy, dermatology, urology, anesthesia, eye care and ENT,
+  and the Evaluation Harness already scores them. That's how fourteen specialties — Radiology, E&M, ED,
+  Pathology, Surgical, Cardiology, Orthopedics, OB/GYN, GI / Endoscopy, Dermatology, Urology, Anesthesia,
+  Ophthalmology and ENT — run on one accelerator. New specialties are content, not a rebuild."*
 - **Change Log** tab (Admin / Configuration) → *"And every one of these edits is itself governed."* Show
   the append-only trail: who (by role), when, what area, action, and target — for config, policy, KG,
   guideline, reference-data, and golden-set edits. *"Your audit and compliance teams asked who changed the

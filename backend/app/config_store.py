@@ -41,6 +41,7 @@ DEFAULTS: dict = {
         {"name": "Urology", "enabled": True, "hard": False},
         {"name": "Anesthesia", "enabled": True, "hard": False},
         {"name": "Ophthalmology", "enabled": True, "hard": False},
+        {"name": "ENT", "enabled": True, "hard": False},
     ],
     "roster": [
         {"name": "Priya N.", "role": "Coder"},

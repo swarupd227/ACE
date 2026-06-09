@@ -551,6 +551,40 @@ CHARTS = [
             "Electronically signed by Dr. N. Abara, MD, Ophthalmologist."
         ),
     ),
+    # 32 — ENT → expect 42820 + J35.3
+    dict(
+        mrn="EN10001", patient_name="Liam Castellano", age=6, sex="M", specialty="ENT",
+        modality="", encounter_type="", payer="Medicare", pos="24", dos="2026-05-02",
+        client="Cedar Hill ENT Associates", source_system="eClinicalWorks", report_type="op_note",
+        scenario="ENT — tonsillectomy with adenoidectomy (pediatric)",
+        chart_text=(
+            "OTOLARYNGOLOGY OPERATIVE NOTE\n"
+            "INDICATION: 6-year-old with recurrent tonsillitis (7 episodes in the past year) and "
+            "adenotonsillar hypertrophy causing obstructive sleep-disordered breathing.\n"
+            "PROCEDURE: Tonsillectomy and adenoidectomy under general anesthesia.\n"
+            "FINDINGS: Markedly enlarged tonsils and adenoids; removed without complication; hemostasis "
+            "achieved.\n"
+            "IMPRESSION: Hypertrophy of tonsils with hypertrophy of adenoids; recurrent tonsillitis.\n"
+            "Electronically signed by Dr. R. Okafor, MD, Otolaryngologist."
+        ),
+    ),
+    # 33 — ENT → expect 69436 + H65.23 (bilateral, modifier 50)
+    dict(
+        mrn="EN10002", patient_name="Ava Lindqvist", age=4, sex="F", specialty="ENT",
+        modality="", encounter_type="", payer="Aetna", pos="24", dos="2026-05-02",
+        client="Cedar Hill ENT Associates", source_system="eClinicalWorks", report_type="procedure_note",
+        scenario="ENT — bilateral tympanostomy tubes for chronic OME",
+        chart_text=(
+            "OTOLARYNGOLOGY PROCEDURE NOTE\n"
+            "INDICATION: 4-year-old with chronic serous otitis media with effusion, both ears, persisting "
+            "beyond 3 months with documented conductive hearing loss.\n"
+            "PROCEDURE: Bilateral myringotomy with insertion of tympanostomy (ventilating) tubes under "
+            "general anesthesia.\n"
+            "FINDINGS: Thick serous effusion evacuated from both middle ears; tubes seated bilaterally.\n"
+            "IMPRESSION: Chronic serous otitis media, bilateral.\n"
+            "Electronically signed by Dr. R. Okafor, MD, Otolaryngologist."
+        ),
+    ),
 ]
 
 
@@ -777,4 +811,18 @@ GOLDEN_CASES = [
              "left eye, with subretinal fluid on OCT.\nPROCEDURE: Intravitreal anti-VEGF injection, left "
              "eye.\nIMPRESSION: Macular degeneration treated with intravitreal injection.\nElectronically "
              "signed by ophthalmologist.")),
+    dict(specialty="ENT", irr=0.90, ambiguous=False,
+         truth={"icd": ["J35.3"], "cpt": ["42820"]},
+         chart_text=(
+             "OTOLARYNGOLOGY OPERATIVE NOTE\nINDICATION: 7-year-old with adenotonsillar hypertrophy and "
+             "recurrent tonsillitis with obstructive sleep-disordered breathing.\nPROCEDURE: Tonsillectomy "
+             "and adenoidectomy under general anesthesia.\nIMPRESSION: Hypertrophy of tonsils with "
+             "hypertrophy of adenoids.\nElectronically signed by otolaryngologist.")),
+    dict(specialty="ENT", irr=0.88, ambiguous=False,
+         truth={"icd": ["H65.23"], "cpt": ["69436"]},
+         chart_text=(
+             "OTOLARYNGOLOGY PROCEDURE NOTE\nINDICATION: 4-year-old with chronic serous otitis media with "
+             "effusion, both ears, beyond 3 months with conductive hearing loss.\nPROCEDURE: Bilateral "
+             "myringotomy with tympanostomy tube insertion under general anesthesia.\nIMPRESSION: Chronic "
+             "serous otitis media, bilateral.\nElectronically signed by otolaryngologist.")),
 ]

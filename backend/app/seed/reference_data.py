@@ -103,6 +103,14 @@ ICD10CM = [
     ("H35.30", "Unspecified macular degeneration", True, "H35.3"),
     ("H40.9", "Unspecified glaucoma", True, "H40"),
     ("H25", "Age-related cataract", False, "H25"),  # non-billable parent
+    # ENT / Otolaryngology
+    ("J35.3", "Hypertrophy of tonsils with hypertrophy of adenoids", True, "J35"),
+    ("J35.1", "Hypertrophy of tonsils", True, "J35"),
+    ("H65.23", "Chronic serous otitis media, bilateral", True, "H65.2"),
+    ("J34.2", "Deviated nasal septum", True, "J34"),
+    ("J32.9", "Chronic sinusitis, unspecified", True, "J32"),
+    ("J35", "Chronic diseases of tonsils and adenoids", False, "J35"),  # non-billable parent
+    ("H65.2", "Chronic serous otitis media", False, "H65.2"),           # non-billable parent
     # non-billable parents (specificity gate should reject these)
     ("E11.4", "Type 2 diabetes mellitus with neurological complications", False, "E11"),
     ("M25.56", "Pain in knee", False, "M25.5"),
@@ -204,6 +212,12 @@ CPT = [
     ("65855", "Trabeculoplasty by laser surgery", "OPHTH"),
     ("92134", "Scanning computerized ophthalmic diagnostic imaging, retina (OCT)", "OPHTH"),
     ("92014", "Ophthalmological exam and evaluation, comprehensive, established patient", "OPHTH"),
+    # ENT / Otolaryngology — DEMO placeholder
+    ("42820", "Tonsillectomy and adenoidectomy; younger than age 12", "ENT"),
+    ("69436", "Tympanostomy (ventilating tube insertion), requiring general anesthesia", "ENT"),
+    ("31231", "Nasal endoscopy, diagnostic, unilateral or bilateral (separate procedure)", "ENT"),
+    ("30520", "Septoplasty or submucous resection, with or without cartilage scoring/contouring/replacement", "ENT"),
+    ("31237", "Nasal/sinus endoscopy, surgical; with biopsy, polypectomy or debridement", "ENT"),
 ]
 
 HCPCS = [
@@ -249,6 +263,7 @@ NCCI = [
     ("71046", "71045", True, "Chest 2-view includes single-view; separate only if distinct"),
     ("45385", "45378", False, "Diagnostic colonoscopy is a component of colonoscopy with polypectomy; not separately reportable"),
     ("43239", "43235", False, "Diagnostic EGD is a component of EGD with biopsy; not separately reportable"),
+    ("31237", "31231", False, "Diagnostic nasal endoscopy is a component of surgical nasal/sinus endoscopy; not separately reportable"),
 ]
 
 # --- MUE (max units/day) ---
@@ -274,6 +289,10 @@ MUE = [
     ("52234", 1, "Cystoscopy with bladder tumor resection, one per day"),
     ("66984", 1, "Cataract extraction with IOL, one per eye per day"),
     ("67028", 1, "Intravitreal injection, one per eye per day"),
+    ("42820", 1, "Tonsillectomy and adenoidectomy, one per day"),
+    ("69436", 1, "Tympanostomy tube insertion, reported once (bilateral via modifier 50)"),
+    ("30520", 1, "Septoplasty, one per day"),
+    ("31237", 1, "Surgical nasal/sinus endoscopy, one per day"),
 ]
 
 # --- Payer policy (representative) ---
@@ -324,6 +343,12 @@ PAYER_POLICY = [
      "documented functional impairment.", False, "", ["H25", "H26"]),
     ("Medicare", "67028", "Intravitreal anti-VEGF injection covered for neovascular AMD or macular edema.",
      False, "", ["H35"]),
+    ("Medicare", "42820", "Tonsillectomy with adenoidectomy covered for recurrent/chronic tonsillitis, "
+     "adenotonsillar hypertrophy, or obstructive sleep-disordered breathing.", False, "", ["J35", "G47.3"]),
+    ("Aetna", "69436", "Tympanostomy tube insertion covered for recurrent acute otitis media or chronic "
+     "otitis media with effusion; report bilateral with modifier 50.", False, "Bilateral → modifier 50", ["H65", "H66"]),
+    ("Anthem", "30520", "Prior authorization required for septoplasty; covered for symptomatic deviated "
+     "nasal septum with nasal obstruction failing medical therapy.", True, "Auth # required on claim", ["J34.2"]),
 ]
 
 # --- Medical ontology (concept graph for Graph-RAG) ---
@@ -380,6 +405,13 @@ ONTOLOGY_CONCEPTS = [
     ("C0086543", "Cataract", "Disease", [{"system": "ICD10CM", "code": "H25.9"}]),
     ("C0242383", "Age-related macular degeneration", "Disease", [{"system": "ICD10CM", "code": "H35.30"}]),
     ("C0015392", "Eye structure", "Body Part", []),
+    # ENT / Otolaryngology concepts (added with the specialty)
+    ("C0040421", "Tonsillar and adenoid hypertrophy", "Disease", [{"system": "ICD10CM", "code": "J35.3"}]),
+    ("C0029883", "Otitis media with effusion", "Disease", [{"system": "ICD10CM", "code": "H65.23"}]),
+    ("C0259779", "Deviated nasal septum", "Disease", [{"system": "ICD10CM", "code": "J34.2"}]),
+    ("C0040408", "Palatine tonsil structure", "Body Part", []),
+    ("C0025347", "Middle ear structure", "Body Part", []),
+    ("C0028429", "Nasal septum structure", "Body Part", []),
 ]
 # (src_cui, rel, dst_cui)
 ONTOLOGY_EDGES = [
@@ -408,6 +440,9 @@ ONTOLOGY_EDGES = [
     ("C0005001", "finding_site", "C0033572"),    # BPH -> prostate
     ("C0086543", "finding_site", "C0015392"),    # cataract -> eye
     ("C0242383", "finding_site", "C0015392"),    # AMD -> eye
+    ("C0040421", "finding_site", "C0040408"),    # adenotonsillar hypertrophy -> palatine tonsil
+    ("C0029883", "finding_site", "C0025347"),    # otitis media with effusion -> middle ear
+    ("C0259779", "finding_site", "C0028429"),    # deviated nasal septum -> nasal septum
 ]
 
 # --- Guideline chunks (ICD-10-CM Official Guidelines are public domain; paraphrased) ---
@@ -507,4 +542,11 @@ GUIDELINES = [
      "laser trabeculoplasty = 65855; OCT of the retina = 92134. Append eye laterality (RT/LT) when "
      "documented. Code the diagnosis (cataract H25.x, macular degeneration H35.3x, glaucoma H40.x); cataract "
      "surgery requires documented visual/functional impairment.", "Ophthalmology"),
+    ("ENT/Otolaryngology Coding Guidance", "Procedures",
+     "Code the otolaryngology procedure documented: tonsillectomy with adenoidectomy (<12 yrs) = 42820; "
+     "bilateral tympanostomy tube insertion = 69436 (append modifier 50 for bilateral); diagnostic nasal "
+     "endoscopy = 31231; septoplasty = 30520; surgical nasal/sinus endoscopy with polypectomy = 31237. A "
+     "diagnostic nasal endoscopy is bundled into a same-session surgical sinus endoscopy — do not report "
+     "both. Code the diagnosis (adenotonsillar hypertrophy J35.3, chronic otitis media with effusion "
+     "H65.23, deviated nasal septum J34.2) and capture ear laterality.", "ENT"),
 ]

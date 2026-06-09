@@ -282,6 +282,16 @@ SPECIALTY_GUIDANCE = {
         "- Append eye laterality (RT/LT) when documented.\n"
         "- Code the diagnosis (cataract H25.9, macular degeneration H35.30, glaucoma H40.9)."
     ),
+    "ENT": (
+        "ENT / OTOLARYNGOLOGY RULES:\n"
+        "- Code the procedure performed: tonsillectomy with adenoidectomy (<12 yrs) = 42820; bilateral "
+        "tympanostomy tube insertion = 69436 (append modifier 50 when bilateral); diagnostic nasal "
+        "endoscopy = 31231; septoplasty = 30520; surgical nasal/sinus endoscopy with polypectomy = 31237.\n"
+        "- A diagnostic nasal endoscopy (31231) is bundled into a same-session surgical sinus endoscopy "
+        "(31237) — do not report both.\n"
+        "- Code the diagnosis (adenotonsillar hypertrophy J35.3, chronic otitis media with effusion H65.23, "
+        "deviated nasal septum J34.2) and capture ear laterality when documented."
+    ),
     "Surgical": (
         "SURGICAL RULES:\n"
         "- Assign the CPT for the procedure actually performed (operative note).\n"
