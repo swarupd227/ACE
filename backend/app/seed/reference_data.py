@@ -56,6 +56,15 @@ ICD10CM = [
     ("I20.9", "Angina pectoris, unspecified", True, "I20"),
     ("R00.2", "Palpitations", True, "R00"),
     ("R06.00", "Dyspnea, unspecified", True, "R06.0"),
+    # Orthopedics (added via the specialty accelerator — no engine changes)
+    ("M17.11", "Unilateral primary osteoarthritis, right knee", True, "M17.1"),
+    ("M17.12", "Unilateral primary osteoarthritis, left knee", True, "M17.1"),
+    ("M75.101", "Incomplete rotator cuff tear/rupture of right shoulder, not specified as traumatic", True, "M75.10"),
+    ("M75.102", "Incomplete rotator cuff tear/rupture of left shoulder, not specified as traumatic", True, "M75.10"),
+    ("M23.205", "Derangement of unspecified meniscus due to old tear or injury, right knee", True, "M23.20"),
+    # non-billable parents (specificity gate should reject these)
+    ("M17.1", "Unilateral primary osteoarthritis of knee", False, "M17"),
+    ("M75.10", "Unspecified rotator cuff tear or rupture, not specified as traumatic", False, "M75.1"),
     # non-billable parents (specificity gate should reject these)
     ("E11.4", "Type 2 diabetes mellitus with neurological complications", False, "E11"),
     ("M25.56", "Pain in knee", False, "M25.5"),
@@ -118,6 +127,11 @@ CPT = [
     ("93000", "Electrocardiogram, routine ECG with 12 leads; with interpretation and report", "CARD"),
     ("93017", "Cardiovascular stress test; tracing only, with supervision", "CARD"),
     ("93458", "Catheter placement, left heart; with coronary angiography and imaging supervision", "CARD"),
+    # Orthopedics — DEMO placeholder (29881 arthroscopy + 20610 joint injection already
+    # exist above and are reused via the generic retrieval path; add only net-new codes)
+    ("27447", "Arthroplasty, knee, condyle and plateau; medial AND lateral compartments (total knee)", "ORTHO"),
+    ("29826", "Arthroscopy, shoulder, surgical; decompression of subacromial space with partial acromioplasty", "ORTHO"),
+    ("20550", "Injection(s); single tendon sheath, or ligament, aponeurosis", "ORTHO"),
 ]
 
 HCPCS = [
@@ -167,6 +181,8 @@ MUE = [
     ("99284", 1, "ED visit, one per encounter"),
     ("93306", 1, "Complete transthoracic echo, one per day typical"),
     ("93000", 1, "Routine 12-lead ECG, one per day typical"),
+    ("27447", 1, "Total knee arthroplasty, one per knee per day"),
+    ("29826", 1, "Shoulder arthroscopic decompression, one per shoulder per day"),
 ]
 
 # --- Payer policy (representative) ---
@@ -193,6 +209,10 @@ PAYER_POLICY = [
      "heart disease, heart failure, or arrhythmia.", False, "", ["I35", "I50", "I48", "R00", "R01", "R06"]),
     ("Anthem", "93458", "Prior authorization required for elective left heart catheterization with "
      "coronary angiography.", True, "Auth # required on claim", ["I20", "I25"]),
+    ("Medicare", "27447", "Total knee arthroplasty covered for severe osteoarthritis with functional "
+     "limitation after failed conservative therapy.", False, "", ["M17"]),
+    ("Anthem", "27447", "Prior authorization required for elective total knee arthroplasty.",
+     True, "Auth # required on claim", ["M17"]),
 ]
 
 # --- Medical ontology (concept graph for Graph-RAG) ---
@@ -221,6 +241,11 @@ ONTOLOGY_CONCEPTS = [
     ("C0004238", "Atrial fibrillation", "Disease", [{"system": "ICD10CM", "code": "I48.91"}]),
     ("C0003507", "Aortic valve stenosis", "Disease", [{"system": "ICD10CM", "code": "I35.0"}]),
     ("C0030252", "Palpitations", "Sign or Symptom", [{"system": "ICD10CM", "code": "R00.2"}]),
+    # Orthopedics concepts (added with the specialty)
+    ("C0409959", "Osteoarthritis of knee", "Disease", [{"system": "ICD10CM", "code": "M17.11"}]),
+    ("C0035328", "Rotator cuff tear", "Disease", [{"system": "ICD10CM", "code": "M75.101"}]),
+    ("C0022742", "Knee joint structure", "Body Part", []),
+    ("C0037004", "Shoulder joint structure", "Body Part", []),
 ]
 # (src_cui, rel, dst_cui)
 ONTOLOGY_EDGES = [
@@ -237,6 +262,8 @@ ONTOLOGY_EDGES = [
     ("C0004238", "finding_site", "C0018787"),    # atrial fibrillation -> heart
     ("C0003507", "finding_site", "C0018787"),    # aortic stenosis -> heart
     ("C0004238", "associated_with", "C0030252"), # atrial fibrillation -> palpitations
+    ("C0409959", "finding_site", "C0022742"),    # knee osteoarthritis -> knee joint
+    ("C0035328", "finding_site", "C0037004"),    # rotator cuff tear -> shoulder joint
 ]
 
 # --- Guideline chunks (ICD-10-CM Official Guidelines are public domain; paraphrased) ---
@@ -294,4 +321,10 @@ GUIDELINES = [
      "physician's interpretation is performed at a facility. Code the cardiac diagnosis/indication "
      "(e.g., heart failure, valvular disease, arrhythmia); use a sign/symptom when no definitive "
      "diagnosis is established.", "Cardiology"),
+    ("Orthopedics Coding Guidance", "Procedures",
+     "Code the orthopedic procedure documented in the operative/procedure note: total knee arthroplasty "
+     "(medial AND lateral compartments) = 27447; arthroscopic subacromial decompression = 29826; "
+     "arthroscopic knee meniscectomy = 29881; major-joint aspiration/injection = 20610. Append RT/LT for "
+     "laterality. For osteoarthritis, code primary (M17.1x) unless post-traumatic or secondary is "
+     "documented; honor the global surgical package and do not unbundle.", "Orthopedics"),
 ]

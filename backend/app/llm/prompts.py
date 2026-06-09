@@ -221,6 +221,15 @@ SPECIALTY_GUIDANCE = {
         "- Code the cardiac diagnosis/indication (heart failure, valvular disease, arrhythmia, CAD); when "
         "no definitive diagnosis is established, code the sign/symptom (e.g., palpitations, dyspnea)."
     ),
+    "Orthopedics": (
+        "ORTHOPEDICS RULES:\n"
+        "- Assign the CPT for the procedure performed: total knee arthroplasty = 27447; arthroscopic "
+        "subacromial decompression = 29826; knee arthroscopy with meniscectomy = 29881; major-joint "
+        "aspiration/injection = 20610.\n"
+        "- Append RT or LT when the documentation specifies laterality.\n"
+        "- For osteoarthritis, code primary OA (M17.1x for knee) unless post-traumatic/secondary is "
+        "documented; honor the global surgical package and do not unbundle component services."
+    ),
     "Surgical": (
         "SURGICAL RULES:\n"
         "- Assign the CPT for the procedure actually performed (operative note).\n"

@@ -315,6 +315,42 @@ CHARTS = [
             "Electronically signed by Dr. P. Anand, MD, Cardiologist."
         ),
     ),
+    # 18 — Orthopedics (added via the specialty accelerator) → expect 27447 + M17.11
+    dict(
+        mrn="OR70001", patient_name="Walter Greaves", age=68, sex="M", specialty="Orthopedics",
+        modality="", encounter_type="", payer="Medicare", pos="24", dos="2026-04-22",
+        client="Summit Orthopedic Center", source_system="PracticeAdmin", report_type="op_note",
+        scenario="Orthopedics — total knee arthroplasty",
+        chart_text=(
+            "OPERATIVE NOTE\n"
+            "PREOPERATIVE DIAGNOSIS: Severe primary osteoarthritis, right knee.\n"
+            "POSTOPERATIVE DIAGNOSIS: Same.\n"
+            "PROCEDURE PERFORMED: Total knee arthroplasty, right — replacement of the medial AND lateral "
+            "femoral condyles and tibial plateau with a cemented prosthesis.\n"
+            "INDICATIONS: End-stage right knee osteoarthritis with bone-on-bone changes and functional "
+            "limitation despite NSAIDs, injections and physical therapy.\n"
+            "FINDINGS: Tricompartmental cartilage loss; components seated and stable through full range of "
+            "motion.\n"
+            "Electronically signed by Dr. M. Okafor, MD, Orthopedic Surgeon."
+        ),
+    ),
+    # 19 — Orthopedics → expect 20610 + M75.101
+    dict(
+        mrn="OR70002", patient_name="Sofia Marin", age=57, sex="F", specialty="Orthopedics",
+        modality="", encounter_type="", payer="Medicare", pos="11", dos="2026-04-22",
+        client="Summit Orthopedics", source_system="eClinicalWorks", report_type="procedure_note",
+        scenario="Orthopedics — major-joint injection",
+        chart_text=(
+            "PROCEDURE NOTE\n"
+            "DIAGNOSIS: Incomplete rotator cuff tear, right shoulder (non-traumatic), with subacromial "
+            "bursitis.\n"
+            "PROCEDURE: Ultrasound-landmarked subacromial corticosteroid injection of the right shoulder "
+            "(major joint/bursa).\n"
+            "DETAIL: Sterile prep; 1 mL triamcinolone with lidocaine instilled into the subacromial space; "
+            "patient tolerated the procedure well.\n"
+            "Electronically signed by Dr. M. Okafor, MD, Orthopedic Surgeon."
+        ),
+    ),
 ]
 
 
@@ -442,4 +478,19 @@ GOLDEN_CASES = [
              "INDICATION: Palpitations.\nFINDINGS: Irregularly irregular rhythm, absent P waves, "
              "fibrillatory baseline, ventricular rate 88 bpm; no acute ST changes.\nIMPRESSION: Atrial "
              "fibrillation.\nElectronically signed by cardiologist.")),
+    dict(specialty="Orthopedics", irr=0.90, ambiguous=False,
+         truth={"icd": ["M17.11"], "cpt": ["27447"]},
+         chart_text=(
+             "OPERATIVE NOTE\nPREOPERATIVE DIAGNOSIS: Severe primary osteoarthritis, right knee.\n"
+             "PROCEDURE PERFORMED: Total knee arthroplasty, right (medial and lateral compartments, "
+             "cemented).\nINDICATIONS: End-stage right knee OA with functional limitation after failed "
+             "conservative care.\nFINDINGS: Tricompartmental cartilage loss; components stable.\n"
+             "Electronically signed by orthopedic surgeon.")),
+    dict(specialty="Orthopedics", irr=0.88, ambiguous=False,
+         truth={"icd": ["M75.101"], "cpt": ["29826"]},
+         chart_text=(
+             "OPERATIVE NOTE\nPREOPERATIVE DIAGNOSIS: Incomplete rotator cuff tear, right shoulder, with "
+             "impingement.\nPROCEDURE PERFORMED: Right shoulder arthroscopy with subacromial decompression "
+             "and partial acromioplasty.\nFINDINGS: Subacromial spurring with bursal-sided partial-thickness "
+             "cuff fraying; decompression performed.\nElectronically signed by orthopedic surgeon.")),
 ]
