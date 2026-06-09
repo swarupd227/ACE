@@ -37,14 +37,22 @@ function Slider({ label, value, onChange, min = 0, max = 1, step = 0.01, pct = t
   );
 }
 
+// bare on/off switch (no label) — use directly in tables/cells
+function Switch({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button type="button" onClick={() => onChange(!value)}
+      className={clsx("relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 align-middle", value ? "bg-ace-600" : "bg-slate-300")}>
+      <span className={clsx("inline-block h-4 w-4 transform rounded-full bg-white transition-transform", value ? "translate-x-4" : "translate-x-0.5")} />
+    </button>
+  );
+}
+
+// labeled row: label on the left, switch on the right (for settings lists)
 function Toggle({ label, value, onChange, hint }: any) {
   return (
     <label className="flex items-center justify-between py-1.5 cursor-pointer">
       <span className="text-sm text-slate-700">{label}{hint && <span className="block text-xs text-slate-400">{hint}</span>}</span>
-      <button type="button" onClick={() => onChange(!value)}
-        className={clsx("relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0", value ? "bg-ace-600" : "bg-slate-300")}>
-        <span className={clsx("inline-block h-4 w-4 transform rounded-full bg-white transition-transform", value ? "translate-x-4" : "translate-x-0.5")} />
-      </button>
+      <Switch value={value} onChange={onChange} />
     </label>
   );
 }
@@ -155,13 +163,19 @@ function SpecialtiesTab({ cfg }: { cfg: any }) {
       <h3 className="font-bold text-slate-800 mb-1">Specialty accelerator</h3>
       <p className="text-xs text-slate-500 mb-3">Enable/disable specialties and set the model tier. <b>Hard</b> = the hard-chart model (set in Reasoning Model) + self-consistency. New specialties onboard via config + a golden set — not a rebuild.</p>
       <table className="w-full text-sm">
-        <thead><tr className="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-200"><th className="py-2">Specialty</th><th className="py-2">Enabled</th><th className="py-2">Hard (hard-chart model + self-consistency)</th></tr></thead>
+        <thead>
+          <tr className="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-200">
+            <th className="py-2 font-semibold">Specialty</th>
+            <th className="py-2 font-semibold w-28">Enabled</th>
+            <th className="py-2 font-semibold w-40">Hard tier</th>
+          </tr>
+        </thead>
         <tbody className="divide-y divide-slate-100">
           {sp.local.map((s: any, i: number) => (
             <tr key={s.name}>
-              <td className="py-2 font-medium text-slate-700">{s.name}</td>
-              <td className="py-2"><Toggle label="" value={s.enabled} onChange={(v: boolean) => upd(i, { enabled: v })} /></td>
-              <td className="py-2"><Toggle label="" value={s.hard} onChange={(v: boolean) => upd(i, { hard: v })} /></td>
+              <td className="py-2.5 font-medium text-slate-700">{s.name}</td>
+              <td className="py-2.5"><Switch value={s.enabled} onChange={(v: boolean) => upd(i, { enabled: v })} /></td>
+              <td className="py-2.5"><Switch value={s.hard} onChange={(v: boolean) => upd(i, { hard: v })} /></td>
             </tr>
           ))}
         </tbody>
@@ -290,7 +304,7 @@ function ConnectorsTab({ cfg }: { cfg: any }) {
             <input value={m.name} onChange={(e) => upd(i, { name: e.target.value })} placeholder="name" className="w-44 rounded border border-slate-200 px-2 py-1.5 text-sm" />
             <input value={m.type} onChange={(e) => upd(i, { type: e.target.value })} placeholder="type (EHR/PMS)" className="w-40 rounded border border-slate-200 px-2 py-1.5 text-sm" />
             <input value={m.channel} onChange={(e) => upd(i, { channel: e.target.value })} placeholder="channel" className="flex-1 rounded border border-slate-200 px-2 py-1.5 text-sm" />
-            <Toggle label="" value={m.enabled !== false} onChange={(v: boolean) => upd(i, { enabled: v })} />
+            <Switch value={m.enabled !== false} onChange={(v: boolean) => upd(i, { enabled: v })} />
             <button className="text-rose-400 hover:text-rose-600" onClick={() => c.setLocal(c.local.filter((_: any, j: number) => j !== i))}><Trash2 size={15} /></button>
           </div>
         ))}
