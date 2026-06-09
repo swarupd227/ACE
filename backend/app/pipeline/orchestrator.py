@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import models
+from .. import config_store, models
 from ..config import settings
 from ..knowledge import graph_rag
 from ..llm import prompts
@@ -48,27 +48,30 @@ def _audit(db, run, stage, event, detail, actor="system"):
 # ---------------------------------------------------------------------------
 # Stage 0 — eligibility (deterministic)
 # ---------------------------------------------------------------------------
-def stage0_eligibility(enc: models.Encounter) -> dict:
+def stage0_eligibility(enc: models.Encounter, cfg: dict) -> dict:
     checks: list[dict] = []
     text_l = enc.chart_text.lower()
+    elig_cfg = cfg.get("eligibility", {})
 
-    has_report = len(enc.chart_text.strip()) > 120
+    min_chars = elig_cfg.get("min_doc_chars", 120)
+    has_report = len(enc.chart_text.strip()) > min_chars
     checks.append({"check": "required_documentation", "passed": has_report,
-                   "detail": "report present" if has_report else "insufficient/empty documentation"})
+                   "detail": "report present" if has_report else f"insufficient documentation (< {min_chars} chars)"})
 
-    approved = enc.specialty in ("Radiology", "E&M", "ED", "Pathology", "Surgical")
+    enabled = [s["name"] for s in cfg.get("specialties", []) if s.get("enabled")]
+    approved = enc.specialty in enabled
     checks.append({"check": "approved_specialty", "passed": approved, "detail": enc.specialty})
 
-    # exclusion flags
+    # exclusion flags (each toggleable by admin config)
     is_ir = "interventional" in text_l or "angiograph" in text_l or "embolization" in text_l
     is_trauma = "trauma activation" in text_l or "level 1 trauma" in text_l
     incomplete = "addendum pending" in text_l or "report incomplete" in text_l or "to be dictated" in text_l
     excl = []
-    if is_ir:
+    if elig_cfg.get("exclude_interventional", True) and is_ir:
         excl.append("interventional_radiology")
-    if is_trauma:
+    if elig_cfg.get("exclude_trauma", True) and is_trauma:
         excl.append("trauma")
-    if incomplete:
+    if elig_cfg.get("exclude_incomplete", True) and incomplete:
         excl.append("incomplete_encounter")
     checks.append({"check": "no_exclusion_flags", "passed": not excl,
                    "detail": ("none" if not excl else ", ".join(excl))})
@@ -114,6 +117,13 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     numbered, lookup = _number_chart(enc.chart_text)
     log: list[dict] = []
 
+    # --- admin-configurable runtime settings ---
+    cfg = config_store.all_config(db)
+    stb_t = cfg["routing"]["stb_threshold"]
+    qa_t = cfg["routing"]["qa_threshold"]
+    weights = cfg["confidence_weights"]
+    ba = cfg["bounded_autonomy"]
+
     # --- agentic event stream (no-op unless an emitter is passed) ---
     emit = emit or (lambda *a, **k: None)
 
@@ -156,7 +166,7 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     # --- Stage 0 ---
     step("0", "Eligibility")
     say("Stage 0 · Eligibility Gate", "checking required docs, approved specialty, exclusion flags…", "tool")
-    elig = stage0_eligibility(enc)
+    elig = stage0_eligibility(enc, cfg)
     say("Stage 0 · Eligibility Gate",
         "eligible — entering pipeline" if elig["eligible"] else f"INELIGIBLE: {elig['reason']}",
         "good" if elig["eligible"] else "bad")
@@ -211,8 +221,9 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
 
     # --- Stage 3 — coding (self-consistency on hard encounters) ---
     n_proc = len(analysis.get("procedures", []))
-    hard = enc.specialty in ("E&M", "ED") or is_ambiguous or n_proc > 1
-    samples = settings.ace_self_consistency_samples if hard else 1
+    spec_cfg = next((s for s in cfg.get("specialties", []) if s["name"] == enc.specialty), {})
+    hard = bool(spec_cfg.get("hard")) or is_ambiguous or n_proc > 1
+    samples = cfg["self_consistency"]["hard_samples"] if hard else 1
     temp = 0.4 if samples > 1 else 0.0
     rag_ctx = retr.as_prompt_context()
     if extra_context:
@@ -288,7 +299,8 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         learning_applied = any(le["use_code"] == c["code"] for le in retr.learned)
         conf_historical = 0.85 if learning_applied else 0.6
         calibrated = round(
-            0.40 * conf_model + 0.25 * conf_doc_match + 0.25 * conf_rule + 0.10 * conf_historical, 3
+            weights["model"] * conf_model + weights["doc_match"] * conf_doc_match
+            + weights["rule"] * conf_rule + weights["historical"] * conf_historical, 3
         )
 
         status = "accepted"
@@ -327,24 +339,24 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     run.overall_confidence = overall
     run.accuracy_estimate = overall  # calibrated estimate; true accuracy comes from the eval harness
 
-    # bounded-autonomy hard rules → never STB
+    # bounded-autonomy hard rules → never STB (each toggleable by admin config)
     bounded = []
-    if has_block_flag:
+    if ba.get("block_flag", True) and has_block_flag:
         bounded.append("blocking conditioning flag")
-    if is_ambiguous:
+    if ba.get("ambiguous_or_contradiction", True) and is_ambiguous:
         bounded.append("ambiguous/contradictory documentation")
-    if any("critical care" in (c.get("description", "").lower()) for c in agg_codes):
+    if ba.get("critical_care", True) and any("critical care" in (c.get("description", "").lower()) for c in agg_codes):
         bounded.append("critical-care code present")
     ncci_break = any(
         any(g["gate"] == "ncci_ptp" and not g["passed"] for g in cr.gate_results) for cr in persisted
     )
-    if ncci_break:
+    if ba.get("ncci_break", True) and ncci_break:
         bounded.append("NCCI bundle conflict")
 
     log.append({"stage": "5_calibration", "title": "Confidence Calibration & Routing",
                 "overall_confidence": overall, "accepted": len(accepted),
                 "needs_review": len(needs_review), "rejected": len(rejected),
-                "bounded_autonomy": bounded, "thresholds": {"STB": STB_THRESHOLD, "QA": QA_THRESHOLD}})
+                "bounded_autonomy": bounded, "thresholds": {"STB": stb_t, "QA": qa_t}})
     _audit(db, run, "5_calibration", "calibrated", {"overall": overall, "bounded": bounded})
 
     if not accepted or rejected:
@@ -352,9 +364,9 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
                       if rejected else "No defensible codes — human coding required")
     if bounded or needs_review:
         return finish("QA", "; ".join(bounded) or "gate(s) need review")
-    if overall >= STB_THRESHOLD:
-        return finish("STB", f"All gates passed; calibrated confidence {overall:.2f} ≥ {STB_THRESHOLD}")
-    if overall >= QA_THRESHOLD:
+    if overall >= stb_t:
+        return finish("STB", f"All gates passed; calibrated confidence {overall:.2f} ≥ {stb_t}")
+    if overall >= qa_t:
         return finish("QA", f"Calibrated confidence {overall:.2f} in QA band")
     return finish("MANUAL", f"Calibrated confidence {overall:.2f} below QA threshold")
 

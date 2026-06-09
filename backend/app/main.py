@@ -11,7 +11,7 @@ from sqlalchemy import text
 from .config import settings
 from .db import engine
 from .llm.client import LLMUnavailable
-from .routes import cdi, coding, encounters, insights, meta, ops
+from .routes import admin, cdi, coding, encounters, insights, meta, ops
 from .seed.seeder import seed_all
 
 
@@ -40,7 +40,7 @@ def create_app() -> FastAPI:
     async def _llm_unavailable(_: Request, exc: LLMUnavailable):
         return JSONResponse(status_code=503, content={"error": "llm_unavailable", "detail": str(exc)})
 
-    for r in (meta.router, encounters.router, coding.router, insights.router, cdi.router, ops.router):
+    for r in (meta.router, encounters.router, coding.router, insights.router, cdi.router, ops.router, admin.router):
         app.include_router(r, prefix="/api")
 
     @app.on_event("startup")

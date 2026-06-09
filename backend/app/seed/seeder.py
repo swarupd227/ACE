@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, text
 
-from .. import models
+from .. import config_store, models
 from ..db import Base, SessionLocal, engine
 from . import charts, reference_data as rd
 
@@ -24,6 +24,7 @@ def seed_all(force: bool = False) -> dict:
     init_db()
     db = SessionLocal()
     try:
+        config_store.seed_defaults(db)  # idempotent — ensures admin config exists
         if _seeded(db) and not force:
             return {"status": "already_seeded"}
 

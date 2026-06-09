@@ -69,6 +69,10 @@ export const api = {
   ingest: (body: Record<string, any>) =>
     req<{ id: string; mrn: string; specialty: string; status: string; source_system: string }>(
       "/ingest", { method: "POST", body: JSON.stringify(body) }),
+  adminConfig: () => req<{ config: any; meta: Record<string, string>; defaults: any }>("/admin/config"),
+  putConfig: (key: string, value: any) =>
+    req(`/admin/config/${key}`, { method: "PUT", body: JSON.stringify({ value }) }),
+  resetConfig: () => req("/admin/config/reset", { method: "POST" }),
   dashboard: () => req<import("./types").Dashboard>("/dashboard/stats"),
   kg: () => req<{ nodes: any[]; links: any[] }>("/kg/graph"),
   referenceSummary: () => req<any>("/reference/summary"),

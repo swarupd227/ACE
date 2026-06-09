@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import models
+from .. import config_store, models
 from ..db import get_db
 
 router = APIRouter()
@@ -37,6 +37,9 @@ def _sla_status(age_min: float, target: int) -> str:
 @router.get("/control-tower")
 def control_tower(db: Session = Depends(get_db)) -> dict:
     now = datetime.now(timezone.utc)
+    cfg = config_store.all_config(db)
+    sla = cfg.get("sla_targets_min", SLA_TARGETS)
+    roster = [f"{r['name']} ({r['role']})" for r in cfg.get("roster", [])] or ROSTER
     encs = db.scalars(select(models.Encounter).where(models.Encounter.client != HIDDEN)).all()
     open_cdi_enc = {
         q.encounter_id for q in db.scalars(
@@ -64,7 +67,7 @@ def control_tower(db: Session = Depends(get_db)) -> dict:
         })
 
     def queue(key: str, label: str, members: list[dict]) -> dict:
-        target = SLA_TARGETS.get(key, 480)
+        target = sla.get(key, 480)
         for m in members:
             m["sla_status"] = _sla_status(m["age_minutes"], target)
         members.sort(key=lambda m: m["age_minutes"], reverse=True)
@@ -83,8 +86,8 @@ def control_tower(db: Session = Depends(get_db)) -> dict:
     ]
     total = len(items)
     return {
-        "roster": ROSTER,
-        "sla_targets": SLA_TARGETS,
+        "roster": roster,
+        "sla_targets": sla,
         "summary": {
             "total": total,
             "unassigned": sum(1 for i in items if not i["assigned_to"]),

@@ -3,9 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
   LayoutList, LayoutDashboard, BarChart3, ShieldCheck, FlaskConical, GraduationCap,
-  Cpu, Stethoscope, Plug,
+  Cpu, Stethoscope, Plug, SlidersHorizontal, UserCog,
 } from "lucide-react";
 import { api } from "../api";
+import { useRole, ROLES, canAccess } from "../role";
 
 const nav = [
   { to: "/", label: "Worklist", icon: LayoutList, end: true },
@@ -16,10 +17,13 @@ const nav = [
   { to: "/integrations", label: "Integrations & Ingestion", icon: Plug },
   { to: "/eval", label: "Evaluation Harness", icon: FlaskConical },
   { to: "/learning", label: "Closed-Loop Learning", icon: GraduationCap },
+  { to: "/admin", label: "Admin / Configuration", icon: SlidersHorizontal },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: api.meta });
+  const { role } = useRole();
+  const visibleNav = nav.filter((n) => canAccess(n.to, role));
 
   return (
     <div className="flex h-full">
@@ -39,7 +43,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {nav.map((n) => (
+          {visibleNav.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
@@ -85,12 +89,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <span className="pill bg-brand-50 text-brand-700 ring-1 ring-brand-300">
               {meta?.llm_mode === "anthropic" ? "Claude (frontier)" : meta?.llm_mode ?? "…"}
             </span>
-            <span className="pill bg-slate-100 text-slate-600 ring-1 ring-slate-200">demo</span>
+            <RoleSwitcher />
           </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
+    </div>
+  );
+}
+
+function RoleSwitcher() {
+  const { role, setRole } = useRole();
+  return (
+    <div className="flex items-center gap-1.5" title="Switch role (demo RBAC; maps to SSO/scopes in prod)">
+      <UserCog size={15} className="text-slate-400" />
+      <select
+        value={role}
+        onChange={(e) => setRole(e.target.value as any)}
+        className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm font-medium text-slate-700"
+      >
+        {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+      </select>
     </div>
   );
 }

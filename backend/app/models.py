@@ -283,6 +283,17 @@ class CdiQuery(Base):
     answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class AppConfig(Base):
+    """Admin-editable platform configuration (key → JSON value). The pipeline,
+    validation, SLA and eligibility read these at runtime so an admin can tune
+    the platform without code changes."""
+    __tablename__ = "app_config"
+
+    key: Mapped[str] = mapped_column(String(60), primary_key=True)
+    value: Mapped[dict] = mapped_column(JSONB)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class GoldenCase(Base):
     """Frozen golden-set case for the evaluation harness."""
     __tablename__ = "golden_cases"
