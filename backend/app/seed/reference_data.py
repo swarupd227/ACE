@@ -75,6 +75,14 @@ ICD10CM = [
     # non-billable parents (specificity gate should reject these)
     ("Z34.8", "Encounter for supervision of other normal pregnancy", False, "Z34"),
     ("N87", "Dysplasia of cervix uteri", False, "N87"),
+    # GI / Endoscopy (added via the specialty accelerator — no engine changes)
+    ("K63.5", "Polyp of colon", True, "K63"),
+    ("K21.9", "Gastro-esophageal reflux disease without esophagitis", True, "K21"),
+    ("K29.70", "Gastritis, unspecified, without bleeding", True, "K29.7"),
+    ("K57.30", "Diverticulosis of large intestine without perforation or abscess, without bleeding", True, "K57.3"),
+    ("Z12.11", "Encounter for screening for malignant neoplasm of colon", True, "Z12.1"),
+    # non-billable parent (specificity gate should reject this)
+    ("K29.7", "Gastritis, unspecified", False, "K29"),
     # non-billable parents (specificity gate should reject these)
     ("E11.4", "Type 2 diabetes mellitus with neurological complications", False, "E11"),
     ("M25.56", "Pain in knee", False, "M25.5"),
@@ -148,6 +156,12 @@ CPT = [
     ("58100", "Endometrial biopsy, without cervical dilation, any method (separate procedure)", "OBGYN"),
     ("58300", "Insertion of intrauterine device (IUD)", "OBGYN"),
     ("59400", "Routine obstetric care; antepartum care, vaginal delivery, and postpartum care (global)", "OBGYN"),
+    # GI / Endoscopy — DEMO placeholder
+    ("45378", "Colonoscopy, flexible; diagnostic, with or without collection of specimen(s)", "GI"),
+    ("45380", "Colonoscopy, flexible; with biopsy, single or multiple", "GI"),
+    ("45385", "Colonoscopy, flexible; with removal of lesion(s)/polyp(s) by snare technique", "GI"),
+    ("43235", "Esophagogastroduodenoscopy (EGD), flexible; diagnostic", "GI"),
+    ("43239", "Esophagogastroduodenoscopy (EGD), flexible; with biopsy, single or multiple", "GI"),
 ]
 
 HCPCS = [
@@ -184,6 +198,8 @@ NCCI = [
     ("74177", "74150", False, "CT abdomen component of combined w/contrast study"),
     ("74177", "72192", False, "CT pelvis component of combined w/contrast study"),
     ("71046", "71045", True, "Chest 2-view includes single-view; separate only if distinct"),
+    ("45385", "45378", False, "Diagnostic colonoscopy is a component of colonoscopy with polypectomy; not separately reportable"),
+    ("43239", "43235", False, "Diagnostic EGD is a component of EGD with biopsy; not separately reportable"),
 ]
 
 # --- MUE (max units/day) ---
@@ -201,6 +217,8 @@ MUE = [
     ("29826", 1, "Shoulder arthroscopic decompression, one per shoulder per day"),
     ("57454", 1, "Colposcopy with biopsy, one per day"),
     ("58100", 1, "Endometrial biopsy, one per day"),
+    ("45385", 1, "Colonoscopy with polypectomy, one per day"),
+    ("43239", 1, "EGD with biopsy, one per day"),
 ]
 
 # --- Payer policy (representative) ---
@@ -235,6 +253,10 @@ PAYER_POLICY = [
      "anatomy survey.", False, "", ["Z34", "O09", "O26"]),
     ("Medicare", "57454", "Colposcopy with cervical biopsy covered for abnormal cervical cytology or "
      "documented dysplasia.", False, "", ["N87", "R87"]),
+    ("Medicare", "45385", "Colonoscopy with polypectomy covered for polyp, GI bleeding, or screening "
+     "findings; report the most extensive technique performed.", False, "", ["K63", "Z12", "K57"]),
+    ("Medicare", "43239", "EGD with biopsy covered for dyspepsia, reflux, or suspected mucosal disease "
+     "requiring tissue diagnosis.", False, "", ["K21", "K29", "K25"]),
 ]
 
 # --- Medical ontology (concept graph for Graph-RAG) ---
@@ -274,6 +296,12 @@ ONTOLOGY_CONCEPTS = [
     ("C0151706", "Abnormal uterine bleeding", "Sign or Symptom", [{"system": "ICD10CM", "code": "N93.9"}]),
     ("C0007874", "Cervix uteri structure", "Body Part", []),
     ("C0042149", "Uterine structure", "Body Part", []),
+    # GI / Endoscopy concepts (added with the specialty)
+    ("C0009376", "Colonic polyp", "Disease", [{"system": "ICD10CM", "code": "K63.5"}]),
+    ("C0017168", "Gastroesophageal reflux disease", "Disease", [{"system": "ICD10CM", "code": "K21.9"}]),
+    ("C0017152", "Gastritis", "Disease", [{"system": "ICD10CM", "code": "K29.70"}]),
+    ("C0009368", "Colon structure", "Body Part", []),
+    ("C0038351", "Stomach structure", "Body Part", []),
 ]
 # (src_cui, rel, dst_cui)
 ONTOLOGY_EDGES = [
@@ -294,6 +322,8 @@ ONTOLOGY_EDGES = [
     ("C0035328", "finding_site", "C0037004"),    # rotator cuff tear -> shoulder joint
     ("C0206630", "finding_site", "C0007874"),    # cervical dysplasia -> cervix
     ("C0151706", "finding_site", "C0042149"),    # abnormal uterine bleeding -> uterus
+    ("C0009376", "finding_site", "C0009368"),    # colonic polyp -> colon
+    ("C0017152", "finding_site", "C0038351"),    # gastritis -> stomach
 ]
 
 # --- Guideline chunks (ICD-10-CM Official Guidelines are public domain; paraphrased) ---
@@ -364,4 +394,11 @@ GUIDELINES = [
      "Code cervical dysplasia to specificity (CIN I = N87.0, CIN II = N87.1). When one provider gives "
      "antepartum + delivery + postpartum care, use the global obstetric package (e.g., 59400) rather than "
      "itemizing visits.", "OB/GYN"),
+    ("GI Endoscopy Coding Guidance", "Procedures",
+     "Report the most extensive endoscopic service performed in a session: colonoscopy with snare "
+     "polypectomy = 45385; colonoscopy with biopsy = 45380; diagnostic colonoscopy = 45378; EGD with "
+     "biopsy = 43239; diagnostic EGD = 43235. Do NOT separately report the diagnostic scope (45378/43235) "
+     "when a therapeutic procedure is done in the same session. Code the finding (e.g., colon polyp K63.5, "
+     "gastritis K29.70); for a screening colonoscopy that finds a polyp, sequence the screening Z-code "
+     "first.", "GI / Endoscopy"),
 ]

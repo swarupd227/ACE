@@ -239,6 +239,16 @@ SPECIALTY_GUIDANCE = {
         "- When one provider gives antepartum + delivery + postpartum care, use the global obstetric "
         "package (e.g., 59400) instead of itemizing individual visits."
     ),
+    "GI / Endoscopy": (
+        "GI / ENDOSCOPY RULES:\n"
+        "- Report the most extensive service in the session: colonoscopy with snare polypectomy = 45385; "
+        "colonoscopy with biopsy = 45380; diagnostic colonoscopy = 45378; EGD with biopsy = 43239; "
+        "diagnostic EGD = 43235.\n"
+        "- Do NOT separately report a diagnostic scope (45378 / 43235) when a therapeutic procedure is "
+        "performed in the same session.\n"
+        "- Code the finding (e.g., colon polyp K63.5, gastritis K29.70, GERD K21.9). For a screening "
+        "colonoscopy that finds a polyp, sequence the screening Z12.11 first, then the finding."
+    ),
     "Surgical": (
         "SURGICAL RULES:\n"
         "- Assign the CPT for the procedure actually performed (operative note).\n"

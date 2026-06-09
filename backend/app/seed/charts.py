@@ -384,6 +384,40 @@ CHARTS = [
             "Electronically signed by Dr. L. Mensah, MD, OB/GYN."
         ),
     ),
+    # 22 — GI / Endoscopy → expect 45385 + K63.5
+    dict(
+        mrn="GI90001", patient_name="Theodore Banks", age=58, sex="M", specialty="GI / Endoscopy",
+        modality="", encounter_type="", payer="Medicare", pos="24", dos="2026-04-24",
+        client="Riverbend Digestive Health", source_system="Cerner", report_type="endoscopy_report",
+        scenario="GI / Endoscopy — colonoscopy with snare polypectomy",
+        chart_text=(
+            "COLONOSCOPY REPORT\n"
+            "INDICATION: Average-risk screening colonoscopy; family history reviewed.\n"
+            "PROCEDURE: Flexible colonoscopy to the cecum. A 9 mm sessile polyp in the sigmoid colon was "
+            "removed in its entirety by snare technique; retrieved for pathology. No other lesions.\n"
+            "FINDINGS: Single sigmoid colon polyp, removed by snare. Otherwise normal colonic mucosa to "
+            "the cecum.\n"
+            "IMPRESSION: Colon polyp, sigmoid, removed by snare polypectomy.\n"
+            "Electronically signed by Dr. S. Whitfield, MD, Gastroenterologist."
+        ),
+    ),
+    # 23 — GI / Endoscopy → expect 43239 + K29.70
+    dict(
+        mrn="GI90002", patient_name="Nadia Hassan", age=46, sex="F", specialty="GI / Endoscopy",
+        modality="", encounter_type="", payer="Medicare", pos="24", dos="2026-04-24",
+        client="Riverbend Digestive Health", source_system="Cerner", report_type="endoscopy_report",
+        scenario="GI / Endoscopy — EGD with biopsy",
+        chart_text=(
+            "UPPER ENDOSCOPY (EGD) REPORT\n"
+            "INDICATION: Persistent epigastric discomfort and reflux symptoms despite PPI therapy.\n"
+            "PROCEDURE: Esophagogastroduodenoscopy to the second portion of the duodenum. Gastric antral "
+            "mucosa was erythematous; biopsies were obtained.\n"
+            "FINDINGS: Erythematous antral mucosa; biopsy taken. Pathology returned chronic gastritis "
+            "without bleeding. Esophagus and duodenum normal.\n"
+            "IMPRESSION: Gastritis (without bleeding) on antral biopsy.\n"
+            "Electronically signed by Dr. S. Whitfield, MD, Gastroenterologist."
+        ),
+    ),
 ]
 
 
@@ -541,4 +575,19 @@ GOLDEN_CASES = [
              "PROCEDURE: Colposcopy of the cervix with cervical biopsy and endocervical curettage.\n"
              "FINDINGS: Acetowhite epithelium with punctation; biopsy returned moderate cervical dysplasia "
              "(CIN II).\nIMPRESSION: Moderate cervical dysplasia (CIN II).\nElectronically signed by OB/GYN.")),
+    dict(specialty="GI / Endoscopy", irr=0.90, ambiguous=False,
+         truth={"icd": ["K63.5"], "cpt": ["45385"]},
+         chart_text=(
+             "COLONOSCOPY REPORT\nINDICATION: Average-risk screening colonoscopy.\nPROCEDURE: Flexible "
+             "colonoscopy to the cecum; a 9 mm sessile sigmoid polyp removed in its entirety by snare "
+             "technique and retrieved.\nFINDINGS: Single sigmoid polyp removed by snare; otherwise normal "
+             "mucosa.\nIMPRESSION: Colon polyp, removed by snare polypectomy.\nElectronically signed by "
+             "gastroenterologist.")),
+    dict(specialty="GI / Endoscopy", irr=0.88, ambiguous=False,
+         truth={"icd": ["K29.70"], "cpt": ["43239"]},
+         chart_text=(
+             "UPPER ENDOSCOPY (EGD) REPORT\nINDICATION: Epigastric pain and reflux despite PPI.\n"
+             "PROCEDURE: EGD to the second portion of the duodenum; erythematous gastric antrum biopsied.\n"
+             "FINDINGS: Antral biopsy returned chronic gastritis without bleeding; esophagus and duodenum "
+             "normal.\nIMPRESSION: Gastritis without bleeding.\nElectronically signed by gastroenterologist.")),
 ]
