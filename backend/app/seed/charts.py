@@ -282,6 +282,39 @@ CHARTS = [
             "Electronically signed by Dr. R. Banerjee, MD, Surgeon."
         ),
     ),
+    # 16 — Cardiology (added via the specialty accelerator) → expect 93306 + I35.0
+    dict(
+        mrn="CA60001", patient_name="Harold Ihejirika", age=71, sex="M", specialty="Cardiology",
+        modality="", encounter_type="", payer="Medicare", pos="11", dos="2026-04-21",
+        client="Riverbend Cardiology", source_system="eClinicalWorks", report_type="echo_report",
+        scenario="Cardiology — complete transthoracic echocardiogram",
+        chart_text=(
+            "ECHOCARDIOGRAPHY REPORT\n"
+            "STUDY: Transthoracic echocardiogram, complete, with 2D, M-mode, spectral and color flow Doppler.\n"
+            "INDICATION: Exertional dyspnea and systolic murmur.\n"
+            "FINDINGS: Left ventricular ejection fraction 55%. Calcified aortic valve with reduced "
+            "excursion; peak velocity 4.1 m/s, mean gradient 42 mmHg, valve area 0.9 cm^2 — consistent "
+            "with severe aortic stenosis. No significant mitral regurgitation. Normal RV function.\n"
+            "IMPRESSION: Severe calcific aortic valve stenosis with preserved LV systolic function.\n"
+            "Interpretation performed in the office. Electronically signed by Dr. P. Anand, MD, Cardiologist."
+        ),
+    ),
+    # 17 — Cardiology → expect 93000 + I48.91
+    dict(
+        mrn="CA60002", patient_name="Lucia Ferraro", age=64, sex="F", specialty="Cardiology",
+        modality="", encounter_type="", payer="Medicare", pos="11", dos="2026-04-21",
+        client="Riverbend Cardiology", source_system="eClinicalWorks", report_type="ecg_report",
+        scenario="Cardiology — 12-lead electrocardiogram",
+        chart_text=(
+            "ELECTROCARDIOGRAM REPORT\n"
+            "STUDY: Routine 12-lead ECG with physician interpretation and report.\n"
+            "INDICATION: Palpitations and irregular pulse.\n"
+            "FINDINGS: Irregularly irregular rhythm with absent P waves and fibrillatory baseline; "
+            "ventricular rate 92 bpm. No acute ST-segment changes. QTc normal.\n"
+            "IMPRESSION: Atrial fibrillation with controlled ventricular response.\n"
+            "Electronically signed by Dr. P. Anand, MD, Cardiologist."
+        ),
+    ),
 ]
 
 
@@ -395,4 +428,18 @@ GOLDEN_CASES = [
              "obstruction; gallbladder removed intact.\nDESCRIPTION: Four-port laparoscopic technique, "
              "critical view of safety, cystic duct and artery clipped and divided.\n"
              "Electronically signed by surgeon.")),
+    dict(specialty="Cardiology", irr=0.90, ambiguous=False,
+         truth={"icd": ["I35.0"], "cpt": ["93306"]},
+         chart_text=(
+             "ECHOCARDIOGRAPHY REPORT\nSTUDY: Transthoracic echocardiogram, complete, with spectral and "
+             "color flow Doppler.\nINDICATION: Systolic murmur.\nFINDINGS: Calcified aortic valve, peak "
+             "velocity 4.3 m/s, mean gradient 46 mmHg, valve area 0.8 cm^2; LVEF 60%.\nIMPRESSION: Severe "
+             "calcific aortic valve stenosis.\nElectronically signed by cardiologist.")),
+    dict(specialty="Cardiology", irr=0.88, ambiguous=False,
+         truth={"icd": ["I48.91"], "cpt": ["93000"]},
+         chart_text=(
+             "ELECTROCARDIOGRAM REPORT\nSTUDY: Routine 12-lead ECG with interpretation and report.\n"
+             "INDICATION: Palpitations.\nFINDINGS: Irregularly irregular rhythm, absent P waves, "
+             "fibrillatory baseline, ventricular rate 88 bpm; no acute ST changes.\nIMPRESSION: Atrial "
+             "fibrillation.\nElectronically signed by cardiologist.")),
 ]

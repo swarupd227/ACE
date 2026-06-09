@@ -211,6 +211,16 @@ SPECIALTY_GUIDANCE = {
         "- Append modifier 26 (professional component) for the pathologist's interpretation at a facility.\n"
         "- Code the diagnosis from the microscopic/final diagnosis, not the clinical history."
     ),
+    "Cardiology": (
+        "CARDIOLOGY RULES:\n"
+        "- Assign the CPT for the cardiac study documented: complete transthoracic echo with Doppler = "
+        "93306; routine 12-lead ECG with interpretation = 93000; cardiovascular stress test = 93017; "
+        "left heart cath with coronary angiography = 93458.\n"
+        "- Append modifier 26 (professional component) when only the physician interpretation is performed "
+        "at a facility (POS 22/23).\n"
+        "- Code the cardiac diagnosis/indication (heart failure, valvular disease, arrhythmia, CAD); when "
+        "no definitive diagnosis is established, code the sign/symptom (e.g., palpitations, dyspnea)."
+    ),
     "Surgical": (
         "SURGICAL RULES:\n"
         "- Assign the CPT for the procedure actually performed (operative note).\n"

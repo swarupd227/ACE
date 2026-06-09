@@ -48,6 +48,14 @@ ICD10CM = [
     ("D22.5", "Melanocytic nevi of trunk", True, "D22"),
     ("K80.20", "Calculus of gallbladder without obstruction", True, "K80.2"),
     ("L72.0", "Epidermal cyst", True, "L72"),
+    # Cardiology (added via the specialty accelerator — no engine changes)
+    ("I35.0", "Nonrheumatic aortic (valve) stenosis", True, "I35"),
+    ("I50.9", "Heart failure, unspecified", True, "I50"),
+    ("I48.91", "Unspecified atrial fibrillation", True, "I48.9"),
+    ("I25.10", "Atherosclerotic heart disease of native coronary artery without angina pectoris", True, "I25.1"),
+    ("I20.9", "Angina pectoris, unspecified", True, "I20"),
+    ("R00.2", "Palpitations", True, "R00"),
+    ("R06.00", "Dyspnea, unspecified", True, "R06.0"),
     # non-billable parents (specificity gate should reject these)
     ("E11.4", "Type 2 diabetes mellitus with neurological complications", False, "E11"),
     ("M25.56", "Pain in knee", False, "M25.5"),
@@ -105,6 +113,11 @@ CPT = [
     ("20610", "Arthrocentesis/aspiration/injection, major joint or bursa", "SURG"),
     ("29881", "Arthroscopy, knee, surgical; with meniscectomy (medial OR lateral)", "SURG"),
     ("47562", "Laparoscopy, surgical; cholecystectomy", "SURG"),
+    # Cardiology (non-invasive + diagnostic) — DEMO placeholder
+    ("93306", "Echocardiography, transthoracic, complete, with spectral and color flow Doppler", "CARD"),
+    ("93000", "Electrocardiogram, routine ECG with 12 leads; with interpretation and report", "CARD"),
+    ("93017", "Cardiovascular stress test; tracing only, with supervision", "CARD"),
+    ("93458", "Catheter placement, left heart; with coronary angiography and imaging supervision", "CARD"),
 ]
 
 HCPCS = [
@@ -152,6 +165,8 @@ MUE = [
     ("72148", 1, "MRI lumbar without contrast, one per day"),
     ("99291", 1, "Critical care first hour, one per day per provider"),
     ("99284", 1, "ED visit, one per encounter"),
+    ("93306", 1, "Complete transthoracic echo, one per day typical"),
+    ("93000", 1, "Routine 12-lead ECG, one per day typical"),
 ]
 
 # --- Payer policy (representative) ---
@@ -174,6 +189,10 @@ PAYER_POLICY = [
      "microscopic diagnosis.", False, "", ["D22", "D23", "L72", "C44"]),
     ("Cigna", "99214", "Established E&M level 4 supported by moderate MDM documentation.",
      False, "", []),
+    ("Medicare", "93306", "Echocardiography covered for evaluation of murmur, suspected structural "
+     "heart disease, heart failure, or arrhythmia.", False, "", ["I35", "I50", "I48", "R00", "R01", "R06"]),
+    ("Anthem", "93458", "Prior authorization required for elective left heart catheterization with "
+     "coronary angiography.", True, "Auth # required on claim", ["I20", "I25"]),
 ]
 
 # --- Medical ontology (concept graph for Graph-RAG) ---
@@ -196,6 +215,12 @@ ONTOLOGY_CONCEPTS = [
     ("C0008350", "Cholelithiasis", "Disease", [{"system": "ICD10CM", "code": "K80.20"}]),
     ("C0016976", "Gallbladder structure", "Body Part", []),
     ("C1123023", "Skin structure", "Body Part", []),
+    # Cardiology concepts (added with the specialty)
+    ("C0018787", "Heart structure", "Body Part", []),
+    ("C0018801", "Heart failure", "Disease", [{"system": "ICD10CM", "code": "I50.9"}]),
+    ("C0004238", "Atrial fibrillation", "Disease", [{"system": "ICD10CM", "code": "I48.91"}]),
+    ("C0003507", "Aortic valve stenosis", "Disease", [{"system": "ICD10CM", "code": "I35.0"}]),
+    ("C0030252", "Palpitations", "Sign or Symptom", [{"system": "ICD10CM", "code": "R00.2"}]),
 ]
 # (src_cui, rel, dst_cui)
 ONTOLOGY_EDGES = [
@@ -208,6 +233,10 @@ ONTOLOGY_EDGES = [
     ("C0008350", "finding_site", "C0016976"),    # cholelithiasis -> gallbladder
     ("C0027960", "finding_site", "C1123023"),    # melanocytic nevus -> skin
     ("C0001339", "finding_site", "C0024109"),    # acute respiratory failure -> lung
+    ("C0018801", "finding_site", "C0018787"),    # heart failure -> heart
+    ("C0004238", "finding_site", "C0018787"),    # atrial fibrillation -> heart
+    ("C0003507", "finding_site", "C0018787"),    # aortic stenosis -> heart
+    ("C0004238", "associated_with", "C0030252"), # atrial fibrillation -> palpitations
 ]
 
 # --- Guideline chunks (ICD-10-CM Official Guidelines are public domain; paraphrased) ---
@@ -259,4 +288,10 @@ GUIDELINES = [
      "Apply surgical modifiers: 51 multiple procedures, 59 distinct service, 78/79 return to OR, "
      "50/RT/LT laterality, 80/82/AS assistant surgeon, 58 staged. Honor the global surgical package "
      "and add-on-code rules; do not unbundle component services.", "Surgical"),
+    ("Cardiology Coding Guidance", "Procedures",
+     "Code the cardiac procedure documented: a complete transthoracic echocardiogram with Doppler is "
+     "93306; a routine 12-lead ECG with interpretation is 93000. Append modifier 26 when only the "
+     "physician's interpretation is performed at a facility. Code the cardiac diagnosis/indication "
+     "(e.g., heart failure, valvular disease, arrhythmia); use a sign/symptom when no definitive "
+     "diagnosis is established.", "Cardiology"),
 ]

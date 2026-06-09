@@ -129,6 +129,11 @@ nobody hands you a configurable platform" beat.*
   **Eligibility**, **SLA Targets**, **Specialty Accelerator** (enable a specialty / set its model tier),
   **Users & Roster**, **Connectors** (toggle a PMS/EHR feed on/off — reflected on the Integrations screen).
   *"On the next run that chart re-routes STB → QA — the engine reads this config at runtime."*
+- **Specialty accelerator — the proof** → point at **Cardiology** in the worklist (echocardiogram → 93306,
+  ECG → 93000). *"Cardiology was added with no pipeline changes — just its codes, a few knowledge-graph
+  concepts, payer policy, coding guidance and a golden set, plus a config entry. The same engine that does
+  Radiology now does cardiac, and the Evaluation Harness already scores it. That's how E&M, ED, Pathology,
+  Surgical and Cardiology all run on one accelerator — new specialties are content, not a rebuild."*
 - **Change Log** tab (Admin / Configuration) → *"And every one of these edits is itself governed."* Show
   the append-only trail: who (by role), when, what area, action, and target — for config, policy, KG,
   guideline, reference-data, and golden-set edits. *"Your audit and compliance teams asked who changed the
