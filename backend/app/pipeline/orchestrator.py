@@ -124,6 +124,7 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     t0 = time.time()
     numbered, lookup = _number_chart(enc.chart_text)
     log: list[dict] = []
+    usage: list[dict] = []   # real per-call token usage, accumulated across the run
 
     # --- agentic event stream (no-op unless an emitter is passed) ---
     emit = emit or (lambda *a, **k: None)
@@ -142,6 +143,9 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         run.status = "DONE"
         run.stage_log = log
         run.latency_ms = int((time.time() - t0) * 1000)
+        run.input_tokens = sum(u.get("in", 0) for u in usage)
+        run.output_tokens = sum(u.get("out", 0) for u in usage)
+        run.llm_calls = len(usage)
         run.finished_at = _now()
         enc.status = "CODED"
         say("Calibration & Routing",
@@ -184,7 +188,7 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         analysis = complete_json(
             prompts.ANALYSIS_SYSTEM,
             prompts.build_analysis_user(numbered, enc.specialty),
-            prompts.ANALYSIS_SCHEMA, temperature=0.0, llm=llmc,
+            prompts.ANALYSIS_SCHEMA, temperature=0.0, llm=llmc, usage_sink=usage,
         )[0]
     except LLMUnavailable as e:
         log.append({"stage": "1_analysis", "title": "Clinical Analysis", "error": str(e)})
@@ -236,7 +240,7 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         coding_samples = complete_json(
             prompts.CODING_SYSTEM,
             prompts.build_coding_user(numbered, enc.specialty, analysis, rag_ctx),
-            prompts.CODING_SCHEMA, hard=hard, temperature=temp, samples=samples, llm=llmc,
+            prompts.CODING_SCHEMA, hard=hard, temperature=temp, samples=samples, llm=llmc, usage_sink=usage,
         )
     except LLMUnavailable as e:
         log.append({"stage": "3_coding", "title": "Code Generation", "error": str(e)})

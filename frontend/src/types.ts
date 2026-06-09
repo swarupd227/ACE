@@ -292,6 +292,28 @@ export interface Dashboard {
   tat: { baseline_min: number; assisted_min: number; reduction_pct: number };
   maturity: { stage: string; stb_rate: number; target: number; stages: string[] };
   by_specialty: any[];
+  model_performance: {
+    active_model: string;
+    input_tokens: number;
+    output_tokens: number;
+    total_tokens: number;
+    llm_calls: number;
+    avg_tokens_per_chart: number;
+    avg_calls_per_chart: number;
+    avg_latency_ms: number;
+    p95_latency_ms: number;
+    avg_confidence: number;
+    override_rate: number;
+    by_model: {
+      model: string;
+      charts: number;
+      stb_rate: number;
+      avg_confidence: number;
+      avg_latency_ms: number;
+      avg_tokens: number;
+      override_rate: number;
+    }[];
+  };
 }
 
 export interface Integrations {

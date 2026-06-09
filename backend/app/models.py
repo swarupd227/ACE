@@ -74,6 +74,9 @@ class CodingRun(Base):
     overall_confidence: Mapped[float] = mapped_column(Float, default=0.0)
     accuracy_estimate: Mapped[float] = mapped_column(Float, default=0.0)
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)   # real usage from the model API
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    llm_calls: Mapped[int] = mapped_column(Integer, default=0)
     # workflow orchestration (human actions)
     escalated: Mapped[bool] = mapped_column(Boolean, default=False)
     escalated_to: Mapped[str] = mapped_column(String(80), default="")

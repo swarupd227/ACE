@@ -2,12 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid,
 } from "recharts";
-import { TrendingUp, Zap, Gauge, Clock, AlertTriangle, Rocket } from "lucide-react";
+import { TrendingUp, Zap, Gauge, Clock, AlertTriangle, Rocket, Cpu, Coins, Timer, Activity } from "lucide-react";
 import clsx from "clsx";
 import { api } from "../api";
 import { Spinner } from "../lib";
 
 const LANE_COLORS: Record<string, string> = { STB: "#10b981", QA: "#f59e0b", MANUAL: "#f43f5e" };
+const fmtTok = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`);
 
 function Kpi({ icon: Icon, label, value, sub, target }: { icon: any; label: string; value: string; sub?: string; target?: string }) {
   return (
@@ -76,6 +77,62 @@ export default function Dashboard() {
         </div>
         <p className="mt-2 text-xs text-slate-400">Maturity advances as accuracy is certified (≥95%) and 100% audit tapers — STB share grows toward the ≥80% target.</p>
       </div>
+
+      {/* Model performance & drift */}
+      {data.model_performance && (() => {
+        const mp = data.model_performance;
+        return (
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-bold text-slate-800 flex items-center gap-2"><Cpu size={16} className="text-ace-600" /> Model performance</h2>
+              <span className="pill bg-ace-50 text-ace-700 ring-1 ring-ace-100 font-mono">{mp.active_model}</span>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+              <Kpi icon={Coins} label="Tokens used" value={fmtTok(mp.total_tokens)} sub={`${fmtTok(mp.input_tokens)} in · ${fmtTok(mp.output_tokens)} out`} />
+              <Kpi icon={Coins} label="Tokens / chart" value={fmtTok(mp.avg_tokens_per_chart)} sub={`${mp.avg_calls_per_chart} model calls/chart`} />
+              <Kpi icon={Timer} label="Latency / chart" value={`${(mp.avg_latency_ms / 1000).toFixed(1)}s`} sub={`p95 ${(mp.p95_latency_ms / 1000).toFixed(1)}s`} />
+              <Kpi icon={Gauge} label="Avg confidence" value={`${Math.round(mp.avg_confidence * 100)}%`} sub="calibrated, auto-coded" />
+              <Kpi icon={Activity} label="Human-override rate" value={`${Math.round(mp.override_rate * 100)}%`} sub="drift / quality signal" target="↓ better" />
+            </div>
+
+            <div className="mt-5">
+              {/* by model version — the drift comparison surface (switch models in Admin to populate) */}
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">By model version <span className="font-normal text-slate-400">· switch the model in Admin to compare versions on the same charts (drift)</span></h3>
+                <div className="overflow-hidden rounded-lg border border-slate-200">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-200">
+                        <th className="px-3 py-2 font-semibold">Model</th>
+                        <th className="px-3 py-2 font-semibold">Charts</th>
+                        <th className="px-3 py-2 font-semibold">STB</th>
+                        <th className="px-3 py-2 font-semibold">Conf</th>
+                        <th className="px-3 py-2 font-semibold">Latency</th>
+                        <th className="px-3 py-2 font-semibold">Tokens</th>
+                        <th className="px-3 py-2 font-semibold">Override</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {mp.by_model.map((m) => (
+                        <tr key={m.model} className="hover:bg-slate-50/70">
+                          <td className="px-3 py-2 font-mono text-xs text-slate-700">{m.model}</td>
+                          <td className="px-3 py-2 tabular-nums">{m.charts}</td>
+                          <td className="px-3 py-2 tabular-nums">{Math.round(m.stb_rate * 100)}%</td>
+                          <td className="px-3 py-2 tabular-nums">{Math.round(m.avg_confidence * 100)}%</td>
+                          <td className="px-3 py-2 tabular-nums">{(m.avg_latency_ms / 1000).toFixed(1)}s</td>
+                          <td className="px-3 py-2 tabular-nums">{fmtTok(m.avg_tokens)}</td>
+                          <td className="px-3 py-2 tabular-nums">{Math.round(m.override_rate * 100)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="card p-5 lg:col-span-2">

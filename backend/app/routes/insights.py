@@ -50,6 +50,8 @@ def dashboard(db: Session = Depends(get_db)) -> dict:
     coded = 0
     eligible = 0           # charts that passed Stage-0 eligibility (auto-coding candidates)
     eligible_excluded = 0  # routed to manual purely because they were ineligible
+    tokens_in = tokens_out = llm_calls = override_charts = 0
+    by_model: dict[str, dict] = {}
     for e in encs:
         run = db.scalars(
             select(models.CodingRun).where(models.CodingRun.encounter_id == e.id)
@@ -74,6 +76,25 @@ def dashboard(db: Session = Depends(get_db)) -> dict:
             b = MANUAL_TAT_BASELINE.get(e.specialty, 8.0)
             tat_base += b
             tat_asst += _AI_TAT.get(run.routing_lane, lambda x: x)(b)
+            # --- model performance (real usage captured per run) ---
+            tokens_in += run.input_tokens or 0
+            tokens_out += run.output_tokens or 0
+            llm_calls += run.llm_calls or 0
+            overridden = any(c.is_overridden for c in run.codes)
+            if overridden:
+                override_charts += 1
+            mv = run.model_version or "unknown"
+            m = by_model.setdefault(mv, {"model": mv, "charts": 0, "stb": 0, "conf": [], "lat": [], "tin": 0, "tout": 0, "ovr": 0})
+            m["charts"] += 1
+            m["tin"] += run.input_tokens or 0
+            m["tout"] += run.output_tokens or 0
+            m["lat"].append(run.latency_ms)
+            if run.routing_lane == "STB":
+                m["stb"] += 1
+            if run.routing_lane != "MANUAL":
+                m["conf"].append(run.overall_confidence)
+            if overridden:
+                m["ovr"] += 1
 
     # STB rate is measured over eligible (auto-coding-candidate) charts — ineligible charts
     # were never candidates for automation, so they don't count against the automation rate.
@@ -84,6 +105,41 @@ def dashboard(db: Session = Depends(get_db)) -> dict:
         s["avg_accuracy"] = round(sum(s["acc"]) / len(s["acc"]), 3) if s["acc"] else 0.0
         s.pop("acc")
         s["stb_rate"] = round(s["STB"] / s["eligible"], 3) if s["eligible"] else 0.0
+
+    # --- model performance + drift surface (all from real run data) ---
+    def _p95(xs: list) -> int:
+        if not xs:
+            return 0
+        s = sorted(xs)
+        return int(s[min(len(s) - 1, int(round(0.95 * (len(s) - 1))))])
+
+    by_model_out = []
+    for m in by_model.values():
+        n = m["charts"]
+        by_model_out.append({
+            "model": m["model"], "charts": n,
+            "stb_rate": round(m["stb"] / n, 3) if n else 0.0,
+            "avg_confidence": round(sum(m["conf"]) / len(m["conf"]), 3) if m["conf"] else 0.0,
+            "avg_latency_ms": int(sum(m["lat"]) / len(m["lat"])) if m["lat"] else 0,
+            "avg_tokens": int((m["tin"] + m["tout"]) / n) if n else 0,
+            "override_rate": round(m["ovr"] / n, 3) if n else 0.0,
+        })
+    by_model_out.sort(key=lambda x: x["charts"], reverse=True)
+    from .. import config_store as _cs
+    from ..llm import client as _llm
+    total_tokens = tokens_in + tokens_out
+    model_performance = {
+        "active_model": _llm.model_version(_cs.all_config(db).get("llm")),
+        "input_tokens": tokens_in, "output_tokens": tokens_out, "total_tokens": total_tokens,
+        "llm_calls": llm_calls,
+        "avg_tokens_per_chart": int(total_tokens / coded) if coded else 0,
+        "avg_calls_per_chart": round(llm_calls / coded, 1) if coded else 0.0,
+        "avg_latency_ms": int(sum(lats) / len(lats)) if lats else 0,
+        "p95_latency_ms": _p95(lats),
+        "avg_confidence": avg_acc,
+        "override_rate": round(override_charts / coded, 3) if coded else 0.0,
+        "by_model": by_model_out,
+    }
 
     return {
         "total_encounters": total, "coded": coded, "eligible": eligible,
@@ -103,6 +159,7 @@ def dashboard(db: Session = Depends(get_db)) -> dict:
             "stages": ["Foundation / shadow", "Scaling", "Approaching autonomous", "Autonomous (target)"],
         },
         "by_specialty": list(by_spec.values()),
+        "model_performance": model_performance,
     }
 
 

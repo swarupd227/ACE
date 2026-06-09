@@ -72,9 +72,10 @@ def _anthropic_json(system, user, schema, model, temperature, e) -> dict[str, An
         tool_choice={"type": "tool", "name": "emit_result"},
         messages=[{"role": "user", "content": user}],
     )
+    usage = {"in": getattr(resp.usage, "input_tokens", 0), "out": getattr(resp.usage, "output_tokens", 0)}
     for block in resp.content:
         if block.type == "tool_use" and block.name == "emit_result":
-            return block.input
+            return block.input, usage
     raise LLMUnavailable("Anthropic returned no tool_use block")
 
 
@@ -99,8 +100,10 @@ def _openai_json(system, user, schema, model, temperature, e) -> dict[str, Any]:
         r = hc.post(url, json=payload, headers=headers)
         r.raise_for_status()
         data = r.json()
+    u = data.get("usage", {}) or {}
+    usage = {"in": u.get("prompt_tokens", 0), "out": u.get("completion_tokens", 0)}
     content = data["choices"][0]["message"]["content"]
-    return json.loads(content)
+    return json.loads(content), usage
 
 
 def complete_json(
@@ -112,9 +115,11 @@ def complete_json(
     temperature: float = 0.0,
     samples: int = 1,
     llm: dict | None = None,
+    usage_sink: list | None = None,
 ) -> list[dict[str, Any]]:
     """Return `samples` structured results. `llm` is the runtime config-store
-    config; secrets are pulled from the environment regardless."""
+    config; secrets are pulled from the environment regardless. If `usage_sink`
+    is provided, each successful call appends its real token usage to it."""
     e = effective_llm(llm)
     if not llm_available(llm):
         raise LLMUnavailable(
@@ -128,9 +133,12 @@ def complete_json(
     for _ in range(max(1, samples)):
         try:
             if e["provider"] == "anthropic":
-                out.append(_anthropic_json(system, user, schema, model, temperature, e))
+                result, usage = _anthropic_json(system, user, schema, model, temperature, e)
             else:
-                out.append(_openai_json(system, user, schema, model, temperature, e))
+                result, usage = _openai_json(system, user, schema, model, temperature, e)
+            out.append(result)
+            if usage_sink is not None:
+                usage_sink.append(usage)
         except Exception as exc:  # transient network / parse / rate-limit on a single sample
             errors.append(f"{type(exc).__name__}: {exc}")
     # Self-consistency tolerates partial failures: only fail if EVERY sample failed.
