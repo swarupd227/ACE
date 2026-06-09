@@ -58,7 +58,11 @@ body {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.fadeup { animation: fadeup 0.3s ease both; }
+/* NOTE: use `backwards`, not `both`. `both` retains the final `transform`, which
+   turns every .fadeup container into a containing block for position:fixed
+   descendants (mispositioning modals/overlays). `backwards` keeps the entry
+   animation without leaving a lingering transform. */
+.fadeup { animation: fadeup 0.3s ease backwards; }
 
 @keyframes pulsebar {
   0%, 100% { opacity: 1; }

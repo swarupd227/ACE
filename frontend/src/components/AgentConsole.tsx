@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import clsx from "clsx";
 import { X, Cpu, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
 import { LaneBadge } from "../lib";
@@ -65,7 +66,7 @@ export default function AgentConsole({
 
   useEffect(() => { if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight; }, [lines]);
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4" onClick={onClose}>
       <div className="w-full max-w-3xl rounded-xl overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="bg-ace-900 text-white px-4 py-3 flex items-center justify-between">
@@ -127,6 +128,7 @@ export default function AgentConsole({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
