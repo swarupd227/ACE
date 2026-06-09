@@ -106,6 +106,20 @@ export default function Worklist() {
             {isLoading && (
               <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400"><Spinner className="h-5 w-5 mx-auto" /></td></tr>
             )}
+            {!isLoading && list.length === 0 && (
+              <tr><td colSpan={8} className="px-4 py-12 text-center">
+                <div className="font-medium text-slate-600">No charts in the worklist yet</div>
+                {can(role, "ingest") ? (
+                  <div className="text-sm text-slate-400 mt-1">
+                    Bring one in via{" "}
+                    <Link to="/integrations" className="text-ace-600 hover:underline font-medium">Integrations &amp; Ingestion</Link>
+                    {" "}— paste a clinical report and click <b>Ingest into queue</b>. It lands here, ready to code.
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-400 mt-1">Charts arrive from the connected EHR / PMS, or via Integrations &amp; Ingestion.</div>
+                )}
+              </td></tr>
+            )}
             {list.map((r: EncounterRow) => (
               <tr key={r.id} className="hover:bg-slate-50/70">
                 <td className="px-4 py-3">

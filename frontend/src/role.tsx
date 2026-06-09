@@ -10,7 +10,7 @@ const ACCESS: Record<string, Role[]> = {
   "/cdi": ["Admin", "CDI Specialist", "Coder"],
   "/dashboard": ["Admin", "QA Auditor", "Supervisor", "Coder"],
   "/policy": ["Admin"],
-  "/integrations": ["Admin"],
+  "/integrations": ["Admin", "Coder"],
   "/eval": ["Admin", "Supervisor"],
   "/learning": ["Admin", "QA Auditor", "Supervisor"],
   "/admin": ["Admin"],
