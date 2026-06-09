@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
-import { SlidersHorizontal, ShieldAlert, FileCheck2, Timer, Layers, Users, Save, RotateCcw, Plus, Trash2, Check, History } from "lucide-react";
+import { SlidersHorizontal, ShieldAlert, FileCheck2, Timer, Layers, Users, Save, RotateCcw, Plus, Trash2, Check, History, Plug } from "lucide-react";
 import { api } from "../api";
 import { Spinner } from "../lib";
 
@@ -195,6 +195,30 @@ function RosterTab({ cfg }: { cfg: any }) {
   );
 }
 
+function ConnectorsTab({ cfg }: { cfg: any }) {
+  const c = useSaver("connectors", cfg.connectors ?? []);
+  const upd = (i: number, patch: any) => c.setLocal(c.local.map((m: any, j: number) => (j === i ? { ...m, ...patch } : m)));
+  return (
+    <div className="card p-4 max-w-3xl">
+      <h3 className="font-bold text-slate-800 mb-1">Source-system connectors</h3>
+      <p className="text-xs text-slate-500 mb-3">PMS/EHR systems shown on the Integrations screen. Toggle a connector off to simulate a disconnected feed. (Maps to real FHIR/HL7/EDI endpoints in production.)</p>
+      <div className="space-y-2">
+        {c.local.map((m: any, i: number) => (
+          <div key={i} className="flex items-center gap-2">
+            <input value={m.name} onChange={(e) => upd(i, { name: e.target.value })} placeholder="name" className="w-44 rounded border border-slate-200 px-2 py-1.5 text-sm" />
+            <input value={m.type} onChange={(e) => upd(i, { type: e.target.value })} placeholder="type (EHR/PMS)" className="w-40 rounded border border-slate-200 px-2 py-1.5 text-sm" />
+            <input value={m.channel} onChange={(e) => upd(i, { channel: e.target.value })} placeholder="channel" className="flex-1 rounded border border-slate-200 px-2 py-1.5 text-sm" />
+            <Toggle label="" value={m.enabled !== false} onChange={(v: boolean) => upd(i, { enabled: v })} />
+            <button className="text-rose-400 hover:text-rose-600" onClick={() => c.setLocal(c.local.filter((_: any, j: number) => j !== i))}><Trash2 size={15} /></button>
+          </div>
+        ))}
+      </div>
+      <button className="btn-ghost py-1.5 mt-2" onClick={() => c.setLocal([...c.local, { name: "New Source", type: "EHR", channel: "FHIR R4", enabled: true }])}><Plus size={14} /> Add connector</button>
+      <SaveBar dirty={c.dirty} saving={c.save.isPending} onSave={() => c.save.mutate()} />
+    </div>
+  );
+}
+
 const AREA_TONE: Record<string, string> = {
   config: "bg-ace-50 text-ace-700 ring-ace-200",
   policy: "bg-amber-50 text-amber-700 ring-amber-200",
@@ -251,6 +275,7 @@ const TABS: [string, string, any][] = [
   ["sla", "SLA Targets", Timer],
   ["specialties", "Specialty Accelerator", Layers],
   ["roster", "Users & Roster", Users],
+  ["connectors", "Connectors", Plug],
   ["changelog", "Change Log", History],
 ];
 
@@ -287,6 +312,7 @@ export default function Admin() {
       {tab === "sla" && <SlaTab cfg={cfg} />}
       {tab === "specialties" && <SpecialtiesTab cfg={cfg} />}
       {tab === "roster" && <RosterTab cfg={cfg} />}
+      {tab === "connectors" && <ConnectorsTab cfg={cfg} />}
       {tab === "changelog" && <ChangeLogTab />}
     </div>
   );

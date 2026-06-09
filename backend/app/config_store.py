@@ -41,6 +41,11 @@ DEFAULTS: dict = {
         {"name": "David R.", "role": "QA Auditor"},
         {"name": "CDI Team", "role": "CDI Specialist"},
     ],
+    "connectors": [
+        {"name": "Practice Admin", "type": "PMS (VHT-owned)", "channel": "REST / batch", "enabled": True},
+        {"name": "eClinicalWorks", "type": "EHR", "channel": "FHIR R4 / HL7 v2", "enabled": True},
+        {"name": "Cerner", "type": "EHR", "channel": "FHIR R4 / HL7 v2", "enabled": True},
+    ],
 }
 
 # Human-friendly metadata for the Admin UI (label + type hints).
@@ -53,6 +58,7 @@ META: dict = {
     "bounded_autonomy": "Hard rules that force human review regardless of confidence",
     "specialties": "Enabled specialties and their model-tier (hard = Opus + self-consistency)",
     "roster": "Coders / auditors available for assignment",
+    "connectors": "Source systems (PMS/EHR) shown on the Integrations screen",
 }
 
 

@@ -13,6 +13,7 @@ from ..config import settings
 from ..db import get_db
 from ..llm.client import LLMUnavailable
 from ..pipeline import orchestrator
+from ._admin_audit import Actor, get_actor, log_change
 
 router = APIRouter()
 HIDDEN = "__golden__"
@@ -212,6 +213,69 @@ def eval_summary(db: Session = Depends(get_db)) -> dict:
         s["irr_ceiling"] = round(sum(s["irr"]) / len(s["irr"]), 3)
         s.pop("irr")
     return {"golden_sets": list(by_spec.values()), "total": len(rows)}
+
+
+# --- Golden-set management (admins curate the eval truth set) ---------------
+def _golden(g: models.GoldenCase) -> dict:
+    return {"id": g.id, "specialty": g.specialty, "chart_text": g.chart_text,
+            "truth": g.truth, "irr": g.irr, "ambiguous": g.ambiguous}
+
+
+@router.get("/eval/golden")
+def list_golden(db: Session = Depends(get_db)) -> list[dict]:
+    rows = db.scalars(select(models.GoldenCase).order_by(models.GoldenCase.specialty, models.GoldenCase.id)).all()
+    return [_golden(g) for g in rows]
+
+
+class GoldenIn(BaseModel):
+    specialty: str
+    chart_text: str
+    truth: dict = {}        # {"icd": [...], "cpt": [...]}
+    irr: float = 0.9
+    ambiguous: bool = False
+
+
+@router.post("/eval/golden")
+def create_golden(body: GoldenIn, db: Session = Depends(get_db),
+                  actor: Actor = Depends(get_actor)) -> dict:
+    if len(body.chart_text.strip()) < 40:
+        raise HTTPException(400, "golden chart_text too short to be a real case")
+    g = models.GoldenCase(specialty=body.specialty, chart_text=body.chart_text.strip(),
+                          truth=body.truth, irr=body.irr, ambiguous=body.ambiguous)
+    db.add(g)
+    log_change(db, actor, "golden", "create", body.specialty, {"truth": body.truth})
+    db.commit()
+    db.refresh(g)
+    return _golden(g)
+
+
+@router.put("/eval/golden/{gid}")
+def update_golden(gid: int, body: GoldenIn, db: Session = Depends(get_db),
+                  actor: Actor = Depends(get_actor)) -> dict:
+    g = db.get(models.GoldenCase, gid)
+    if g is None:
+        raise HTTPException(404, "golden case not found")
+    g.specialty = body.specialty
+    g.chart_text = body.chart_text.strip() or g.chart_text
+    g.truth = body.truth
+    g.irr = body.irr
+    g.ambiguous = body.ambiguous
+    log_change(db, actor, "golden", "update", f"{g.specialty}#{g.id}", {"truth": g.truth})
+    db.commit()
+    db.refresh(g)
+    return _golden(g)
+
+
+@router.delete("/eval/golden/{gid}")
+def delete_golden(gid: int, db: Session = Depends(get_db),
+                  actor: Actor = Depends(get_actor)) -> dict:
+    g = db.get(models.GoldenCase, gid)
+    if g is None:
+        raise HTTPException(404, "golden case not found")
+    log_change(db, actor, "golden", "delete", f"{g.specialty}#{g.id}", {})
+    db.delete(g)
+    db.commit()
+    return {"deleted": gid}
 
 
 def _modality_from_text(t: str) -> str:

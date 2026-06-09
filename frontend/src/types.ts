@@ -257,6 +257,15 @@ export interface Modifier {
   notes: string;
 }
 
+export interface Golden {
+  id: number;
+  specialty: string;
+  chart_text: string;
+  truth: { icd?: string[]; cpt?: string[] };
+  irr: number;
+  ambiguous: boolean;
+}
+
 export interface Dashboard {
   total_encounters: number;
   coded: number;

@@ -120,11 +120,22 @@ nobody hands you a configurable platform" beat.*
   curates the KG without engineering. Production swaps in licensed SNOMED CT / UMLS at the same shape."*
 - **Coding Guidelines** tab → add a public guideline (source / section / specialty / text). *"Retrieved
   into the agent's context and used for citation verification — your coding rules, governed in one place."*
+- **Reference Data** tab → *"Even the edit engine is yours to govern."* Sub-tabs: **Code sets**
+  (add a client-overlay ICD/CPT/HCPCS code), **NCCI bundling** (add a bundling edit — drives the bundling
+  gate), **MUE limits** (units-per-day gate), **Modifiers** (validity gate), **Provenance**. *"These
+  aren't a static reference dump — they drive the deterministic validation gates on the next run."*
 - **Admin / Configuration** — *"Every threshold is a setting, not a code change."* Show the tabs:
   **Routing & Calibration** (drag the STB threshold 0.90 → 0.99 and Save), **Bounded Autonomy** toggles,
   **Eligibility**, **SLA Targets**, **Specialty Accelerator** (enable a specialty / set its model tier),
-  **Users & Roster**. *"On the next run that chart re-routes STB → QA — the engine reads this config at
-  runtime."* (You already proved this earlier if you ran a chart after the change.)
+  **Users & Roster**, **Connectors** (toggle a PMS/EHR feed on/off — reflected on the Integrations screen).
+  *"On the next run that chart re-routes STB → QA — the engine reads this config at runtime."*
+- **Change Log** tab (Admin / Configuration) → *"And every one of these edits is itself governed."* Show
+  the append-only trail: who (by role), when, what area, action, and target — for config, policy, KG,
+  guideline, reference-data, and golden-set edits. *"Your audit and compliance teams asked who changed the
+  rules — here it is, automatically."*
+- **Evaluation Harness → Manage golden set** → *"The eval set is the product, so admins curate it."* Add /
+  edit / delete an adjudicated gold case (chart + truth ICD/CPT + IRR). *"New truth cases onboard a
+  specialty without engineering; the harness scores the live pipeline against exactly this set."*
 - **RBAC by role** — use the **Role** dropdown to switch personas; the app reshapes per role:
   - **Admin** — full surface (Policy/KG, Integrations, Admin Config, everything).
   - **Coder** — Worklist / CDI / Dashboard only; **can** run coding, override, escalate; **cannot** see

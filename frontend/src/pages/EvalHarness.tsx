@@ -1,7 +1,95 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { FlaskConical, Play } from "lucide-react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FlaskConical, Play, Plus, Save, Trash2, X, Database } from "lucide-react";
 import { api } from "../api";
 import { Spinner, pct } from "../lib";
+import type { Golden } from "../types";
+
+const SPECS = ["Radiology", "E&M", "ED", "Pathology", "Surgical"];
+const BLANK_G: Partial<Golden> = { specialty: "Radiology", chart_text: "", truth: { icd: [], cpt: [] }, irr: 0.9, ambiguous: false };
+
+function GoldenEditor({ initial, onClose }: { initial: Partial<Golden>; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [g, setG] = useState<Partial<Golden>>({ ...initial });
+  const isNew = !initial.id;
+  const save = useMutation({
+    mutationFn: () => (isNew ? api.createGolden(g) : api.updateGolden(initial.id!, g)),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["golden"] }); qc.invalidateQueries({ queryKey: ["evalSummary"] }); onClose(); },
+  });
+  const setTruth = (k: "icd" | "cpt", v: string) =>
+    setG((x) => ({ ...x, truth: { ...(x.truth ?? {}), [k]: v.split(",").map((s) => s.trim()).filter(Boolean) } }));
+  return (
+    <div className="rounded-lg border-2 border-ace-200 bg-ace-50/40 p-3 space-y-2">
+      <div className="grid grid-cols-3 gap-2">
+        <select className="rounded border border-slate-200 px-2 py-1.5 text-sm" value={g.specialty} onChange={(e) => setG({ ...g, specialty: e.target.value })}>
+          {SPECS.map((s) => <option key={s}>{s}</option>)}
+        </select>
+        <label className="flex items-center gap-2 text-sm text-slate-600">IRR ceiling
+          <input type="number" step={0.01} min={0} max={1} value={g.irr ?? 0.9} onChange={(e) => setG({ ...g, irr: Number(e.target.value) })} className="w-20 rounded border border-slate-200 px-2 py-1 text-sm" />
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={!!g.ambiguous} onChange={(e) => setG({ ...g, ambiguous: e.target.checked })} /> ambiguous case</label>
+      </div>
+      <textarea className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm font-mono" rows={4} placeholder="Adjudicated chart text (the gold report)…" value={g.chart_text ?? ""} onChange={(e) => setG({ ...g, chart_text: e.target.value })} />
+      <div className="grid grid-cols-2 gap-2">
+        <input className="rounded border border-slate-200 px-2 py-1.5 text-sm font-mono" placeholder="truth ICD-10 (comma)" value={(g.truth?.icd ?? []).join(", ")} onChange={(e) => setTruth("icd", e.target.value)} />
+        <input className="rounded border border-slate-200 px-2 py-1.5 text-sm font-mono" placeholder="truth CPT/HCPCS (comma)" value={(g.truth?.cpt ?? []).join(", ")} onChange={(e) => setTruth("cpt", e.target.value)} />
+      </div>
+      <div className="flex justify-end gap-2">
+        <button className="btn-ghost py-1.5" onClick={onClose}><X size={14} /> Cancel</button>
+        <button className="btn-primary py-1.5" disabled={!g.chart_text || g.chart_text.length < 40 || save.isPending} onClick={() => save.mutate()}>
+          {save.isPending ? <Spinner className="h-4 w-4" /> : <Save size={14} />} {isNew ? "Add case" : "Save"}
+        </button>
+      </div>
+      {save.isError && <div className="text-xs text-rose-600">{(save.error as Error).message}</div>}
+    </div>
+  );
+}
+
+function GoldenManager() {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const { data } = useQuery({ queryKey: ["golden"], queryFn: api.golden, enabled: open });
+  const [editing, setEditing] = useState<number | "new" | null>(null);
+  const del = useMutation({ mutationFn: (id: number) => api.deleteGolden(id), onSuccess: () => { qc.invalidateQueries({ queryKey: ["golden"] }); qc.invalidateQueries({ queryKey: ["evalSummary"] }); } });
+  return (
+    <div className="card overflow-hidden">
+      <button className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50" onClick={() => setOpen((v) => !v)}>
+        <span className="flex items-center gap-2 font-semibold text-slate-700 text-sm"><Database size={15} className="text-ace-600" /> Manage golden set (adjudicated truth)</span>
+        <span className="text-xs text-slate-400">{open ? "hide" : "curate the eval cases →"}</span>
+      </button>
+      {open && (
+        <div className="border-t border-slate-200 p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-500">These adjudicated cases ARE the evaluation truth. The harness runs the live pipeline over each and scores against this set.</p>
+            <button className="btn-primary py-1.5" onClick={() => setEditing("new")}><Plus size={14} /> Add gold case</button>
+          </div>
+          {editing === "new" && <GoldenEditor initial={BLANK_G} onClose={() => setEditing(null)} />}
+          <div className="space-y-2">
+            {(data ?? []).map((g) => editing === g.id ? (
+              <GoldenEditor key={g.id} initial={g} onClose={() => setEditing(null)} />
+            ) : (
+              <div key={g.id} className="rounded-lg border border-slate-200 p-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="pill bg-ace-50 text-ace-700 ring-1 ring-ace-200">{g.specialty}</span>
+                    {(g.truth?.icd ?? []).map((c) => <span key={c} className="pill bg-slate-100 text-slate-600 ring-1 ring-slate-200 font-mono">{c}</span>)}
+                    {(g.truth?.cpt ?? []).map((c) => <span key={c} className="pill bg-blue-50 text-blue-700 ring-1 ring-blue-200 font-mono">{c}</span>)}
+                    <span className="text-xs text-slate-400">IRR {pct(g.irr)}</span>
+                  </div>
+                  <div className="flex gap-1 whitespace-nowrap">
+                    <button className="btn-ghost py-1" onClick={() => setEditing(g.id)}>Edit</button>
+                    <button className="text-rose-400 hover:text-rose-600" onClick={() => del.mutate(g.id)}><Trash2 size={14} /></button>
+                  </div>
+                </div>
+                <p className="mt-1 text-xs text-slate-500 line-clamp-2">{g.chart_text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function EvalHarness() {
   const { data: summary } = useQuery({ queryKey: ["evalSummary"], queryFn: api.evalSummary });
@@ -29,6 +117,8 @@ export default function EvalHarness() {
           </div>
         ))}
       </div>
+
+      <GoldenManager />
 
       {run.isError && <div className="card p-4 text-rose-600 text-sm">{(run.error as Error).message}</div>}
 

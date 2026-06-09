@@ -121,4 +121,8 @@ export const api = {
   learning: () => req<any[]>("/learning"),
   evalSummary: () => req<any>("/eval/summary"),
   evalRun: () => req<any>("/eval/run", { method: "POST" }),
+  golden: () => req<import("./types").Golden[]>("/eval/golden"),
+  createGolden: (g: Partial<import("./types").Golden>) => req<import("./types").Golden>("/eval/golden", { method: "POST", body: JSON.stringify(g) }),
+  updateGolden: (id: number, g: Partial<import("./types").Golden>) => req<import("./types").Golden>(`/eval/golden/${id}`, { method: "PUT", body: JSON.stringify(g) }),
+  deleteGolden: (id: number) => req(`/eval/golden/${id}`, { method: "DELETE" }),
 };

@@ -637,13 +637,16 @@ def integrations(db: Session = Depends(get_db)) -> dict:
     counts: dict[str, int] = {}
     for e in db.scalars(select(models.Encounter).where(models.Encounter.client != HIDDEN)).all():
         counts[e.source_system] = counts.get(e.source_system, 0) + 1
+    # Connectors are admin-configurable (config_store), not a hardcoded list.
+    cfg_connectors = config_store.all_config(db).get("connectors") or SOURCE_SYSTEMS
     connectors = [
-        {**s, "status": "connected",
+        {"name": s["name"], "type": s.get("type", ""), "channel": s.get("channel", ""),
+         "status": "connected" if s.get("enabled", True) else "disabled",
          "charts_ingested": counts.get(s["name"], 0) or counts.get(s["name"].replace(" ", ""), 0)}
-        for s in SOURCE_SYSTEMS
+        for s in cfg_connectors
     ]
     return {"connectors": connectors, "channels": CHANNELS, "api_docs": "/docs",
-            "note": "Demo simulates connectivity; the REST ingest below is live."}
+            "note": "Connectors are admin-configurable (Admin > Connectors); the REST ingest below is live."}
 
 
 class IngestIn(BaseModel):
