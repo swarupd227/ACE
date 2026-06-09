@@ -367,6 +367,13 @@ def _eval_core(db: Session, emit) -> dict:
     # clean previous hidden eval encounters
     old = db.scalars(select(models.Encounter).where(models.Encounter.client == HIDDEN)).all()
     for e in old:
+        # bulk DELETE bypasses the ORM relationship cascade, so clear children first
+        # (code_results FK -> coding_runs FK -> encounters) to avoid a FK violation.
+        run_ids = db.scalars(
+            select(models.CodingRun.id).where(models.CodingRun.encounter_id == e.id)
+        ).all()
+        if run_ids:
+            db.execute(delete(models.CodeResult).where(models.CodeResult.run_id.in_(run_ids)))
         db.execute(delete(models.CodingRun).where(models.CodingRun.encounter_id == e.id))
         db.delete(e)
     db.commit()
