@@ -42,8 +42,9 @@ execFileSync(f,['-y','-i','recordings/demo-ACE-end-to-end-demo/video.webm',\
 '-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart','../deck/ACE_demo.mp4'],{stdio:'inherit'})"
 ```
 
-The test (`tests/demo.spec.js`) drives a logical coder workflow against the real app and the real
-Claude model, with branded on-screen captions that call out **where the AI is making the difference**:
-live agentic coding (streaming stage-by-stage), grounded & cited output, calibrated confidence routing,
-and the CDI co-pilot drafting a compliant physician query. It runs two live model calls, so total
-runtime ≈ 1.5–2 min.
+The test (`tests/demo.spec.js`) is a **logical end-to-end product tour** that mirrors the deck, with
+branded on-screen captions per step: intake & integrations → the worklist (three lanes) → a brief glimpse
+of the live coding agent → grounded & cited result → confidence & rule checks → audit packet → control
+tower (queues, SLA, assignment) → CDI co-pilot → closed-loop learning → the admin functions
+(configuration, knowledge-graph builder, reference data, change log) → role-based access (the app reshapes
+per role) → outcomes dashboard. The SSE agent console is shown only as a short glimpse. Runtime ≈ 2 min.
