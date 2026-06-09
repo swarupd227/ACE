@@ -91,6 +91,18 @@ ICD10CM = [
     ("D48.5", "Neoplasm of uncertain behavior of skin", True, "D48"),
     # non-billable parent (specificity gate should reject this)
     ("C44.9", "Other and unspecified malignant neoplasm of skin, unspecified", False, "C44"),
+    # Urology (added via the specialty accelerator — no engine changes; N20.0 kidney stone reused)
+    ("N40.1", "Benign prostatic hyperplasia with lower urinary tract symptoms", True, "N40"),
+    ("N40.0", "Benign prostatic hyperplasia without lower urinary tract symptoms", True, "N40"),
+    ("C67.9", "Malignant neoplasm of bladder, unspecified", True, "C67"),
+    ("R31.9", "Hematuria, unspecified", True, "R31"),
+    ("N39.0", "Urinary tract infection, site not specified", True, "N39"),
+    ("N40", "Enlarged prostate", False, "N40"),  # non-billable parent
+    # Ophthalmology
+    ("H25.9", "Unspecified age-related cataract", True, "H25"),
+    ("H35.30", "Unspecified macular degeneration", True, "H35.3"),
+    ("H40.9", "Unspecified glaucoma", True, "H40"),
+    ("H25", "Age-related cataract", False, "H25"),  # non-billable parent
     # non-billable parents (specificity gate should reject these)
     ("E11.4", "Type 2 diabetes mellitus with neurological complications", False, "E11"),
     ("M25.56", "Pain in knee", False, "M25.5"),
@@ -175,6 +187,23 @@ CPT = [
     ("11104", "Punch biopsy of skin; single lesion", "DERM"),
     ("17000", "Destruction of premalignant lesion (e.g., actinic keratosis); first lesion", "DERM"),
     ("17110", "Destruction of benign lesions other than skin tags; up to 14 lesions", "DERM"),
+    # Urology — DEMO placeholder
+    ("50590", "Lithotripsy, extracorporeal shock wave (ESWL)", "URO"),
+    ("52000", "Cystourethroscopy (separate procedure); diagnostic", "URO"),
+    ("52234", "Cystourethroscopy with fulguration and/or resection of small bladder tumor(s)", "URO"),
+    ("55700", "Biopsy of prostate; needle or punch, single or multiple", "URO"),
+    ("51798", "Measurement of post-void residual urine by ultrasound, non-imaging", "URO"),
+    # Anesthesia — DEMO placeholder
+    ("00790", "Anesthesia for intraperitoneal procedures in upper abdomen (incl. lap cholecystectomy)", "ANES"),
+    ("00840", "Anesthesia for intraperitoneal procedures in lower abdomen", "ANES"),
+    ("01402", "Anesthesia for total knee arthroplasty", "ANES"),
+    ("01967", "Neuraxial labor analgesia/anesthesia for planned vaginal delivery", "ANES"),
+    # Ophthalmology — DEMO placeholder
+    ("66984", "Extracapsular cataract removal with insertion of intraocular lens prosthesis, 1 stage", "OPHTH"),
+    ("67028", "Intravitreal injection of a pharmacologic agent", "OPHTH"),
+    ("65855", "Trabeculoplasty by laser surgery", "OPHTH"),
+    ("92134", "Scanning computerized ophthalmic diagnostic imaging, retina (OCT)", "OPHTH"),
+    ("92014", "Ophthalmological exam and evaluation, comprehensive, established patient", "OPHTH"),
 ]
 
 HCPCS = [
@@ -202,6 +231,13 @@ MODIFIERS = [
     ("AS", "Physician assistant/NP/CNS as assistant at surgery", "CPT", ""),
     ("62", "Two surgeons (co-surgeons)", "CPT", ""),
     ("22", "Increased procedural services", "CPT", ""),
+    # Anesthesia physical-status modifiers
+    ("P1", "A normal healthy patient", "anesthesia", ""),
+    ("P2", "A patient with mild systemic disease", "anesthesia", ""),
+    ("P3", "A patient with severe systemic disease", "anesthesia", ""),
+    ("P4", "A patient with severe systemic disease that is a constant threat to life", "anesthesia", ""),
+    ("P5", "A moribund patient not expected to survive without the operation", "anesthesia", ""),
+    ("P6", "A declared brain-dead patient (organ donor)", "anesthesia", ""),
 ]
 
 # --- NCCI PTP (column1 payable / column2 bundled). modifier_allowed True=can unbundle ---
@@ -234,6 +270,10 @@ MUE = [
     ("43239", 1, "EGD with biopsy, one per day"),
     ("11104", 1, "Punch biopsy single lesion, one per lesion"),
     ("17000", 1, "Destruction of first premalignant lesion, one per day"),
+    ("50590", 1, "ESWL lithotripsy, one per day"),
+    ("52234", 1, "Cystoscopy with bladder tumor resection, one per day"),
+    ("66984", 1, "Cataract extraction with IOL, one per eye per day"),
+    ("67028", 1, "Intravitreal injection, one per eye per day"),
 ]
 
 # --- Payer policy (representative) ---
@@ -276,6 +316,14 @@ PAYER_POLICY = [
      "17000, additional lesions reported separately.", False, "", ["L57"]),
     ("Medicare", "11104", "Skin biopsy covered for a lesion suspicious for malignancy or of uncertain "
      "behavior.", False, "", ["C44", "D48", "L82"]),
+    ("Medicare", "50590", "ESWL covered for documented upper-urinary-tract calculus.", False, "", ["N20"]),
+    ("Medicare", "52234", "Cystoscopy with resection covered for documented bladder tumor.", False, "", ["C67", "D41"]),
+    ("Medicare", "00790", "Anesthesia covered with a documented covered surgical procedure and physical "
+     "status; report base + time units.", False, "Physical status modifier required", ["K80", "K81"]),
+    ("Medicare", "66984", "Cataract surgery with IOL covered for visually significant cataract with "
+     "documented functional impairment.", False, "", ["H25", "H26"]),
+    ("Medicare", "67028", "Intravitreal anti-VEGF injection covered for neovascular AMD or macular edema.",
+     False, "", ["H35"]),
 ]
 
 # --- Medical ontology (concept graph for Graph-RAG) ---
@@ -324,6 +372,14 @@ ONTOLOGY_CONCEPTS = [
     # Dermatology concepts (added with the specialty; skin structure C1123023 already exists, reused)
     ("C0022602", "Actinic keratosis", "Disease", [{"system": "ICD10CM", "code": "L57.0"}]),
     ("C0007117", "Basal cell carcinoma", "Neoplastic Process", [{"system": "ICD10CM", "code": "C44.91"}]),
+    # Urology + Ophthalmology concepts (added with the specialties)
+    ("C0005695", "Malignant neoplasm of bladder", "Neoplastic Process", [{"system": "ICD10CM", "code": "C67.9"}]),
+    ("C0005001", "Benign prostatic hyperplasia", "Disease", [{"system": "ICD10CM", "code": "N40.1"}]),
+    ("C0005682", "Urinary bladder structure", "Body Part", []),
+    ("C0033572", "Prostatic structure", "Body Part", []),
+    ("C0086543", "Cataract", "Disease", [{"system": "ICD10CM", "code": "H25.9"}]),
+    ("C0242383", "Age-related macular degeneration", "Disease", [{"system": "ICD10CM", "code": "H35.30"}]),
+    ("C0015392", "Eye structure", "Body Part", []),
 ]
 # (src_cui, rel, dst_cui)
 ONTOLOGY_EDGES = [
@@ -348,6 +404,10 @@ ONTOLOGY_EDGES = [
     ("C0017152", "finding_site", "C0038351"),    # gastritis -> stomach
     ("C0022602", "finding_site", "C1123023"),    # actinic keratosis -> skin
     ("C0007117", "finding_site", "C1123023"),    # basal cell carcinoma -> skin
+    ("C0005695", "finding_site", "C0005682"),    # bladder cancer -> bladder
+    ("C0005001", "finding_site", "C0033572"),    # BPH -> prostate
+    ("C0086543", "finding_site", "C0015392"),    # cataract -> eye
+    ("C0242383", "finding_site", "C0015392"),    # AMD -> eye
 ]
 
 # --- Guideline chunks (ICD-10-CM Official Guidelines are public domain; paraphrased) ---
@@ -432,4 +492,19 @@ GUIDELINES = [
      "together, the biopsy is bundled — report only the more extensive service. Code the lesion diagnosis "
      "(e.g., actinic keratosis L57.0, basal cell carcinoma C44.91); use 'uncertain behavior' (D48.5) when "
      "biopsying before a histologic diagnosis.", "Dermatology"),
+    ("Urology Coding Guidance", "Procedures",
+     "Code the urologic procedure performed: ESWL lithotripsy = 50590; diagnostic cystourethroscopy = "
+     "52000; cystoscopy with bladder-tumor resection = 52234; needle prostate biopsy = 55700. Code the "
+     "finding (calculus N20.x, bladder neoplasm C67.9, BPH N40.0/N40.1, hematuria R31.9). Diagnostic "
+     "cystoscopy is bundled into a same-session therapeutic cystoscopy — do not report both.", "Urology"),
+    ("Anesthesia Coding Guidance", "Units",
+     "Report the anesthesia CPT for the procedure being anesthetized (e.g., 00790 upper-abdomen / lap "
+     "cholecystectomy, 01402 total knee, 01967 labor epidural) and code the underlying diagnosis. Append "
+     "the physical-status modifier (P1-P6). Payment is base units + time units (each 15 min); record "
+     "anesthesia start/stop time.", "Anesthesia"),
+    ("Ophthalmology Coding Guidance", "Procedures",
+     "Code the ophthalmic procedure: cataract extraction with IOL = 66984; intravitreal injection = 67028; "
+     "laser trabeculoplasty = 65855; OCT of the retina = 92134. Append eye laterality (RT/LT) when "
+     "documented. Code the diagnosis (cataract H25.x, macular degeneration H35.3x, glaucoma H40.x); cataract "
+     "surgery requires documented visual/functional impairment.", "Ophthalmology"),
 ]

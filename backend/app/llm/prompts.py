@@ -259,6 +259,29 @@ SPECIALTY_GUIDANCE = {
         "- Code the lesion diagnosis (actinic keratosis L57.0, basal cell carcinoma C44.91, seborrheic "
         "keratosis L82.1); use uncertain-behavior (D48.5) when biopsying before a histologic diagnosis."
     ),
+    "Urology": (
+        "UROLOGY RULES:\n"
+        "- Code the procedure: ESWL lithotripsy = 50590; diagnostic cystourethroscopy = 52000; cystoscopy "
+        "with bladder-tumor resection = 52234; needle prostate biopsy = 55700.\n"
+        "- A diagnostic cystoscopy done in the same session as a therapeutic one is bundled — report only "
+        "the therapeutic code.\n"
+        "- Code the finding (calculus N20.x, bladder neoplasm C67.9, BPH N40.0/N40.1, hematuria R31.9)."
+    ),
+    "Anesthesia": (
+        "ANESTHESIA RULES:\n"
+        "- Report the anesthesia CPT for the procedure being anesthetized (e.g., 00790 upper-abdomen / "
+        "laparoscopic cholecystectomy; 01402 total knee arthroplasty; 01967 labor epidural).\n"
+        "- Append the physical-status modifier P1-P6 from the documentation.\n"
+        "- Code the underlying surgical/obstetric diagnosis (e.g., cholelithiasis K80.20, knee OA M17.11). "
+        "(Base-unit + time-unit calculation is handled downstream.)"
+    ),
+    "Ophthalmology": (
+        "OPHTHALMOLOGY RULES:\n"
+        "- Code the procedure: cataract extraction with IOL = 66984; intravitreal injection = 67028; laser "
+        "trabeculoplasty = 65855; retinal OCT = 92134.\n"
+        "- Append eye laterality (RT/LT) when documented.\n"
+        "- Code the diagnosis (cataract H25.9, macular degeneration H35.30, glaucoma H40.9)."
+    ),
     "Surgical": (
         "SURGICAL RULES:\n"
         "- Assign the CPT for the procedure actually performed (operative note).\n"

@@ -453,6 +453,104 @@ CHARTS = [
             "Electronically signed by Dr. E. Solis, MD, Dermatologist."
         ),
     ),
+    # 26 — Urology → expect 50590 + N20.0
+    dict(
+        mrn="UR10001", patient_name="Martin Quayle", age=55, sex="M", specialty="Urology",
+        modality="", encounter_type="", payer="Medicare", pos="24", dos="2026-04-26",
+        client="Riverbend Urology", source_system="Cerner", report_type="procedure_note",
+        scenario="Urology — extracorporeal shock wave lithotripsy",
+        chart_text=(
+            "UROLOGY PROCEDURE NOTE\n"
+            "INDICATION: 8 mm obstructing calculus in the right renal pelvis with flank pain, confirmed on CT.\n"
+            "PROCEDURE: Extracorporeal shock wave lithotripsy (ESWL) of the right renal calculus under "
+            "sedation; fluoroscopic localization.\n"
+            "FINDINGS: Stone fragmented into passable pieces; no immediate complication.\n"
+            "IMPRESSION: Right renal calculus treated with ESWL.\n"
+            "Electronically signed by Dr. A. Iyer, MD, Urologist."
+        ),
+    ),
+    # 27 — Urology → expect 52234 + C67.9
+    dict(
+        mrn="UR10002", patient_name="Eleanor Voss", age=69, sex="F", specialty="Urology",
+        modality="", encounter_type="", payer="Medicare", pos="24", dos="2026-04-26",
+        client="Riverbend Urology", source_system="Cerner", report_type="procedure_note",
+        scenario="Urology — cystoscopy with bladder tumor resection",
+        chart_text=(
+            "CYSTOSCOPY OPERATIVE NOTE\n"
+            "INDICATION: Gross hematuria with a small papillary bladder lesion seen on prior imaging.\n"
+            "PROCEDURE: Cystourethroscopy with fulguration and resection of a small bladder tumor on the "
+            "right lateral wall; specimen to pathology.\n"
+            "FINDINGS: Solitary ~1 cm papillary bladder tumor resected and fulgurated; bladder otherwise "
+            "normal.\n"
+            "IMPRESSION: Bladder neoplasm, resected.\n"
+            "Electronically signed by Dr. A. Iyer, MD, Urologist."
+        ),
+    ),
+    # 28 — Anesthesia → expect 00790 + K80.20
+    dict(
+        mrn="AN10001", patient_name="Howard Beck", age=51, sex="M", specialty="Anesthesia",
+        modality="", encounter_type="", payer="Medicare", pos="24", dos="2026-04-26",
+        client="Summit Surgical Center", source_system="PracticeAdmin", report_type="anesthesia_record",
+        scenario="Anesthesia — general anesthesia for laparoscopic cholecystectomy",
+        chart_text=(
+            "ANESTHESIA RECORD\n"
+            "PROCEDURE ANESTHETIZED: Laparoscopic cholecystectomy (upper-abdomen intraperitoneal).\n"
+            "PREOPERATIVE DIAGNOSIS: Symptomatic cholelithiasis.\n"
+            "ANESTHESIA: General endotracheal anesthesia. ASA physical status II (mild systemic disease, "
+            "controlled hypertension).\n"
+            "TIME: Anesthesia start 08:12, stop 09:34. Stable throughout; no complications.\n"
+            "Electronically signed by Dr. C. Romano, MD, Anesthesiologist."
+        ),
+    ),
+    # 29 — Anesthesia → expect 01402 + M17.11
+    dict(
+        mrn="AN10002", patient_name="Gloria Esposito", age=70, sex="F", specialty="Anesthesia",
+        modality="", encounter_type="", payer="Medicare", pos="24", dos="2026-04-26",
+        client="Summit Surgical Center", source_system="PracticeAdmin", report_type="anesthesia_record",
+        scenario="Anesthesia — anesthesia for total knee arthroplasty",
+        chart_text=(
+            "ANESTHESIA RECORD\n"
+            "PROCEDURE ANESTHETIZED: Total knee arthroplasty, right.\n"
+            "PREOPERATIVE DIAGNOSIS: Severe primary osteoarthritis, right knee.\n"
+            "ANESTHESIA: Spinal anesthesia with sedation. ASA physical status II.\n"
+            "TIME: Anesthesia start 07:40, stop 09:25. Uneventful.\n"
+            "Electronically signed by Dr. C. Romano, MD, Anesthesiologist."
+        ),
+    ),
+    # 30 — Ophthalmology → expect 66984 + H25.9
+    dict(
+        mrn="OP10001", patient_name="Walter Nakamura", age=74, sex="M", specialty="Ophthalmology",
+        modality="", encounter_type="", payer="Medicare", pos="24", dos="2026-04-26",
+        client="Riverbend Eye Center", source_system="eClinicalWorks", report_type="op_note",
+        scenario="Ophthalmology — cataract extraction with IOL",
+        chart_text=(
+            "OPHTHALMOLOGY OPERATIVE NOTE\n"
+            "INDICATION: Visually significant age-related cataract, right eye, with best-corrected acuity "
+            "20/80 and difficulty with driving and reading.\n"
+            "PROCEDURE: Extracapsular cataract extraction by phacoemulsification with insertion of a "
+            "posterior-chamber intraocular lens, right eye, single stage.\n"
+            "FINDINGS: Dense nuclear sclerotic cataract removed; IOL well centered.\n"
+            "IMPRESSION: Age-related cataract, right eye, treated with phaco + IOL.\n"
+            "Electronically signed by Dr. N. Abara, MD, Ophthalmologist."
+        ),
+    ),
+    # 31 — Ophthalmology → expect 67028 + H35.30
+    dict(
+        mrn="OP10002", patient_name="Sylvia Trent", age=78, sex="F", specialty="Ophthalmology",
+        modality="", encounter_type="", payer="Medicare", pos="11", dos="2026-04-26",
+        client="Riverbend Eye Center", source_system="eClinicalWorks", report_type="procedure_note",
+        scenario="Ophthalmology — intravitreal anti-VEGF injection",
+        chart_text=(
+            "OPHTHALMOLOGY PROCEDURE NOTE\n"
+            "INDICATION: Neovascular (wet) age-related macular degeneration, left eye, with subretinal fluid "
+            "on OCT.\n"
+            "PROCEDURE: Intravitreal injection of an anti-VEGF pharmacologic agent, left eye, under sterile "
+            "technique.\n"
+            "FINDINGS: Injection delivered without complication; patient tolerated well.\n"
+            "IMPRESSION: Macular degeneration, left eye, treated with intravitreal anti-VEGF.\n"
+            "Electronically signed by Dr. N. Abara, MD, Ophthalmologist."
+        ),
+    ),
 ]
 
 
@@ -639,4 +737,44 @@ GOLDEN_CASES = [
              "for basal cell carcinoma.\nPROCEDURE: 3 mm punch biopsy of the lesion, single site.\n"
              "PATHOLOGY: Basaloid nests with peripheral palisading — basal cell carcinoma.\nIMPRESSION: "
              "Basal cell carcinoma of skin (biopsy-confirmed).\nElectronically signed by dermatologist.")),
+    dict(specialty="Urology", irr=0.90, ambiguous=False,
+         truth={"icd": ["N20.0"], "cpt": ["50590"]},
+         chart_text=(
+             "UROLOGY PROCEDURE NOTE\nINDICATION: 8 mm obstructing right renal pelvis calculus on CT.\n"
+             "PROCEDURE: Extracorporeal shock wave lithotripsy (ESWL) of the right renal stone.\n"
+             "FINDINGS: Stone fragmented into passable pieces.\nIMPRESSION: Right renal calculus treated "
+             "with ESWL.\nElectronically signed by urologist.")),
+    dict(specialty="Urology", irr=0.88, ambiguous=False,
+         truth={"icd": ["C67.9"], "cpt": ["52234"]},
+         chart_text=(
+             "CYSTOSCOPY OPERATIVE NOTE\nINDICATION: Gross hematuria with a papillary bladder lesion.\n"
+             "PROCEDURE: Cystourethroscopy with fulguration/resection of a small bladder tumor.\nFINDINGS: "
+             "Solitary ~1 cm papillary bladder tumor resected.\nIMPRESSION: Bladder neoplasm, resected.\n"
+             "Electronically signed by urologist.")),
+    dict(specialty="Anesthesia", irr=0.90, ambiguous=False,
+         truth={"icd": ["K80.20"], "cpt": ["00790"]},
+         chart_text=(
+             "ANESTHESIA RECORD\nPROCEDURE ANESTHETIZED: Laparoscopic cholecystectomy (upper abdomen).\n"
+             "PREOPERATIVE DIAGNOSIS: Symptomatic cholelithiasis.\nANESTHESIA: General endotracheal; ASA "
+             "physical status II.\nTIME: 08:12-09:34, uneventful.\nElectronically signed by anesthesiologist.")),
+    dict(specialty="Anesthesia", irr=0.88, ambiguous=False,
+         truth={"icd": ["M17.11"], "cpt": ["01402"]},
+         chart_text=(
+             "ANESTHESIA RECORD\nPROCEDURE ANESTHETIZED: Total knee arthroplasty, right.\nPREOPERATIVE "
+             "DIAGNOSIS: Severe primary osteoarthritis, right knee.\nANESTHESIA: Spinal with sedation; ASA "
+             "physical status II.\nTIME: 07:40-09:25.\nElectronically signed by anesthesiologist.")),
+    dict(specialty="Ophthalmology", irr=0.90, ambiguous=False,
+         truth={"icd": ["H25.9"], "cpt": ["66984"]},
+         chart_text=(
+             "OPHTHALMOLOGY OPERATIVE NOTE\nINDICATION: Visually significant age-related cataract, right "
+             "eye, BCVA 20/80.\nPROCEDURE: Phacoemulsification with posterior-chamber intraocular lens "
+             "insertion, right eye, one stage.\nIMPRESSION: Age-related cataract treated with phaco + IOL.\n"
+             "Electronically signed by ophthalmologist.")),
+    dict(specialty="Ophthalmology", irr=0.88, ambiguous=False,
+         truth={"icd": ["H35.30"], "cpt": ["67028"]},
+         chart_text=(
+             "OPHTHALMOLOGY PROCEDURE NOTE\nINDICATION: Neovascular (wet) age-related macular degeneration, "
+             "left eye, with subretinal fluid on OCT.\nPROCEDURE: Intravitreal anti-VEGF injection, left "
+             "eye.\nIMPRESSION: Macular degeneration treated with intravitreal injection.\nElectronically "
+             "signed by ophthalmologist.")),
 ]
