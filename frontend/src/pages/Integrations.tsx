@@ -78,9 +78,20 @@ export default function Integrations() {
               {data.connectors.map((c) => <option key={c.name}>{c.name}</option>)}
             </select>
           </div>
-          <textarea className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm font-mono" rows={6} placeholder="Paste a clinical report…" value={form.report_text} onChange={(e) => set("report_text", e.target.value)} />
-          <div className="mt-2 flex items-center gap-2">
+          <textarea className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm font-mono" rows={6} placeholder="Paste a clinical report — or upload your own chart file below…" value={form.report_text} onChange={(e) => set("report_text", e.target.value)} />
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
             <button className="btn-ghost py-1.5" onClick={() => set("report_text", SAMPLE)}>Load sample</button>
+            <label className="btn-ghost py-1.5 cursor-pointer">
+              <FileInput size={14} /> Upload chart file (.txt)
+              <input
+                type="file" accept=".txt,.text,.md,text/plain" className="hidden"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (f) set("report_text", (await f.text()).trim());
+                  e.target.value = "";
+                }}
+              />
+            </label>
             <button className="btn-primary py-1.5" disabled={form.report_text.trim().length < 20 || ingest.isPending} onClick={() => ingest.mutate()}>
               {ingest.isPending ? <Spinner className="h-4 w-4" /> : <FileInput size={14} />} Ingest into queue
             </button>
@@ -131,7 +142,7 @@ function ScannedDocCard({ specs }: { specs: string[] }) {
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <input
-          type="file" accept="application/pdf,image/png,image/jpeg,image/webp"
+          type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
           onChange={(e) => { setFile(e.target.files?.[0] ?? null); setResult(null); }}
           className="text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-ace-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ace-700 hover:file:bg-ace-100"
         />
