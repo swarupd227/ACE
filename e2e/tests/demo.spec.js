@@ -48,18 +48,22 @@ test("ACE end-to-end product tour", async ({ page, request }) => {
   await page.addInitScript(() => localStorage.setItem("ace_role", "Admin"));
   const rad = await find(request, (e) => e.mrn === "RAD10001") || await find(request, (e) => e.specialty === "Radiology" && e.routing_lane === "STB");
   const em = await find(request, (e) => e.mrn === "EM20001") || await find(request, (e) => e.specialty === "E&M");
+  const ip = await find(request, (e) => e.mrn === "IP10001") || await find(request, (e) => e.specialty === "Inpatient (DRG)");
+  const hcc = await find(request, (e) => e.mrn === "HC10001") || await find(request, (e) => e.specialty === "HCC / Risk Adjustment");
 
-  // 1 · INTAKE / INTEGRATIONS ────────────────────────────────────────────────
+  // 1 · INTAKE / INTEGRATIONS — feeds + scanned-document OCR ──────────────────
   await page.goto("/integrations"); await settle(page);
-  await cap(page, "INTAKE", "Charts arrive from your PMS and EHR",
-    "Practice Admin, eClinicalWorks, Cerner — over FHIR, HL7, EDI or REST.");
-  await shot(page, "intake"); await wait(page, 4.5);
+  await cap(page, "INTAKE", "Charts arrive from your PMS and EHR — or as a scan",
+    "FHIR, HL7, EDI, REST — and scanned PDFs / faxes, transcribed live by the model (vision OCR).");
+  await shot(page, "intake"); await wait(page, 3);
+  await page.getByText("Ingest a scanned document", { exact: false }).first().scrollIntoViewIfNeeded().catch(() => {});
+  await wait(page, 2.5); await shot(page, "intake-scan");
 
   // 2 · WORKLIST (3 lanes) ─────────────────────────────────────────────────────
   await page.goto("/"); await settle(page);
   await cap(page, "WORKLIST", "Every chart, triaged into three lanes",
     "Straight-through billing, a quick QA check, or a coder — by how sure ACE is.");
-  await shot(page, "worklist"); await wait(page, 5);
+  await shot(page, "worklist"); await wait(page, 4);
 
   // 3 · ACE CODES THE CHART — brief glimpse of the live agent ─────────────────
   await page.goto(`/encounter/${rad.id}`); await settle(page);
@@ -94,13 +98,29 @@ test("ACE end-to-end product tour", async ({ page, request }) => {
   await cap(page, "AUDIT", "Defensible by default — the audit packet",
     "Each step, who did it, which model and when — ready for an auditor.");
   await page.getByText("Audit packet", { exact: false }).first().click().catch(() => {});
-  await wait(page, 1); await shot(page, "audit"); await wait(page, 3.5);
+  await wait(page, 1); await shot(page, "audit"); await wait(page, 3);
+
+  // 6b · FIVE PAYMENT MODELS — DRG, then RAF ──────────────────────────────────
+  if (ip) {
+    await page.goto(`/encounter/${ip.id}`); await settle(page);
+    await cap(page, "PAYMENT MODELS", "Beyond pro-fee — a real MS-DRG grouper",
+      "Principal dx → MDC → surgical or medical → CC/MCC severity → the DRG and its weight, fully traced.");
+    await page.getByText("MS-DRG", { exact: false }).first().scrollIntoViewIfNeeded().catch(() => {});
+    await wait(page, 4.5); await shot(page, "drg-card");
+  }
+  if (hcc) {
+    await page.goto(`/encounter/${hcc.id}`); await settle(page);
+    await cap(page, "PAYMENT MODELS", "HCC risk adjustment, anesthesia units, facility APCs",
+      "Five payment models on one engine — RAF scores, unit math and OPPS pricing, each deterministic and audited.");
+    await page.getByText("CMS-HCC", { exact: false }).first().scrollIntoViewIfNeeded().catch(() => {});
+    await wait(page, 4.5); await shot(page, "hcc-card");
+  }
 
   // 7 · CONTROL TOWER (workflow / actions) ────────────────────────────────────
   await page.goto("/control-tower"); await settle(page);
   await cap(page, "CONTROL TOWER", "Queues, SLA aging and assignment",
     "Supervisors see what's at risk and assign work across the team.");
-  await shot(page, "control-tower"); await wait(page, 5);
+  await shot(page, "control-tower"); await wait(page, 4);
 
   // 8 · CDI CO-PILOT ──────────────────────────────────────────────────────────
   await page.goto(`/encounter/${em.id}`); await settle(page);
@@ -117,13 +137,24 @@ test("ACE end-to-end product tour", async ({ page, request }) => {
   await page.goto("/learning"); await settle(page);
   await cap(page, "LEARNING", "It improves from your coders' corrections",
     "A fix becomes an example that quietly shifts later, similar charts.");
-  await shot(page, "learning"); await wait(page, 4.5);
+  await shot(page, "learning"); await wait(page, 4);
 
-  // 10 · ADMIN — CONFIGURATION ────────────────────────────────────────────────
+  // 9b · GLOBAL AUDIT LOG ─────────────────────────────────────────────────────
+  await page.goto("/audit"); await settle(page);
+  await cap(page, "AUDIT LOG", "One timeline for everything that happened",
+    "Every coding decision and every governance change — filterable, searchable, exportable.");
+  await shot(page, "audit-log"); await wait(page, 4);
+
+  // 10 · ADMIN — CONFIGURATION + THE REASONING MODEL ──────────────────────────
   await page.goto("/admin"); await settle(page);
   await cap(page, "ADMIN", "You configure the engine — not us",
     "Routing thresholds, confidence weights, SLAs, autonomy limits — changed at runtime.");
-  await shot(page, "admin-config"); await wait(page, 5);
+  await shot(page, "admin-config"); await wait(page, 3.5);
+  await page.getByText("Reasoning Model", { exact: false }).first().click().catch(() => {});
+  await wait(page, 1);
+  await cap(page, "ADMIN", "Even the reasoning model is yours to switch",
+    "Change provider or model at runtime and test the connection — API keys never leave the environment.");
+  await shot(page, "admin-llm"); await wait(page, 4);
 
   // 11 · KNOWLEDGE GRAPH BUILDER ──────────────────────────────────────────────
   await page.goto("/policy"); await settle(page);
@@ -131,14 +162,14 @@ test("ACE end-to-end product tour", async ({ page, request }) => {
   await wait(page, 1);
   await cap(page, "KNOWLEDGE", "Build your knowledge graph in the app",
     "Add a concept, map it to codes, draw a relationship — the agent uses it on the next chart.");
-  await shot(page, "kg-builder"); await wait(page, 4.5);
+  await shot(page, "kg-builder"); await wait(page, 4);
 
   // 12 · REFERENCE DATA + CHANGE LOG ──────────────────────────────────────────
   await page.getByText("Reference Data", { exact: false }).first().click().catch(() => {});
   await wait(page, 1);
   await cap(page, "GOVERNANCE", "Edit the code sets and rules — every change is logged",
     "Client overlays drive the gates; the change log records who changed what, and when.");
-  await shot(page, "reference-data"); await wait(page, 4.5);
+  await shot(page, "reference-data"); await wait(page, 4);
 
   // 13 · ROLES (RBAC reshapes the app) — switch live on the worklist ──────────
   await page.goto("/"); await settle(page);
@@ -151,11 +182,15 @@ test("ACE end-to-end product tour", async ({ page, request }) => {
   await roleSel.selectOption({ label: "Admin" }).catch(() => {});
   await wait(page, 0.6);
 
-  // 14 · OUTCOMES DASHBOARD ───────────────────────────────────────────────────
+  // 14 · OUTCOMES DASHBOARD — including model performance / drift ─────────────
   await page.goto("/dashboard"); await settle(page);
   await cap(page, "OUTCOMES", "Measured — not claimed",
     "Auto-bill rate, calibrated accuracy, turnaround, and the maturity pathway.");
-  await shot(page, "dashboard"); await wait(page, 4.5);
+  await shot(page, "dashboard"); await wait(page, 3.5);
+  await page.getByText("Model performance", { exact: false }).first().scrollIntoViewIfNeeded().catch(() => {});
+  await cap(page, "OUTCOMES", "The model is measured too",
+    "Real token usage, latency, confidence and override rate — per model version, so drift is visible.");
+  await wait(page, 4); await shot(page, "dashboard-model");
 
   // 15 · CLOSE ────────────────────────────────────────────────────────────────
   await cap(page, "ACE", "Grounded, cited, and yours to run",

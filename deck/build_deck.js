@@ -133,7 +133,7 @@ function arrow(slide, x, y, w) {
     ["Fine-tune and distil to smaller models on Azure AI Foundry, US-region.",
      "Frontier model today, with a clear path to US-region SLMs — the architecture is ready for it."],
     ["Start with Radiology, expand to E&M, ED and Pathology, and move quickly.",
-     "Radiology-led and already multi-specialty; new specialties onboard via config, not a rebuild."],
+     "Sixteen tracks today — fourteen outpatient specialties plus inpatient DRG and HCC risk adjustment; new specialties onboard via config, not a rebuild."],
   ];
   const x0 = 0.5, w = 12.33, cW = [5.6, 6.73], y0 = 1.72, rh = 0.66;
   s.addShape(pres.shapes.RECTANGLE, { x: x0, y: y0, w, h: 0.4, fill: { color: C.navy }, line: { type: "none" } });
@@ -179,7 +179,7 @@ function arrow(slide, x, y, w) {
   header(s, "Functional Flow", "How a chart moves — from intake to billing, with a feedback loop");
   const y = 1.5, bh = 0.92, bw = 1.95;
   const xs = [0.5, 2.62, 4.74, 6.86, 8.98];
-  flowBox(s, xs[0], y, bw, bh, "Intake", "from the PMS / EHR (FHIR · HL7 · EDI)", C.navy);
+  flowBox(s, xs[0], y, bw, bh, "Intake", "PMS / EHR feeds — or a scanned PDF, read by the model", C.navy);
   flowBox(s, xs[1], y, bw, bh, "Is it codable?", "right docs, right specialty, no exclusions", C.navy);
   flowBox(s, xs[2], y, bw, bh, "ACE codes it", "read → extract → code → check", C.tealDk);
   flowBox(s, xs[3], y, bw, bh, "How sure is it?", "a confidence score it trusts", C.navy);
@@ -226,7 +226,7 @@ function arrow(slide, x, y, w) {
   const s = pres.addSlide();
   header(s, "What the AI Actually Does", "Six places the model does the heavy lifting");
   const rows = [
-    ["Reads and summarises the chart", "Turns a free-text report into structured findings, procedures, laterality and contrast — a summary a coder can scan in seconds."],
+    ["Reads and summarises the chart", "Turns a free-text report — or a scanned PDF / fax it transcribes itself — into structured findings, procedures, laterality and contrast."],
     ["Picks codes it can back up", "It can only choose from codes the knowledge graph surfaced, so it can't invent one."],
     ["Cites every code", "Each code is tied to the line in the chart and the guideline behind it — and those citations are checked before anything is accepted."],
     ["Double-checks the hard ones", "On ambiguous or multi-procedure charts it codes more than once and compares, catching the confident-but-wrong cases."],
@@ -271,7 +271,7 @@ function arrow(slide, x, y, w) {
   y = 3.66;
   tlabel(2.9, y - 0.24, "WHERE THE WORK HAPPENS", C.tealDk);
   box(2.9, y, 4.2, 1.08, "FastAPI backend (Python 3.12)", "the coding agent, the rule checks, the live trace, roles and the change log", C.tealDk, C.white);
-  box(7.4, y, 2.2, 1.08, "Reasoning model", "Anthropic Claude — Sonnet by default, Opus on hard charts", C.navy, C.white);
+  box(7.4, y, 2.2, 1.08, "Reasoning model", "Claude today — switchable in Admin at runtime; keys stay in the environment", C.navy, C.white);
   box(9.8, y, 2.2, 1.08, "Safe fallback", "no model key? it routes to a human instead of guessing", C.white);
   y = 4.96;
   tlabel(2.9, y - 0.24, "WHAT IT KNOWS", C.navy);
@@ -407,15 +407,45 @@ function arrow(slide, x, y, w) {
   footer(s, 10);
 })();
 
-// ───────────────────────── 11 · DEFENSIBILITY & GOVERNANCE ─────────────────────────
+// ───────────────────────── 11 · FIVE PAYMENT MODELS ─────────────────────────
+(() => {
+  const s = pres.addSlide();
+  header(s, "Beyond Pro-Fee", "Five payment models, one engine — each deterministic and audited");
+  s.addText("Coding isn't one game. The same agentic spine now prices the five ways American healthcare actually pays — each with its own rule engine, a result card on the chart, and a step-by-step trace.",
+    { x: 0.5, y: 1.3, w: 12.33, h: 0.45, fontFace: BODY, fontSize: 11.5, color: C.muted, margin: 0, lineSpacingMultiple: 1.0 });
+  const models = [
+    ["Outpatient pro-fee", "Fourteen specialties — ICD-10 + CPT/HCPCS line-items with the NCCI, MUE, modifier and necessity checks.", C.tealDk],
+    ["Inpatient MS-DRG", "ICD-10-PCS procedures and a real grouper: principal dx → MDC → surgical or medical → CC/MCC severity → DRG and weight.", C.navy],
+    ["HCC risk adjustment", "Diagnoses map to HCCs, hierarchies resolve, RAF = demographics + coefficients. A natural extension of RevCap.", C.teal],
+    ["Anesthesia units", "(Base + time + modifying units) × conversion factor — time read from the documented start and stop, never estimated.", C.navy2],
+    ["Facility APC / OPPS", "The same chart, two claims: the physician's fee and the facility fee — status indicators, packaging, comprehensive APCs.", C.slate],
+  ];
+  const cw = 2.4, gap = 0.085, x0 = 0.5, cy = 1.95, chh = 3.3;
+  models.forEach(([t, d, col], i) => {
+    const x = x0 + i * (cw + gap);
+    card(s, x, cy, cw, chh);
+    s.addShape(pres.shapes.RECTANGLE, { x, y: cy, w: cw, h: 0.12, fill: { color: col }, line: { type: "none" } });
+    s.addText(String(i + 1), { x: x + 0.18, y: cy + 0.3, w: 0.7, h: 0.55, fontFace: HEAD, fontSize: 21, bold: true, color: col, margin: 0 });
+    s.addText(t, { x: x + 0.18, y: cy + 0.85, w: cw - 0.36, h: 0.65, fontFace: BODY, fontSize: 12.5, bold: true, color: C.navy, margin: 0, lineSpacingMultiple: 0.95 });
+    s.addText(d, { x: x + 0.18, y: cy + 1.5, w: cw - 0.36, h: 1.7, fontFace: BODY, fontSize: 9.8, color: C.muted, valign: "top", margin: 0, lineSpacingMultiple: 1.0 });
+  });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 0.5, y: 5.5, w: 12.33, h: 1.3, rectRadius: 0.06, fill: { color: C.navy }, line: { type: "none" } });
+  s.addText([
+    { text: "All on public CMS artifacts.  ", options: { bold: true, color: C.white } },
+    { text: "DRG weights, the HCC model, anesthesia base units and Addendum B are published by CMS — so the inpatient and payment engines are even easier to defend than CPT. The evaluation harness scores DRG, RAF, unit and facility accuracy alongside code accuracy. And when an engine can't resolve a payment, the chart goes to a person — it never guesses.", options: { color: "CADCFC" } },
+  ], { x: 0.78, y: 5.5, w: 11.8, h: 1.3, fontFace: BODY, fontSize: 11.5, valign: "middle", margin: 0, lineSpacingMultiple: 1.02 });
+  footer(s, 11);
+})();
+
+// ───────────────────────── 12 · DEFENSIBILITY & GOVERNANCE ─────────────────────────
 (() => {
   const s = pres.addSlide();
   header(s, "Trust by Design", "Why every claim can be explained and defended");
   const items = [
     ["Every code is cited", "Each accepted code links back to the chart line and the guideline that justify it — coders see the why."],
-    ["A complete audit trail", "Each step, who did it, which model and when — the record you'd hand to a RAC auditor, written automatically."],
+    ["A complete audit trail", "Each step, who did it, which model and when — and one Audit Log screen that merges coding and governance events into a single, filterable timeline."],
     ["Every admin change is logged", "Config, policy, knowledge-graph, reference-data and gold-set edits — all recorded with who changed what, and when."],
-    ["Honest accuracy numbers", "Measured against adjudicated consensus, with the limit of where coders themselves disagree — no inflated claims."],
+    ["Honest accuracy numbers", "Measured against adjudicated consensus — plus live per-model metrics (tokens, latency, override rate), so drift shows up when you switch models."],
     ["Overrides keep the reason", "When a coder changes a code, the rationale is captured — feeding both the audit trail and the learning loop."],
     ["Roles control who can do what", "Admin, coder, QA, CDI, supervisor — both the menus and the buttons; maps to your SSO in production."],
   ];
@@ -428,10 +458,10 @@ function arrow(slide, x, y, w) {
     s.addText(r[0], { x: x + 0.35, y: y + 0.2, w: cw - 0.6, h: 0.4, fontFace: BODY, fontSize: 14, bold: true, color: C.navy, margin: 0 });
     s.addText(r[1], { x: x + 0.35, y: y + 0.62, w: cw - 0.6, h: 0.8, fontFace: BODY, fontSize: 11.5, color: C.muted, valign: "top", margin: 0, lineSpacingMultiple: 1.0 });
   });
-  footer(s, 11);
+  footer(s, 12);
 })();
 
-// ───────────────────────── 12 · DESIGN RATIONALE ─────────────────────────
+// ───────────────────────── 13 · DESIGN RATIONALE ─────────────────────────
 (() => {
   const s = pres.addSlide();
   header(s, "Design Rationale", "The big choices — what we weighed, and why we landed where we did");
@@ -461,10 +491,10 @@ function arrow(slide, x, y, w) {
     s.addText(r[2], { x: x0 + cW[0] + cW[1] + 0.15, y, w: cW[2] - 0.25, h: rh, fontFace: BODY, fontSize: 10, color: C.text, valign: "middle", margin: 0, lineSpacingMultiple: 0.92 });
     y += rh;
   });
-  footer(s, 12);
+  footer(s, 13);
 })();
 
-// ───────────────────────── 13 · SECURITY / DEPLOYMENT ─────────────────────────
+// ───────────────────────── 14 · SECURITY / DEPLOYMENT ─────────────────────────
 (() => {
   const s = pres.addSlide();
   header(s, "Security, Deployment & Data", "Where it runs, what it protects, and the licensing reality");
@@ -506,10 +536,10 @@ function arrow(slide, x, y, w) {
     { text: "Straight about what's demo-scale:  ", options: { bold: true, color: C.navy } },
     { text: "the mechanisms are real; the volume of gold charts, the model retraining and denial-prevention grow after the demo. Nothing is faked, and if the model isn't available it routes to a person rather than guess.", options: { color: C.text } },
   ], { x: 0.75, y: 6.15, w: 11.9, h: 0.75, fontFace: BODY, fontSize: 11, valign: "middle", margin: 0, lineSpacingMultiple: 0.98 });
-  footer(s, 13);
+  footer(s, 14);
 })();
 
-// ───────────────────────── 14 · ROADMAP ─────────────────────────
+// ───────────────────────── 15 · ROADMAP ─────────────────────────
 (() => {
   const s = pres.addSlide();
   header(s, "Adoption Path", "Earn autonomy — don't assume it");
@@ -537,10 +567,10 @@ function arrow(slide, x, y, w) {
     s.addText(v, { x, y: 5.5, w: 2.8, h: 0.55, fontFace: HEAD, fontSize: 22, bold: true, color: C.teal, margin: 0 });
     s.addText(l, { x, y: 6.05, w: 2.8, h: 0.4, fontFace: BODY, fontSize: 11, color: "CADCFC", margin: 0 });
   });
-  footer(s, 14);
+  footer(s, 15);
 })();
 
-// ───────────────────────── 15 · WHY NOUS / CLOSE ─────────────────────────
+// ───────────────────────── 16 · WHY NOUS / CLOSE ─────────────────────────
 (() => {
   const s = pres.addSlide();
   s.background = { color: C.bgDark };
