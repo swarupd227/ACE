@@ -661,6 +661,27 @@ CHARTS = [
             "Electronically signed by Dr. S. Whitfield, MD, Internal Medicine."
         ),
     ),
+    # 38 — GI / Endoscopy at HOSPITAL OUTPATIENT (POS 22) → facility APC card alongside pro-fee.
+    # Both scopes are comprehensive-APC (J1): facility pays ONE session payment (45385, APC 5312),
+    # the EGD is packaged into it — while the pro-fee claim reports both procedures.
+    dict(
+        mrn="GI90003", patient_name="Theodore Vance", age=63, sex="M", specialty="GI / Endoscopy",
+        modality="", encounter_type="", payer="Medicare", pos="22", dos="2026-05-14",
+        client="Mercy General Hospital", source_system="Cerner", report_type="endoscopy_report",
+        scenario="GI double scope at hospital outpatient — C-APC packaging (facility vs pro-fee)",
+        chart_text=(
+            "ENDOSCOPY REPORT — HOSPITAL OUTPATIENT GI SUITE\n"
+            "INDICATION: 63-year-old man with iron-deficiency anemia and a positive FIT test; "
+            "same-session upper and lower endoscopy for bidirectional evaluation.\n"
+            "PROCEDURE 1: Colonoscopy to the cecum. A 9 mm pedunculated polyp in the sigmoid colon "
+            "was removed by snare technique and retrieved.\n"
+            "PROCEDURE 2: Esophagogastroduodenoscopy to the second portion of the duodenum. Antral "
+            "erythema; cold-forceps biopsies of the gastric antrum were obtained.\n"
+            "FINDINGS: Sigmoid polyp (snare polypectomy); erythematous antral mucosa, biopsied.\n"
+            "IMPRESSION: Colon polyp, removed. Gastritis, biopsy pending.\n"
+            "Electronically signed by Dr. H. Nakagawa, MD, Gastroenterology."
+        ),
+    ),
 ]
 
 
@@ -940,4 +961,14 @@ GOLDEN_CASES = [
              "acute exacerbation last month, now at baseline — continue tiotropium, cessation counseling.\n"
              "2. Atrial fibrillation — rate-controlled, continue apixaban and metoprolol.\n3. Hyperlipidemia "
              "— at goal, continue atorvastatin.\nElectronically signed by internist.")),
+    # Facility truth: both scopes are J1 → comprehensive APC pays one session payment
+    # (45385 → APC 5312 $1,015.00); the EGD packages into it. Eval runs GI golden at POS 22.
+    dict(specialty="GI / Endoscopy", irr=0.86, ambiguous=False,
+         truth={"icd": ["K63.5"], "cpt": ["45385", "43239"], "facility_total": 1015.00},
+         chart_text=(
+             "ENDOSCOPY REPORT — HOSPITAL OUTPATIENT GI SUITE\nINDICATION: Iron-deficiency anemia with "
+             "positive FIT; same-session bidirectional evaluation.\nPROCEDURE 1: Colonoscopy to the cecum; "
+             "8 mm sigmoid polyp removed by snare technique.\nPROCEDURE 2: EGD to the duodenum; antral "
+             "erythema, cold-forceps gastric biopsies obtained.\nIMPRESSION: Colon polyp removed; "
+             "gastritis, biopsy pending.\nElectronically signed by gastroenterologist.")),
 ]

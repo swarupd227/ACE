@@ -89,7 +89,16 @@ export interface Run {
   drg: DrgResult | null;
   hcc: HccResult | null;
   anes: AnesResult | null;
+  apc: ApcResult | null;
   codes: CodeResult[];
+}
+export interface ApcResult {
+  lines: { code: string; si: string; apc: string; apc_title: string; rate: number; pct: number; allowed: number }[];
+  packaged: { code: string; si: string; note: string }[];
+  not_covered: string[];
+  facility_total: number;
+  trace: { step: string; detail: string }[];
+  resolved: boolean;
 }
 export interface AnesResult {
   code: string;

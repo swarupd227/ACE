@@ -84,6 +84,11 @@ def seed_all(force: bool = False) -> dict:
         for code, units, desc in rd.QUAL_CIRC:
             db.add(models.QualCircumstance(code=code, units=units, description=desc))
 
+        # facility / OPPS reference data (Addendum-B subset)
+        for code, si, apc, title, rate in rd.APC_ADDENDUM_B:
+            db.add(models.ApcEntry(code=code, status_indicator=si, apc=apc,
+                                   apc_title=title, national_rate=rate))
+
         # golden set
         for g in charts.GOLDEN_CASES:
             db.add(models.GoldenCase(specialty=g["specialty"], chart_text=g["chart_text"],
@@ -264,6 +269,14 @@ def seed_missing() -> dict:
             if code not in qcs:
                 db.add(models.QualCircumstance(code=code, units=units, description=desc))
                 qcs.add(code); bump("qual_circumstances")
+
+        # facility / OPPS — Addendum-B entries by code
+        apcs = {a.code for a in db.scalars(select(models.ApcEntry)).all()}
+        for code, si, apc, title, rate in rd.APC_ADDENDUM_B:
+            if code not in apcs:
+                db.add(models.ApcEntry(code=code, status_indicator=si, apc=apc,
+                                       apc_title=title, national_rate=rate))
+                apcs.add(code); bump("apc_entries")
 
         # golden set — key (specialty, chart_text)
         gold = {(g.specialty, g.chart_text) for g in db.scalars(select(models.GoldenCase)).all()}

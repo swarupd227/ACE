@@ -45,6 +45,13 @@ def anes_to_dict(a: models.AnesResult) -> dict:
     }
 
 
+def apc_to_dict(p: models.ApcResult) -> dict:
+    return {
+        "lines": p.lines, "packaged": p.packaged, "not_covered": p.not_covered,
+        "facility_total": p.facility_total, "trace": p.trace, "resolved": p.resolved,
+    }
+
+
 def run_to_dict(run: models.CodingRun) -> dict:
     modified = bool(
         run.escalated
@@ -63,5 +70,6 @@ def run_to_dict(run: models.CodingRun) -> dict:
         "drg": drg_to_dict(run.drg_result) if run.drg_result else None,
         "hcc": hcc_to_dict(run.hcc_result) if run.hcc_result else None,
         "anes": anes_to_dict(run.anes_result) if run.anes_result else None,
+        "apc": apc_to_dict(run.apc_result) if run.apc_result else None,
         "codes": [code_to_dict(c) for c in sorted(run.codes, key=lambda x: (x.code_system, x.sequence))],
     }

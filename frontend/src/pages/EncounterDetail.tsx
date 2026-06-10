@@ -413,6 +413,76 @@ function AnesCard({ anes }: { anes: NonNullable<Detail["run"]>["anes"] }) {
   );
 }
 
+function ApcCard({ apc }: { apc: NonNullable<Detail["run"]>["apc"] }) {
+  const [open, setOpen] = useState(false);
+  if (!apc) return null;
+  return (
+    <div className="card overflow-hidden border-l-4 border-sky-500">
+      <div className="p-4 bg-ace-900 text-white">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-slate-300">Facility side · APC / OPPS</div>
+            <div className="text-2xl font-extrabold mt-0.5">${apc.facility_total.toFixed(2)}</div>
+            <div className="text-sm text-slate-200">
+              {apc.lines.length} payable line{apc.lines.length === 1 ? "" : "s"} · {apc.packaged.length} packaged
+            </div>
+          </div>
+          <div className="text-right text-xs text-slate-300 max-w-[200px]">
+            Same chart, two claims: the coded pro-fee lines above + this facility estimate (Addendum-B
+            status indicators).
+          </div>
+        </div>
+      </div>
+      <div className="p-4 space-y-2 text-sm">
+        {apc.lines.map((l) => (
+          <div key={l.code} className="flex items-center justify-between gap-2">
+            <div>
+              <span className="font-mono font-semibold text-slate-700">{l.code}</span>{" "}
+              <span className="pill bg-sky-50 text-sky-700 ring-1 ring-sky-200">SI {l.si}</span>{" "}
+              <span className="text-slate-500 text-xs">APC {l.apc} · {l.apc_title}</span>
+              {l.pct < 100 && <span className="ml-1 text-xs text-amber-600 font-semibold">{l.pct}% (multi-procedure)</span>}
+            </div>
+            <span className="font-semibold tabular-nums text-slate-700">${l.allowed.toFixed(2)}</span>
+          </div>
+        ))}
+        {apc.packaged.map((p) => (
+          <div key={p.code} className="flex items-center justify-between gap-2 text-slate-400">
+            <div>
+              <span className="font-mono">{p.code}</span>{" "}
+              <span className="pill bg-slate-100 text-slate-500 ring-1 ring-slate-200">SI {p.si}</span>{" "}
+              <span className="text-xs">{p.note}</span>
+            </div>
+            <span className="tabular-nums">$0.00</span>
+          </div>
+        ))}
+        {apc.not_covered.length > 0 && (
+          <div className="text-xs text-amber-600">
+            Outside the curated Addendum-B subset: <span className="font-mono">{apc.not_covered.join(", ")}</span>
+            {" "}— full file in production.
+          </div>
+        )}
+      </div>
+      <button
+        className="w-full px-4 py-2 border-t border-slate-200 text-xs text-slate-500 hover:bg-slate-50 flex items-center justify-center gap-1"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Network size={13} /> {open ? "Hide" : "Show"} OPPS pricing logic
+        <ChevronRight size={13} className={clsx("transition-transform", open && "rotate-90")} />
+      </button>
+      {open && (
+        <ol className="px-5 pb-4 pt-1 space-y-1.5">
+          {apc.trace.map((t, i) => (
+            <li key={i} className="text-xs text-slate-600 flex gap-2">
+              <span className="font-mono text-ace-600 shrink-0 w-28">{t.step}</span>
+              <span>{t.detail}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 export default function EncounterDetail() {
   const { id } = useParams();
   const { data, isLoading } = useQuery({ queryKey: ["encounter", id], queryFn: () => api.encounter(id!) });
@@ -527,6 +597,7 @@ export default function EncounterDetail() {
           {run?.drg && <DrgCard drg={run.drg} />}
           {run?.hcc && <HccCard hcc={run.hcc} />}
           {run?.anes && <AnesCard anes={run.anes} />}
+          {run?.apc && <ApcCard apc={run.apc} />}
           {run?.codes.map((c) => (
             <CodeCard key={c.id} code={c} selected={selected === c.id} onSelect={() => setSelected(c.id)} onHighlight={setHighlight} />
           ))}

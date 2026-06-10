@@ -94,6 +94,8 @@ class CodingRun(Base):
         back_populates="run", uselist=False, cascade="all,delete-orphan")
     anes_result: Mapped["AnesResult | None"] = relationship(
         back_populates="run", uselist=False, cascade="all,delete-orphan")
+    apc_result: Mapped["ApcResult | None"] = relationship(
+        back_populates="run", uselist=False, cascade="all,delete-orphan")
 
 
 class CodeResult(Base):
@@ -436,6 +438,46 @@ class AnesResult(Base):
     resolved: Mapped[bool] = mapped_column(Boolean, default=False)
 
     run: Mapped[CodingRun] = relationship(back_populates="anes_result")
+
+
+# ---------------------------------------------------------------------------
+# Facility vs Professional — hospital outpatient (APC / OPPS), Tier-B #4.
+# The SAME coded chart drives two claims: the professional fee (physician work,
+# modifier 26 — what ACE already codes) and the FACILITY fee paid under the
+# Outpatient Prospective Payment System: each HCPCS/CPT carries a status
+# indicator from CMS Addendum B (public) that drives packaging, multiple-
+# procedure discounting and comprehensive-APC logic. Curated Addendum-B subset
+# with representative rates; the payment logic is real. ASC (POS 24) is a
+# different fee schedule and is honestly out of scope.
+# ---------------------------------------------------------------------------
+class ApcEntry(Base):
+    """One CMS Addendum-B row: code → status indicator + APC + national rate."""
+    __tablename__ = "apc_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(8), unique=True)
+    status_indicator: Mapped[str] = mapped_column(String(4))  # J1|T|S|V|N|Q1
+    apc: Mapped[str] = mapped_column(String(8), default="")
+    apc_title: Mapped[str] = mapped_column(String(120), default="")
+    national_rate: Mapped[float] = mapped_column(Float, default=0.0)
+    source: Mapped[str] = mapped_column(String(40), default="CMS-AddendumB")
+
+
+class ApcResult(Base):
+    """The OPPS pricer's facility-side output for one coding run."""
+    __tablename__ = "apc_results"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    run_id: Mapped[str] = mapped_column(ForeignKey("coding_runs.id"), unique=True)
+    encounter_id: Mapped[str] = mapped_column(String(32), index=True)
+    lines: Mapped[list] = mapped_column(JSONB, default=list)      # payable [{code,si,apc,apc_title,rate,pct,allowed}]
+    packaged: Mapped[list] = mapped_column(JSONB, default=list)   # [{code,si,note}] no separate payment
+    not_covered: Mapped[list] = mapped_column(JSONB, default=list)  # codes outside the curated subset
+    facility_total: Mapped[float] = mapped_column(Float, default=0.0)
+    trace: Mapped[list] = mapped_column(JSONB, default=list)
+    resolved: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    run: Mapped[CodingRun] = relationship(back_populates="apc_result")
 
 
 # ---------------------------------------------------------------------------

@@ -168,6 +168,19 @@ nobody hands you a configurable platform" beat.*
   it)."* Point at the **unit card**: base + time + modifying = total units × $/unit = estimated allowable.
   Expand **"Show unit calculation"** for the audited math. *"The conversion factor is admin-configurable —
   it varies by locality and payer."* The Evaluation Harness scores **units accuracy** for these cases.
+- **Facility vs Professional (APC / OPPS) — two claims from one chart** → open **GI90003** (double scope at
+  hospital outpatient). *"At a hospital outpatient department, the same chart produces TWO claims: the
+  professional fee — the coded lines you see, both scopes — and the **facility fee under OPPS**. Every code
+  carries a status indicator from CMS Addendum B, and the pricer applies the real payment logic: both scopes
+  here are **comprehensive-APC (J1)**, so the facility gets **one session payment** — the colonoscopy's APC —
+  and the EGD packages into it. Pro-fee pays both; facility pays once. That asymmetry is exactly what
+  out-patient CDI teams manage."* Then open a **Radiology** chart: the pro-fee line carries **modifier 26**
+  (the read), and the facility card shows the technical side — with the chest X-ray **conditionally packaged
+  (Q1)** when a paying service is on the claim, or paid alone when it isn't. ED charts show the visit-level
+  V-code APCs and **packaged add-ons** (99292). *"Status indicators, packaging, multiple-procedure
+  discounting and C-APCs — Addendum B is public CMS data, curated subset here, full quarterly file in
+  production. And note: the facility lens never changes clinical routing — it's a parallel payment view."*
+  The Evaluation Harness scores **facility-estimate accuracy** for these cases.
 - **Change Log** tab (Admin / Configuration) → *"And every one of these edits is itself governed."* Show
   the append-only trail: who (by role), when, what area, action, and target — for config, policy, KG,
   guideline, reference-data, and golden-set edits. *"Your audit and compliance teams asked who changed the

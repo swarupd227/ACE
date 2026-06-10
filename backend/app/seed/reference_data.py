@@ -345,8 +345,9 @@ PAYER_POLICY = [
      "documented dysplasia.", False, "", ["N87", "R87"]),
     ("Medicare", "45385", "Colonoscopy with polypectomy covered for polyp, GI bleeding, or screening "
      "findings; report the most extensive technique performed.", False, "", ["K63", "Z12", "K57"]),
-    ("Medicare", "43239", "EGD with biopsy covered for dyspepsia, reflux, or suspected mucosal disease "
-     "requiring tissue diagnosis.", False, "", ["K21", "K29", "K25"]),
+    ("Medicare", "43239", "EGD with biopsy covered for dyspepsia, reflux, suspected mucosal disease "
+     "requiring tissue diagnosis, or evaluation of iron-deficiency anemia / GI blood loss.",
+     False, "", ["K21", "K29", "K25", "D50", "K92"]),
     ("Medicare", "17000", "Destruction of premalignant lesions (actinic keratosis) covered; first lesion "
      "17000, additional lesions reported separately.", False, "", ["L57"]),
     ("Medicare", "11104", "Skin biopsy covered for a lesion suspicious for malignancy or of uncertain "
@@ -720,4 +721,65 @@ QUAL_CIRC = [
     ("99116", 5, "Total body hypothermia"),
     ("99135", 5, "Controlled hypotension"),
     ("99140", 2, "Emergency conditions"),
+]
+
+
+# ===========================================================================
+# Facility vs Professional — APC / OPPS (Tier-B #4). CMS Addendum B (status
+# indicators, APC assignments) is a PUBLIC artifact published quarterly; rates
+# here are representative national amounts. The packaging / discounting /
+# C-APC payment logic is real. ASC (POS 24) = different fee schedule, excluded.
+# (code, status_indicator, apc, apc_title, national_rate)
+# SI: J1 comprehensive · T discounted surgical · S significant · V visit ·
+#     N packaged · Q1 conditionally packaged
+# ===========================================================================
+APC_ADDENDUM_B = [
+    # Imaging without contrast — Q1 (packaged when a surgical/visit service is on the claim)
+    ("71045", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("71046", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("73030", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("73110", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("73562", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("73564", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("74018", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("70450", "Q1", "5522", "Level 2 Imaging without Contrast", 120.00),
+    ("71250", "Q1", "5522", "Level 2 Imaging without Contrast", 120.00),
+    ("74150", "Q1", "5522", "Level 2 Imaging without Contrast", 120.00),
+    ("72192", "Q1", "5522", "Level 2 Imaging without Contrast", 120.00),
+    ("74176", "Q1", "5523", "Level 3 Imaging without Contrast", 238.00),
+    ("72148", "Q1", "5523", "Level 3 Imaging without Contrast", 238.00),
+    ("70551", "Q1", "5523", "Level 3 Imaging without Contrast", 238.00),
+    ("73721", "Q1", "5523", "Level 3 Imaging without Contrast", 238.00),
+    ("73221", "Q1", "5523", "Level 3 Imaging without Contrast", 238.00),
+    # Imaging with contrast
+    ("70460", "Q1", "5572", "Level 2 Imaging with Contrast", 315.00),
+    ("71260", "Q1", "5572", "Level 2 Imaging with Contrast", 315.00),
+    ("72149", "Q1", "5572", "Level 2 Imaging with Contrast", 315.00),
+    ("74177", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("74178", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    # Contrast material — always packaged
+    ("Q9967", "N", "", "Packaged supply (contrast material)", 0.0),
+    ("A9579", "N", "", "Packaged supply (MR contrast agent)", 0.0),
+    # ED visits — V (paid) + critical care S; add-on 99292 packaged
+    ("99281", "V", "5021", "Type A ED Visit, Level 1", 74.00),
+    ("99282", "V", "5022", "Type A ED Visit, Level 2", 145.00),
+    ("99283", "V", "5023", "Type A ED Visit, Level 3", 259.00),
+    ("99284", "V", "5024", "Type A ED Visit, Level 4", 427.00),
+    ("99285", "V", "5025", "Type A ED Visit, Level 5", 626.00),
+    ("99291", "S", "5041", "Critical Care", 734.00),
+    ("99292", "N", "", "Packaged add-on (critical care, addl 30 min)", 0.0),
+    # Pathology
+    ("88304", "Q1", "5672", "Level 2 Pathology", 70.00),
+    ("88305", "Q1", "5673", "Level 3 Pathology", 129.00),
+    ("88307", "Q1", "5674", "Level 4 Pathology", 271.00),
+    ("88112", "Q1", "5672", "Level 2 Pathology", 70.00),
+    ("88342", "Q1", "5673", "Level 3 Pathology", 129.00),
+    # GI endoscopy — comprehensive APCs (C-APC): one payment per session
+    ("45378", "J1", "5311", "Level 1 Lower GI Procedures", 836.00),
+    ("45380", "J1", "5312", "Level 2 Lower GI Procedures", 1015.00),
+    ("45385", "J1", "5312", "Level 2 Lower GI Procedures", 1015.00),
+    ("43235", "J1", "5301", "Level 1 Upper GI Procedures", 806.00),
+    ("43239", "J1", "5301", "Level 1 Upper GI Procedures", 806.00),
+    # Surgery (hospital outpatient)
+    ("47562", "J1", "5341", "Level 1 Laparoscopy & Related Services", 6233.00),
 ]

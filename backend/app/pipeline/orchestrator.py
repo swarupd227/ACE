@@ -16,7 +16,7 @@ from ..config import settings
 from ..knowledge import graph_rag
 from ..llm import prompts
 from ..llm.client import LLMUnavailable, complete_json, model_version
-from . import anes, drg, hcc, validation
+from . import anes, apc, drg, hcc, validation
 
 # Confidence routing thresholds (calibrated per-specialty in production)
 STB_THRESHOLD = 0.90
@@ -470,6 +470,31 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         else:
             bounded.append(f"anesthesia units unresolved ({ar['reason']}) — human review required")
             say("Anesthesia Unit Calculator", f"unresolved — {ar['reason']}; routing to human", "bad")
+
+    # --- Stage 6 (hospital outpatient, POS 22/23) — facility-side APC / OPPS pricing ---
+    # A parallel payment lens on the SAME coded chart (pro-fee + facility fee). Unlike the
+    # DRG/RAF/anesthesia stages it never alters routing: the clinical coding is what gets
+    # routed; facility-estimate gaps are traced on the card, not punished.
+    if enc.pos in ("22", "23") and accepted:
+        step("6", "Facility APC/OPPS")
+        say("OPPS Facility Pricer",
+            "pricing the facility side — Addendum-B status indicators, packaging, discounting…", "tool")
+        acc_codes = [{"code_system": cr.code_system, "code": cr.code} for cr in accepted]
+        pr = apc.price(db, acc_codes)
+        db.add(models.ApcResult(
+            run_id=run.id, encounter_id=enc.id, lines=pr["lines"], packaged=pr["packaged"],
+            not_covered=pr["not_covered"], facility_total=pr["facility_total"],
+            trace=pr["trace"], resolved=pr["resolved"],
+        ))
+        log.append({"stage": "6_apc", "title": "Facility APC / OPPS Pricing", "result": pr})
+        _audit(db, run, "6_apc", "facility_priced",
+               {"facility_total": pr["facility_total"], "lines": len(pr["lines"]),
+                "packaged": len(pr["packaged"]), "resolved": pr["resolved"]})
+        say("OPPS Facility Pricer",
+            f"facility estimate ${pr['facility_total']:.2f} · {len(pr['lines'])} payable · "
+            f"{len(pr['packaged'])} packaged"
+            + (f" · {len(pr['not_covered'])} outside curated subset" if pr["not_covered"] else ""),
+            "good" if pr["resolved"] else "warn")
 
     log.append({"stage": "5_calibration", "title": "Confidence Calibration & Routing",
                 "overall_confidence": overall, "accepted": len(accepted),
