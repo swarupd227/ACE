@@ -92,10 +92,12 @@ def _openai_json(system, user, schema, model, temperature, e) -> dict[str, Any]:
         "response_format": {"type": "json_object"},
         "stream": False,
     }
-    headers = {}
-    if e["openai_api_key"]:
-        headers["Authorization"] = f"Bearer {e['openai_api_key']}"
-    url = e["base_url"] + "/chat/completions"
+    headers = {"api-key": e["openai_api_key"]} if e["openai_api_key"] else {}
+    base = e["base_url"]
+    if "chat/completions" in base:
+        url = base
+    else:
+        url = base + "/chat/completions"
     with httpx.Client(timeout=120) as hc:
         r = hc.post(url, json=payload, headers=headers)
         r.raise_for_status()
