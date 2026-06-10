@@ -39,10 +39,9 @@ npm install
 npx playwright install chromium
 npx playwright test          # records e2e/recordings/.../video.webm
 
-# convert to mp4 (ffmpeg-static is a dev dependency)
-node -e "const f=require('ffmpeg-static'),{execFileSync}=require('child_process');\
-execFileSync(f,['-y','-i','recordings/demo-ACE-end-to-end-demo/video.webm',\
-'-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart','../deck/ACE_demo.mp4'],{stdio:'inherit'})"
+# convert to mp4 — finds the webm, trims the 0.3s recording-start gap,
+# writes ../deck/ACE_demo.mp4 (ffmpeg-static is a dev dependency)
+node convert.js
 ```
 
 The test (`tests/demo.spec.js`) is a **logical end-to-end product tour** that mirrors the deck, with
