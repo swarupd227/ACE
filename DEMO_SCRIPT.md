@@ -137,6 +137,17 @@ nobody hands you a configurable platform" beat.*
   and the Evaluation Harness already scores them. That's how fourteen specialties — Radiology, E&M, ED,
   Pathology, Surgical, Cardiology, Orthopedics, OB/GYN, GI / Endoscopy, Dermatology, Urology, Anesthesia,
   Ophthalmology and ENT — run on one accelerator. New specialties are content, not a rebuild."*
+- **Inpatient / MS-DRG — the Tier-B engineering track** → open an **Inpatient (DRG)** chart (e.g. IP10001
+  pneumonia, IP10002 colon resection). *"Outpatient is CPT + NCCI/MUE. Inpatient is a different mental
+  model, and we built the real engineering for it: ICD-10-PCS procedures and a deterministic MS-DRG
+  grouper — principal diagnosis → MDC → surgical/medical partition → base DRG → CC/MCC severity tier."*
+  Point at the **DRG result card**: DRG number, relative weight, and the **severity driver** (the MCC/CC
+  secondary that moved the DRG and the payment). Expand **"Show grouper logic"** for the audited step-by-step.
+  *"This is where CDI revenue lives — capture the documented MCC and the DRG (and the reimbursement) changes.
+  The grouper is real; the code/weight tables are a curated public-CMS subset, swapped for the full
+  definitions or a certified grouper in production. ICD-10-PCS, the DRG weights and the CC/MCC lists are all
+  public — so this is actually more defensible than outpatient CPT."* The Evaluation Harness scores **DRG
+  accuracy** for these cases too.
 - **Change Log** tab (Admin / Configuration) → *"And every one of these edits is itself governed."* Show
   the append-only trail: who (by role), when, what area, action, and target — for config, policy, KG,
   guideline, reference-data, and golden-set edits. *"Your audit and compliance teams asked who changed the

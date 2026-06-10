@@ -90,13 +90,26 @@ def retrieve(db: Session, encounter: models.Encounter, analysis: dict, *, top_k:
         for s, c in icd_scored[:top_k] if s > 0
     ]
 
-    # --- Procedure (CPT/HCPCS) candidates, specialty/modality aware ---
-    procs = db.scalars(
-        select(models.ReferenceCode).where(models.ReferenceCode.code_system.in_(["CPT", "HCPCS"]))
-    ).all()
-    if encounter.specialty in ("E&M", "ED"):
+    # --- Procedure candidates, specialty/modality aware ---
+    if encounter.specialty == "Inpatient (DRG)":
+        # Inpatient codes ICD-10-PCS procedures (a different code set from outpatient CPT).
+        pcs = db.scalars(
+            select(models.ReferenceCode).where(models.ReferenceCode.code_system == "ICD10PCS")
+        ).all()
+        pcs_scored = sorted(
+            ((_score(proc_tokens, c.description + " " + c.code), c) for c in pcs),
+            key=lambda x: x[0], reverse=True,
+        )
+        r.proc_candidates = [
+            {"code": c.code, "description": c.description, "modality": "ICD10PCS", "source": c.source}
+            for s, c in pcs_scored[:top_k] if s > 0
+        ]
+    elif encounter.specialty in ("E&M", "ED"):
         # The billable procedure IS the visit-level code; surface the whole family so the agent
         # can pick the level from MDM/time. No imaging text to score against, so no lexical filter.
+        procs = db.scalars(
+            select(models.ReferenceCode).where(models.ReferenceCode.code_system.in_(["CPT", "HCPCS"]))
+        ).all()
         tag = "EM_OFFICE" if encounter.specialty == "E&M" else "ED"
         fam = [c for c in procs if c.modality == tag]
         r.proc_candidates = [
@@ -104,6 +117,9 @@ def retrieve(db: Session, encounter: models.Encounter, analysis: dict, *, top_k:
             for c in sorted(fam, key=lambda c: c.code)
         ]
     else:
+        procs = db.scalars(
+            select(models.ReferenceCode).where(models.ReferenceCode.code_system.in_(["CPT", "HCPCS"]))
+        ).all()
         if encounter.specialty == "Radiology":
             procs = [c for c in procs if (not c.modality) or c.modality == encounter.modality or c.modality == "ANY"]
         elif encounter.specialty == "Pathology":

@@ -88,6 +88,8 @@ class CodingRun(Base):
 
     encounter: Mapped[Encounter] = relationship(back_populates="runs")
     codes: Mapped[list["CodeResult"]] = relationship(back_populates="run", cascade="all,delete-orphan")
+    drg_result: Mapped["DrgResult | None"] = relationship(
+        back_populates="run", uselist=False, cascade="all,delete-orphan")
 
 
 class CodeResult(Base):
@@ -228,6 +230,87 @@ class OntologyEdge(Base):
     src_cui: Mapped[str] = mapped_column(String(24))
     rel: Mapped[str] = mapped_column(String(40))  # is_a | finding_site | causative_agent | associated_with
     dst_cui: Mapped[str] = mapped_column(String(24))
+
+
+# ---------------------------------------------------------------------------
+# Inpatient / MS-DRG reference data (public CMS artifacts) + grouper output.
+# Outpatient = CPT/HCPCS + NCCI/MUE gates. Inpatient is a different mental model:
+# ICD-10-PCS procedures + the MS-DRG grouper (MDC → surgical/medical partition →
+# base DRG → CC/MCC severity tier). These tables are the real CMS artifacts the
+# deterministic grouper reads; a curated subset for the demo, swap in the full
+# CMS definitions / a certified grouper for production behind the same interface.
+# ---------------------------------------------------------------------------
+class DrgDefinition(Base):
+    """One MS-DRG. The severity triplet (w MCC / w CC / w/o) shares a base_key."""
+    __tablename__ = "drg_definitions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    drg: Mapped[str] = mapped_column(String(4), unique=True)
+    title: Mapped[str] = mapped_column(String(200))
+    mdc: Mapped[str] = mapped_column(String(4))
+    mdc_title: Mapped[str] = mapped_column(String(120))
+    drg_type: Mapped[str] = mapped_column(String(8))   # MED | SURG
+    base_key: Mapped[str] = mapped_column(String(40))  # groups the severity triplet
+    severity: Mapped[str] = mapped_column(String(8))   # MCC | CC | NONE
+    weight: Mapped[float] = mapped_column(Float, default=0.0)  # CMS relative weight
+    source: Mapped[str] = mapped_column(String(40), default="CMS-MSDRG")
+
+
+class CcMcc(Base):
+    """Secondary-diagnosis severity flag — CC (complication/comorbidity) or
+    MCC (major CC) — that elevates the DRG to a higher-weighted tier."""
+    __tablename__ = "cc_mcc"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(16), unique=True)  # ICD-10-CM
+    tier: Mapped[str] = mapped_column(String(4))  # CC | MCC
+    source: Mapped[str] = mapped_column(String(40), default="CMS-MSDRG")
+
+
+class MdcAssignment(Base):
+    """Principal-diagnosis → MDC assignment (and the medical base DRG family).
+    Real grouping assigns the MDC from the principal dx before the DRG."""
+    __tablename__ = "mdc_assignments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dx_prefix: Mapped[str] = mapped_column(String(8))  # ICD-10-CM prefix
+    mdc: Mapped[str] = mapped_column(String(4))
+    mdc_title: Mapped[str] = mapped_column(String(120))
+    medical_base_key: Mapped[str] = mapped_column(String(40))
+
+
+class OrProcedure(Base):
+    """ICD-10-PCS codes that are OR procedures — their presence moves the case to
+    the surgical partition and selects the surgical base DRG family."""
+    __tablename__ = "or_procedures"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    pcs_code: Mapped[str] = mapped_column(String(8), unique=True)
+    surgical_base_key: Mapped[str] = mapped_column(String(40))
+    mdc: Mapped[str] = mapped_column(String(4))
+
+
+class DrgResult(Base):
+    """The grouper's output for one coding run (one-to-one with CodingRun)."""
+    __tablename__ = "drg_results"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    run_id: Mapped[str] = mapped_column(ForeignKey("coding_runs.id"), unique=True)
+    encounter_id: Mapped[str] = mapped_column(String(32), index=True)
+    drg: Mapped[str] = mapped_column(String(4), default="")
+    title: Mapped[str] = mapped_column(String(200), default="")
+    mdc: Mapped[str] = mapped_column(String(4), default="")
+    mdc_title: Mapped[str] = mapped_column(String(120), default="")
+    drg_type: Mapped[str] = mapped_column(String(8), default="")   # MED | SURG
+    severity: Mapped[str] = mapped_column(String(8), default="")   # MCC | CC | NONE
+    weight: Mapped[float] = mapped_column(Float, default=0.0)
+    pdx: Mapped[str] = mapped_column(String(16), default="")       # principal diagnosis
+    or_procedure: Mapped[str] = mapped_column(String(8), default="")
+    cc_mcc_drivers: Mapped[list] = mapped_column(JSONB, default=list)  # [{code, tier, description}]
+    trace: Mapped[list] = mapped_column(JSONB, default=list)        # ordered grouper steps
+    resolved: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    run: Mapped[CodingRun] = relationship(back_populates="drg_result")
 
 
 # ---------------------------------------------------------------------------

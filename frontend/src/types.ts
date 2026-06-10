@@ -86,7 +86,22 @@ export interface Run {
   assigned_to: string;
   priority: string;
   modified: boolean;
+  drg: DrgResult | null;
   codes: CodeResult[];
+}
+export interface DrgResult {
+  drg: string;
+  title: string;
+  mdc: string;
+  mdc_title: string;
+  drg_type: "MED" | "SURG" | string;
+  severity: "MCC" | "CC" | "NONE" | string;
+  weight: number;
+  pdx: string;
+  or_procedure: string;
+  cc_mcc_drivers: { code: string; tier: "CC" | "MCC"; description: string }[];
+  trace: { step: string; detail: string }[];
+  resolved: boolean;
 }
 export interface EncounterDetail {
   id: string;

@@ -18,6 +18,15 @@ def code_to_dict(c: models.CodeResult) -> dict:
     }
 
 
+def drg_to_dict(d: models.DrgResult) -> dict:
+    return {
+        "drg": d.drg, "title": d.title, "mdc": d.mdc, "mdc_title": d.mdc_title,
+        "drg_type": d.drg_type, "severity": d.severity, "weight": d.weight,
+        "pdx": d.pdx, "or_procedure": d.or_procedure, "cc_mcc_drivers": d.cc_mcc_drivers,
+        "trace": d.trace, "resolved": d.resolved,
+    }
+
+
 def run_to_dict(run: models.CodingRun) -> dict:
     modified = bool(
         run.escalated
@@ -33,5 +42,6 @@ def run_to_dict(run: models.CodingRun) -> dict:
         "overall_confidence": run.overall_confidence, "accuracy_estimate": run.accuracy_estimate,
         "latency_ms": run.latency_ms, "escalated": run.escalated, "escalated_to": run.escalated_to,
         "assigned_to": run.assigned_to, "priority": run.priority,
+        "drg": drg_to_dict(run.drg_result) if run.drg_result else None,
         "codes": [code_to_dict(c) for c in sorted(run.codes, key=lambda x: (x.code_system, x.sequence))],
     }

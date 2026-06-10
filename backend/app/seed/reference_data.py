@@ -111,6 +111,14 @@ ICD10CM = [
     ("J32.9", "Chronic sinusitis, unspecified", True, "J32"),
     ("J35", "Chronic diseases of tonsils and adenoids", False, "J35"),  # non-billable parent
     ("H65.2", "Chronic serous otitis media", False, "H65.2"),           # non-billable parent
+    # Inpatient / MS-DRG (principal + CC/MCC secondary dx; J96.00, A41.9, I50.9, E11.65, J18.9,
+    # D64.9, I48.91 already defined above and reused)
+    ("N17.9", "Acute kidney failure, unspecified", True, "N17"),
+    ("I50.21", "Acute systolic (congestive) heart failure", True, "I50.2"),
+    ("J44.1", "Chronic obstructive pulmonary disease with (acute) exacerbation", True, "J44"),
+    ("N18.3", "Chronic kidney disease, stage 3 (moderate)", True, "N18"),
+    ("C18.9", "Malignant neoplasm of colon, unspecified", True, "C18"),
+    ("K56.609", "Unspecified intestinal obstruction", True, "K56.60"),
     # non-billable parents (specificity gate should reject these)
     ("E11.4", "Type 2 diabetes mellitus with neurological complications", False, "E11"),
     ("M25.56", "Pain in knee", False, "M25.5"),
@@ -549,4 +557,72 @@ GUIDELINES = [
      "diagnostic nasal endoscopy is bundled into a same-session surgical sinus endoscopy — do not report "
      "both. Code the diagnosis (adenotonsillar hypertrophy J35.3, chronic otitis media with effusion "
      "H65.23, deviated nasal septum J34.2) and capture ear laterality.", "ENT"),
+]
+
+
+# ===========================================================================
+# Inpatient / MS-DRG reference data (Tier-B: structurally different from
+# outpatient CPT). ICD-10-PCS, the MS-DRG table, CC/MCC lists, the MDC
+# assignment and the OR-procedure list are all PUBLIC CMS artifacts (unlike
+# CPT). Curated demo subset; the grouper algorithm is real. Production swaps in
+# the full CMS definitions / a certified grouper behind the same interface.
+# ===========================================================================
+
+# --- ICD-10-PCS procedures (public; 7-character multi-axial) — (code, description, tag) ---
+ICD10PCS = [
+    ("0DTN0ZZ", "Resection of Sigmoid Colon, Open Approach", "PCS"),
+    ("0DTP0ZZ", "Resection of Rectum, Open Approach", "PCS"),
+    ("0DBN0ZZ", "Excision of Sigmoid Colon, Open Approach", "PCS"),
+    ("0BJ08ZZ", "Inspection of Tracheobronchial Tree, Via Natural or Artificial Opening Endoscopic", "PCS"),
+]
+
+# --- MS-DRG table — (drg, title, mdc, mdc_title, type, base_key, severity, weight) ---
+# Representative CMS relative weights; three severity tiers per base family.
+DRG_DEFS = [
+    ("193", "Simple Pneumonia & Pleurisy with MCC", "04",
+     "Diseases & Disorders of the Respiratory System", "MED", "PNEUMONIA", "MCC", 1.4196),
+    ("194", "Simple Pneumonia & Pleurisy with CC", "04",
+     "Diseases & Disorders of the Respiratory System", "MED", "PNEUMONIA", "CC", 0.9688),
+    ("195", "Simple Pneumonia & Pleurisy without CC/MCC", "04",
+     "Diseases & Disorders of the Respiratory System", "MED", "PNEUMONIA", "NONE", 0.7090),
+    ("291", "Heart Failure & Shock with MCC", "05",
+     "Diseases & Disorders of the Circulatory System", "MED", "HEART_FAILURE", "MCC", 1.3454),
+    ("292", "Heart Failure & Shock with CC", "05",
+     "Diseases & Disorders of the Circulatory System", "MED", "HEART_FAILURE", "CC", 0.9534),
+    ("293", "Heart Failure & Shock without CC/MCC", "05",
+     "Diseases & Disorders of the Circulatory System", "MED", "HEART_FAILURE", "NONE", 0.6762),
+    ("329", "Major Small & Large Bowel Procedures with MCC", "06",
+     "Diseases & Disorders of the Digestive System", "SURG", "BOWEL_PROC", "MCC", 5.2520),
+    ("330", "Major Small & Large Bowel Procedures with CC", "06",
+     "Diseases & Disorders of the Digestive System", "SURG", "BOWEL_PROC", "CC", 2.6109),
+    ("331", "Major Small & Large Bowel Procedures without CC/MCC", "06",
+     "Diseases & Disorders of the Digestive System", "SURG", "BOWEL_PROC", "NONE", 1.7249),
+]
+
+# --- CC / MCC severity list — (code, tier) ---
+CC_MCC = [
+    ("J96.00", "MCC"),  # acute respiratory failure
+    ("A41.9", "MCC"),   # sepsis
+    ("N17.9", "MCC"),   # acute kidney failure
+    ("E11.65", "CC"),   # diabetes with hyperglycemia
+    ("D64.9", "CC"),    # anemia, unspecified
+    ("J44.1", "CC"),    # COPD with acute exacerbation
+    ("N18.3", "CC"),    # CKD stage 3
+    ("I48.91", "CC"),   # atrial fibrillation
+]
+
+# --- MDC assignment from principal dx — (dx_prefix, mdc, mdc_title, medical_base_key) ---
+DX_MDC = [
+    ("J18", "04", "Diseases & Disorders of the Respiratory System", "PNEUMONIA"),
+    ("I50", "05", "Diseases & Disorders of the Circulatory System", "HEART_FAILURE"),
+    ("C18", "06", "Diseases & Disorders of the Digestive System", "BOWEL"),
+    ("K56", "06", "Diseases & Disorders of the Digestive System", "BOWEL"),
+    ("K57", "06", "Diseases & Disorders of the Digestive System", "BOWEL"),
+]
+
+# --- OR procedures — (pcs_code, surgical_base_key, mdc) ---
+OR_PROC = [
+    ("0DTN0ZZ", "BOWEL_PROC", "06"),
+    ("0DTP0ZZ", "BOWEL_PROC", "06"),
+    ("0DBN0ZZ", "BOWEL_PROC", "06"),
 ]

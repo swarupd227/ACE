@@ -38,6 +38,9 @@ def seed_all(force: bool = False) -> dict:
         for code, desc, modality in rd.HCPCS:
             db.add(models.ReferenceCode(code_system="HCPCS", code=code, description=desc,
                                         modality=modality, source="CMS", **rd.EFF))
+        for code, desc, modality in rd.ICD10PCS:
+            db.add(models.ReferenceCode(code_system="ICD10PCS", code=code, description=desc,
+                                        modality=modality, source="CMS", **rd.EFF))
         for mod, desc, applies, notes in rd.MODIFIERS:
             db.add(models.ModifierRule(modifier=mod, description=desc, applies_to=applies, notes=notes))
         for c1, c2, allowed, rationale in rd.NCCI:
@@ -53,6 +56,17 @@ def seed_all(force: bool = False) -> dict:
             db.add(models.OntologyEdge(src_cui=src, rel=rel, dst_cui=dst))
         for source, section, t, spec in rd.GUIDELINES:
             db.add(models.GuidelineChunk(source=source, section=section, text=t, specialty=spec))
+
+        # inpatient / MS-DRG reference data
+        for drg, title, mdc, mdc_t, typ, base, sev, wt in rd.DRG_DEFS:
+            db.add(models.DrgDefinition(drg=drg, title=title, mdc=mdc, mdc_title=mdc_t,
+                                        drg_type=typ, base_key=base, severity=sev, weight=wt))
+        for code, tier in rd.CC_MCC:
+            db.add(models.CcMcc(code=code, tier=tier))
+        for dx_prefix, mdc, mdc_t, base in rd.DX_MDC:
+            db.add(models.MdcAssignment(dx_prefix=dx_prefix, mdc=mdc, mdc_title=mdc_t, medical_base_key=base))
+        for pcs, base, mdc in rd.OR_PROC:
+            db.add(models.OrProcedure(pcs_code=pcs, surgical_base_key=base, mdc=mdc))
 
         # golden set
         for g in charts.GOLDEN_CASES:
@@ -124,6 +138,11 @@ def seed_missing() -> dict:
                 db.add(models.ReferenceCode(code_system="HCPCS", code=code, description=desc,
                                             modality=modality, source="CMS", **rd.EFF))
                 ref.add(("HCPCS", code)); bump("reference_codes")
+        for code, desc, modality in rd.ICD10PCS:
+            if ("ICD10PCS", code) not in ref:
+                db.add(models.ReferenceCode(code_system="ICD10PCS", code=code, description=desc,
+                                            modality=modality, source="CMS", **rd.EFF))
+                ref.add(("ICD10PCS", code)); bump("reference_codes")
 
         # modifiers — key (modifier, applies_to)
         mods = {(m.modifier, m.applies_to) for m in db.scalars(select(models.ModifierRule)).all()}
@@ -174,6 +193,28 @@ def seed_missing() -> dict:
             if (source, section, spec) not in gl:
                 db.add(models.GuidelineChunk(source=source, section=section, text=t, specialty=spec))
                 gl.add((source, section, spec)); bump("guidelines")
+
+        # inpatient / MS-DRG — DRG defs by drg; cc/mcc by code; mdc by (dx_prefix,mdc); or-proc by pcs
+        drgs = {d.drg for d in db.scalars(select(models.DrgDefinition)).all()}
+        for drg, title, mdc, mdc_t, typ, base, sev, wt in rd.DRG_DEFS:
+            if drg not in drgs:
+                db.add(models.DrgDefinition(drg=drg, title=title, mdc=mdc, mdc_title=mdc_t,
+                                            drg_type=typ, base_key=base, severity=sev, weight=wt))
+                drgs.add(drg); bump("drg_definitions")
+        ccm = {c.code for c in db.scalars(select(models.CcMcc)).all()}
+        for code, tier in rd.CC_MCC:
+            if code not in ccm:
+                db.add(models.CcMcc(code=code, tier=tier)); ccm.add(code); bump("cc_mcc")
+        mdcs = {(m.dx_prefix, m.mdc) for m in db.scalars(select(models.MdcAssignment)).all()}
+        for dx_prefix, mdc, mdc_t, base in rd.DX_MDC:
+            if (dx_prefix, mdc) not in mdcs:
+                db.add(models.MdcAssignment(dx_prefix=dx_prefix, mdc=mdc, mdc_title=mdc_t, medical_base_key=base))
+                mdcs.add((dx_prefix, mdc)); bump("mdc_assignments")
+        orps = {o.pcs_code for o in db.scalars(select(models.OrProcedure)).all()}
+        for pcs, base, mdc in rd.OR_PROC:
+            if pcs not in orps:
+                db.add(models.OrProcedure(pcs_code=pcs, surgical_base_key=base, mdc=mdc))
+                orps.add(pcs); bump("or_procedures")
 
         # golden set — key (specialty, chart_text)
         gold = {(g.specialty, g.chart_text) for g in db.scalars(select(models.GoldenCase)).all()}

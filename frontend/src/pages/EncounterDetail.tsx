@@ -171,6 +171,93 @@ function CodeCard({ code, onSelect, selected, onHighlight }: {
   );
 }
 
+function DrgCard({ drg }: { drg: NonNullable<Detail["run"]>["drg"] }) {
+  const [open, setOpen] = useState(false);
+  if (!drg) return null;
+  if (!drg.resolved) {
+    return (
+      <div className="card p-4 border-l-4 border-amber-400">
+        <div className="flex items-center gap-2 text-amber-700 font-semibold">
+          <AlertTriangle size={16} /> MS-DRG unresolved — routed to human coder
+        </div>
+        <p className="text-sm text-slate-500 mt-1">
+          The grouper could not assign a DRG from the coded data; a human completes grouping. (Curated demo subset.)
+        </p>
+      </div>
+    );
+  }
+  const typeLabel = drg.drg_type === "SURG" ? "Surgical" : drg.drg_type === "MED" ? "Medical" : drg.drg_type;
+  const sevLabel = drg.severity === "MCC" ? "with MCC" : drg.severity === "CC" ? "with CC" : "without CC/MCC";
+  const sevColor =
+    drg.severity === "MCC" ? "bg-rose-50 text-rose-700 ring-rose-200"
+    : drg.severity === "CC" ? "bg-amber-50 text-amber-700 ring-amber-200"
+    : "bg-slate-100 text-slate-600 ring-slate-200";
+  return (
+    <div className="card overflow-hidden border-l-4 border-ace-500">
+      <div className="p-4 bg-ace-900 text-white">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-slate-300">MS-DRG · inpatient grouping</div>
+            <div className="text-2xl font-extrabold mt-0.5">DRG {drg.drg}</div>
+            <div className="text-sm text-slate-200">{drg.title}</div>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-xs uppercase tracking-wide text-slate-300">Relative weight</div>
+            <div className="text-3xl font-extrabold tabular-nums">{drg.weight.toFixed(4)}</div>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className="pill bg-white/10 text-white ring-1 ring-white/20">MDC {drg.mdc} · {drg.mdc_title}</span>
+          <span className="pill bg-white/10 text-white ring-1 ring-white/20">{typeLabel}</span>
+          <span className={clsx("pill ring-1", sevColor)}>{sevLabel}</span>
+        </div>
+      </div>
+      <div className="p-4 space-y-2 text-sm">
+        <div>
+          <span className="text-slate-400">Principal diagnosis</span>{" "}
+          <span className="font-mono font-semibold text-slate-700">{drg.pdx}</span>
+        </div>
+        {drg.or_procedure && (
+          <div>
+            <span className="text-slate-400">OR procedure</span>{" "}
+            <span className="font-mono font-semibold text-slate-700">{drg.or_procedure}</span>{" "}
+            <span className="text-xs text-slate-400">→ surgical partition</span>
+          </div>
+        )}
+        {drg.cc_mcc_drivers.length > 0 && (
+          <div>
+            <span className="text-slate-400">Severity drivers</span>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {drg.cc_mcc_drivers.map((d) => (
+                <span key={d.code} className={clsx("pill ring-1", d.tier === "MCC" ? "bg-rose-50 text-rose-700 ring-rose-200" : "bg-amber-50 text-amber-700 ring-amber-200")}>
+                  <span className="font-mono">{d.code}</span> · {d.tier}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      <button
+        className="w-full px-4 py-2 border-t border-slate-200 text-xs text-slate-500 hover:bg-slate-50 flex items-center justify-center gap-1"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Network size={13} /> {open ? "Hide" : "Show"} grouper logic
+        <ChevronRight size={13} className={clsx("transition-transform", open && "rotate-90")} />
+      </button>
+      {open && (
+        <ol className="px-5 pb-4 pt-1 space-y-1.5">
+          {drg.trace.map((t, i) => (
+            <li key={i} className="text-xs text-slate-600 flex gap-2">
+              <span className="font-mono text-ace-600 shrink-0 w-28">{t.step}</span>
+              <span>{t.detail}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 export default function EncounterDetail() {
   const { id } = useParams();
   const { data, isLoading } = useQuery({ queryKey: ["encounter", id], queryFn: () => api.encounter(id!) });
@@ -282,6 +369,7 @@ export default function EncounterDetail() {
         {/* Codes + pipeline */}
         <div className="space-y-3">
           {!run && <div className="card p-6 text-center text-slate-400">Not coded yet.</div>}
+          {run?.drg && <DrgCard drg={run.drg} />}
           {run?.codes.map((c) => (
             <CodeCard key={c.id} code={c} selected={selected === c.id} onSelect={() => setSelected(c.id)} onHighlight={setHighlight} />
           ))}

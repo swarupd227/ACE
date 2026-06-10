@@ -16,11 +16,14 @@ from ..config import settings
 from ..knowledge import graph_rag
 from ..llm import prompts
 from ..llm.client import LLMUnavailable, complete_json, model_version
-from . import validation
+from . import drg, validation
 
 # Confidence routing thresholds (calibrated per-specialty in production)
 STB_THRESHOLD = 0.90
 QA_THRESHOLD = 0.75
+
+# Inpatient track — the MS-DRG grouper runs only for this specialty.
+INPATIENT = "Inpatient (DRG)"
 
 
 def _now():
@@ -357,6 +360,35 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     )
     if ba.get("ncci_break", True) and ncci_break:
         bounded.append("NCCI bundle conflict")
+
+    # --- Stage 6 (inpatient only) — MS-DRG grouping ---
+    if enc.specialty == INPATIENT:
+        step("6", "MS-DRG grouping")
+        say("MS-DRG Grouper", "assigning MDC → surgical/medical partition → base DRG → CC/MCC severity tier…", "tool")
+        acc_codes = [
+            {"code_system": cr.code_system, "code": cr.code, "role": cr.role,
+             "sequence": cr.sequence, "description": cr.description}
+            for cr in accepted
+        ]
+        dg = drg.group(db, acc_codes)
+        db.add(models.DrgResult(
+            run_id=run.id, encounter_id=enc.id, drg=dg["drg"], title=dg["title"],
+            mdc=dg["mdc"], mdc_title=dg["mdc_title"], drg_type=dg["drg_type"],
+            severity=dg["severity"], weight=dg["weight"], pdx=dg["pdx"],
+            or_procedure=dg["or_procedure"], cc_mcc_drivers=dg["cc_mcc_drivers"],
+            trace=dg["trace"], resolved=dg["resolved"],
+        ))
+        log.append({"stage": "6_drg", "title": "MS-DRG Assignment", "result": dg})
+        _audit(db, run, "6_drg", "drg_assigned" if dg["resolved"] else "drg_unresolved",
+               {"drg": dg["drg"], "weight": dg["weight"], "severity": dg["severity"],
+                "type": dg["drg_type"], "resolved": dg["resolved"]})
+        if dg["resolved"]:
+            say("MS-DRG Grouper",
+                f"DRG {dg['drg']} · {dg['title']} · {dg['drg_type']} · severity {dg['severity']} · "
+                f"relative weight {dg['weight']:.4f}", "good")
+        else:
+            bounded.append(f"DRG unresolved ({dg['reason']}) — human grouping required")
+            say("MS-DRG Grouper", f"DRG unresolved — {dg['reason']}; routing to human", "bad")
 
     log.append({"stage": "5_calibration", "title": "Confidence Calibration & Routing",
                 "overall_confidence": overall, "accepted": len(accepted),

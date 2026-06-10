@@ -374,6 +374,7 @@ def _eval_core(db: Session, emit) -> dict:
         ).all()
         if run_ids:
             db.execute(delete(models.CodeResult).where(models.CodeResult.run_id.in_(run_ids)))
+            db.execute(delete(models.DrgResult).where(models.DrgResult.run_id.in_(run_ids)))
         db.execute(delete(models.CodingRun).where(models.CodingRun.encounter_id == e.id))
         db.delete(e)
     db.commit()
@@ -388,7 +389,8 @@ def _eval_core(db: Session, emit) -> dict:
             mrn=f"GOLD{i:04d}", patient_name="Golden Case", age=55, sex="F",
             specialty=g.specialty, modality=_modality_from_text(g.chart_text),
             encounter_type="established" if g.specialty == "E&M" else "",
-            payer="Medicare", pos="11" if g.specialty == "E&M" else "22",
+            payer="Medicare",
+            pos=("11" if g.specialty == "E&M" else "21" if g.specialty == "Inpatient (DRG)" else "22"),
             dos="2026-04-15", client=HIDDEN, source_system="eval", chart_text=g.chart_text,
             scenario="golden", status="NEW",
         )
@@ -397,14 +399,20 @@ def _eval_core(db: Session, emit) -> dict:
         run = orchestrator.run_coding(db, enc.id)
         pred_icd = {c.code for c in run.codes if c.code_system == "ICD10CM" and c.status == "accepted"}
         pred_cpt = {c.code for c in run.codes if c.code_system in ("CPT", "HCPCS") and c.status == "accepted"}
+        pred_pcs = {c.code for c in run.codes if c.code_system == "ICD10PCS" and c.status == "accepted"}
         truth_icd = set(g.truth.get("icd", []))
         truth_cpt = set(g.truth.get("cpt", []))
+        truth_pcs = set(g.truth.get("pcs", []))
+        truth_drg = g.truth.get("drg", "")
+        pred_drg = run.drg_result.drg if run.drg_result else ""
         icd_ok = bool(truth_icd & pred_icd) if truth_icd else True
         cpt_ok = bool(truth_cpt & pred_cpt) if truth_cpt else True
-        chart_ok = icd_ok and cpt_ok
+        pcs_ok = bool(truth_pcs & pred_pcs) if truth_pcs else True
+        drg_ok = (pred_drg == truth_drg) if truth_drg else True
+        chart_ok = icd_ok and cpt_ok and pcs_ok and drg_ok
         cit_ok = all(c.conf_doc_match >= 0.5 for c in run.codes if c.status == "accepted") if run.codes else False
 
-        a = agg.setdefault(g.specialty, {"specialty": g.specialty, "n": 0, "icd": 0, "cpt": 0, "chart": 0, "cit": 0, "stb": 0, "irr": []})
+        a = agg.setdefault(g.specialty, {"specialty": g.specialty, "n": 0, "icd": 0, "cpt": 0, "chart": 0, "cit": 0, "stb": 0, "irr": [], "drg": 0, "drg_n": 0})
         a["n"] += 1
         a["icd"] += int(icd_ok)
         a["cpt"] += int(cpt_ok)
@@ -412,12 +420,16 @@ def _eval_core(db: Session, emit) -> dict:
         a["cit"] += int(cit_ok)
         a["stb"] += int(run.routing_lane == "STB")
         a["irr"].append(g.irr)
+        if truth_drg:
+            a["drg_n"] += 1
+            a["drg"] += int(drg_ok)
         results.append({
             "specialty": g.specialty, "truth": g.truth,
-            "predicted_icd": sorted(pred_icd), "predicted_cpt": sorted(pred_cpt),
+            "predicted_icd": sorted(pred_icd), "predicted_cpt": sorted(pred_cpt or pred_pcs),
+            "predicted_drg": pred_drg, "drg_ok": drg_ok,
             "icd_ok": icd_ok, "cpt_ok": cpt_ok, "chart_ok": chart_ok, "lane": run.routing_lane,
         })
-        pred = (sorted(pred_cpt) + sorted(pred_icd)) or ["(none)"]
+        pred = (sorted(pred_cpt) + sorted(pred_pcs) + sorted(pred_icd) + ([f"DRG {pred_drg}"] if pred_drg else [])) or ["(none)"]
         say(f"  case {i + 1}/{total} · {g.specialty}",
             f"predicted {', '.join(pred)} — {'PASS' if chart_ok else 'MISS'}",
             "good" if chart_ok else "bad")
@@ -426,7 +438,7 @@ def _eval_core(db: Session, emit) -> dict:
     by_spec = []
     for a in agg.values():
         n = a["n"]
-        by_spec.append({
+        row = {
             "specialty": a["specialty"], "size": n,
             "icd_accuracy": round(a["icd"] / n, 3),
             "cpt_accuracy": round(a["cpt"] / n, 3),
@@ -434,7 +446,10 @@ def _eval_core(db: Session, emit) -> dict:
             "citation_validity": round(a["cit"] / n, 3),
             "stb_share": round(a["stb"] / n, 3),
             "irr_ceiling": round(sum(a["irr"]) / len(a["irr"]), 3),
-        })
+        }
+        if a.get("drg_n"):
+            row["drg_accuracy"] = round(a["drg"] / a["drg_n"], 3)
+        by_spec.append(row)
     db.commit()
     overall_chart = round(sum(r["chart_ok"] for r in results) / len(results), 3) if results else 0.0
     say("Evaluation Harness", f"done · overall chart accuracy {round(overall_chart * 100)}% on {len(results)} case(s)", "good")

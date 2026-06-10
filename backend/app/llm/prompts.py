@@ -121,8 +121,9 @@ HARD RULES:
 - Use ONLY codes that appear in the provided CANDIDATE REFERENCE context. Do not invent codes.
 - Respect the retrieved payer policy and NCCI/MUE notes provided.
 - Provide an honest self-confidence in [0,1] per code and a one-line rule justification.
-You will be told the specialty. Output diagnoses (ICD-10-CM) and procedures (CPT/HCPCS)
-with modifiers where the documentation supports them."""
+You will be told the specialty. Output diagnoses (ICD-10-CM) and procedures (CPT/HCPCS for
+outpatient, or ICD-10-PCS for inpatient) with modifiers where the documentation supports them.
+For inpatient admissions, mark the principal diagnosis with role='principal'."""
 
 CODING_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -132,7 +133,7 @@ CODING_SCHEMA: dict[str, Any] = {
             "items": {
                 "type": "object",
                 "properties": {
-                    "code_system": {"type": "string", "enum": ["ICD10CM", "CPT", "HCPCS"]},
+                    "code_system": {"type": "string", "enum": ["ICD10CM", "CPT", "HCPCS", "ICD10PCS"]},
                     "code": {"type": "string"},
                     "description": {"type": "string"},
                     "role": {"type": "string", "enum": ["principal", "primary", "secondary", "procedure"]},
@@ -281,6 +282,19 @@ SPECIALTY_GUIDANCE = {
         "trabeculoplasty = 65855; retinal OCT = 92134.\n"
         "- Append eye laterality (RT/LT) when documented.\n"
         "- Code the diagnosis (cataract H25.9, macular degeneration H35.30, glaucoma H40.9)."
+    ),
+    "Inpatient (DRG)": (
+        "INPATIENT (MS-DRG) RULES:\n"
+        "- This is an INPATIENT admission. Assign ICD-10-CM diagnoses AND ICD-10-PCS procedures "
+        "(code_system 'ICD10PCS') — NOT CPT/HCPCS.\n"
+        "- Select and mark the PRINCIPAL diagnosis with role='principal' and sequence=0 (UHDDS: the "
+        "condition, after study, chiefly responsible for the admission). Sequence others after it.\n"
+        "- Code EVERY documented secondary diagnosis with role='secondary' (comorbidities and acute "
+        "complications such as acute respiratory failure, sepsis, acute kidney injury, anemia). These "
+        "drive CC/MCC severity and therefore the DRG and reimbursement — do not omit a documented one.\n"
+        "- Assign ICD-10-PCS (role='procedure') only for procedures actually performed, using only codes "
+        "in the candidate context. The MS-DRG is computed downstream by the deterministic grouper; do not "
+        "guess a DRG."
     ),
     "ENT": (
         "ENT / OTOLARYNGOLOGY RULES:\n"

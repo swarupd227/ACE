@@ -585,6 +585,42 @@ CHARTS = [
             "Electronically signed by Dr. R. Okafor, MD, Otolaryngologist."
         ),
     ),
+    # 34 — Inpatient (DRG) → medical, MCC → expect DRG 193 (pneumonia w MCC)
+    dict(
+        mrn="IP10001", patient_name="Harold Beckmann", age=71, sex="M", specialty="Inpatient (DRG)",
+        modality="", encounter_type="inpatient", payer="Medicare", pos="21", dos="2026-05-09",
+        client="Mercy General Hospital", source_system="Cerner", report_type="discharge_summary",
+        scenario="Inpatient — pneumonia + acute respiratory failure (MCC)",
+        chart_text=(
+            "INPATIENT DISCHARGE SUMMARY\n"
+            "ADMISSION: 71-year-old man admitted from the ED with community-acquired pneumonia.\n"
+            "PRINCIPAL DIAGNOSIS: Pneumonia, unspecified organism.\n"
+            "HOSPITAL COURSE: Started on IV antibiotics. On hospital day 1 he developed acute hypoxic "
+            "respiratory failure requiring high-flow oxygen; this resolved by day 3.\n"
+            "PROCEDURE: Diagnostic flexible bronchoscopy with inspection of the tracheobronchial tree via "
+            "natural opening (no biopsy taken).\n"
+            "SECONDARY DIAGNOSES: Acute respiratory failure with hypoxia.\n"
+            "DISPOSITION: Discharged home on room air, day 4.\n"
+            "Electronically signed by Dr. P. Salvador, MD, Hospitalist."
+        ),
+    ),
+    # 35 — Inpatient (DRG) → surgical (OR procedure), CC → expect DRG 330 (major bowel proc w CC)
+    dict(
+        mrn="IP10002", patient_name="Geraldine Foss", age=68, sex="F", specialty="Inpatient (DRG)",
+        modality="", encounter_type="inpatient", payer="Medicare", pos="21", dos="2026-05-09",
+        client="Mercy General Hospital", source_system="Cerner", report_type="discharge_summary",
+        scenario="Inpatient — colon resection (OR) with anemia (CC)",
+        chart_text=(
+            "INPATIENT OPERATIVE / DISCHARGE SUMMARY\n"
+            "ADMISSION: 68-year-old woman admitted with an obstructing sigmoid colon mass; preoperative "
+            "biopsy confirmed adenocarcinoma of the colon.\n"
+            "PRINCIPAL DIAGNOSIS: Malignant neoplasm of the colon.\n"
+            "PROCEDURE: Open resection of the sigmoid colon (open sigmoid colectomy).\n"
+            "SECONDARY DIAGNOSES: Anemia, unspecified, present preoperatively.\n"
+            "HOSPITAL COURSE: Uncomplicated postoperative recovery; tolerating diet at discharge.\n"
+            "Electronically signed by Dr. M. Iqbal, MD, General Surgery."
+        ),
+    ),
 ]
 
 
@@ -825,4 +861,19 @@ GOLDEN_CASES = [
              "effusion, both ears, beyond 3 months with conductive hearing loss.\nPROCEDURE: Bilateral "
              "myringotomy with tympanostomy tube insertion under general anesthesia.\nIMPRESSION: Chronic "
              "serous otitis media, bilateral.\nElectronically signed by otolaryngologist.")),
+    dict(specialty="Inpatient (DRG)", irr=0.86, ambiguous=False,
+         truth={"icd": ["I50.21", "N17.9"], "cpt": [], "pcs": [], "drg": "291"},
+         chart_text=(
+             "INPATIENT DISCHARGE SUMMARY\nADMISSION: Admitted with acute decompensated heart failure.\n"
+             "PRINCIPAL DIAGNOSIS: Acute systolic (congestive) heart failure.\nHOSPITAL COURSE: Diuresed "
+             "with IV furosemide; course complicated by acute kidney injury that resolved before "
+             "discharge.\nSECONDARY DIAGNOSES: Acute kidney failure.\nElectronically signed by "
+             "hospitalist.")),
+    dict(specialty="Inpatient (DRG)", irr=0.84, ambiguous=False,
+         truth={"icd": ["K56.609", "A41.9"], "cpt": [], "pcs": ["0DTN0ZZ"], "drg": "329"},
+         chart_text=(
+             "INPATIENT OPERATIVE / DISCHARGE SUMMARY\nADMISSION: Admitted with intestinal obstruction.\n"
+             "PRINCIPAL DIAGNOSIS: Intestinal obstruction.\nPROCEDURE: Open resection of the sigmoid "
+             "colon.\nHOSPITAL COURSE: Postoperative course complicated by sepsis treated with IV "
+             "antibiotics.\nSECONDARY DIAGNOSES: Sepsis.\nElectronically signed by surgeon.")),
 ]
