@@ -5,6 +5,21 @@ import { Plug, CheckCircle2, FileInput, ArrowRight, Cable, Code2, ScanLine } fro
 import { api } from "../api";
 import { Spinner } from "../lib";
 
+const MODALITY_OPTIONS: Record<string, string[]> = {
+  "Radiology":    ["CT", "X-Ray", "MRI", "Ultrasound", "Doppler"],
+  "E&M":          ["New Patient", "Established Patient", "Consultation"],
+  "ED":           ["Level 1", "Level 2", "Level 3", "Level 4", "Level 5"],
+  "Pathology":    ["Surgical", "Cytology", "Autopsy"],
+  "Surgical":     ["General", "Orthopedic", "Cardiovascular", "Laparoscopic"],
+  "Cardiology":   ["ECG", "Echocardiogram", "Stress Test", "Catheterization"],
+  "Orthopedics":  ["Joint Replacement", "Fracture", "Arthroscopy"],
+};
+const DEFAULT_MODALITIES = ["N/A"];
+
+function modalitiesFor(specialty: string): string[] {
+  return MODALITY_OPTIONS[specialty] ?? DEFAULT_MODALITIES;
+}
+
 const SAMPLE = `RADIOLOGY REPORT
 PATIENT: Maria Delgado · MRN: 88412-7 · DOB: 03/14/1964 · Phone: (555) 201-8842
 EXAM: CT chest with contrast
@@ -69,15 +84,40 @@ export default function Integrations() {
         {/* Live ingest */}
         <div className="card p-4 lg:col-span-2">
           <div className="flex items-center gap-2 mb-3"><FileInput size={16} className="text-ace-600" /><h2 className="font-bold text-slate-800">Ingest a report (live)</h2></div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-            <select className="rounded border border-slate-200 px-2 py-1.5 text-sm" value={form.specialty} onChange={(e) => set("specialty", e.target.value)}>
-              {specs.map((s) => <option key={s}>{s}</option>)}
-            </select>
-            <input className="rounded border border-slate-200 px-2 py-1.5 text-sm" placeholder="Modality (CT)" value={form.modality} onChange={(e) => set("modality", e.target.value)} />
-            <input className="rounded border border-slate-200 px-2 py-1.5 text-sm" placeholder="Payer" value={form.payer} onChange={(e) => set("payer", e.target.value)} />
-            <select className="rounded border border-slate-200 px-2 py-1.5 text-sm" value={form.source_system} onChange={(e) => set("source_system", e.target.value)}>
-              {data.connectors.map((c) => <option key={c.name}>{c.name}</option>)}
-            </select>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Specialty <span className="text-rose-400">*</span></span>
+              <select
+                className="rounded border border-slate-200 px-2 py-1.5 text-sm"
+                value={form.specialty}
+                onChange={(e) => {
+                  const spec = e.target.value;
+                  setForm((f) => ({ ...f, specialty: spec, modality: modalitiesFor(spec)[0] }));
+                }}
+              >
+                {specs.map((s) => <option key={s}>{s}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Modality</span>
+              <select
+                className="rounded border border-slate-200 px-2 py-1.5 text-sm"
+                value={form.modality}
+                onChange={(e) => set("modality", e.target.value)}
+              >
+                {modalitiesFor(form.specialty).map((m) => <option key={m}>{m}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Payer <span className="text-rose-400">*</span></span>
+              <input className="rounded border border-slate-200 px-2 py-1.5 text-sm" placeholder="Medicare" value={form.payer} onChange={(e) => set("payer", e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Source System</span>
+              <select className="rounded border border-slate-200 px-2 py-1.5 text-sm" value={form.source_system} onChange={(e) => set("source_system", e.target.value)}>
+                {data.connectors.map((c) => <option key={c.name}>{c.name}</option>)}
+              </select>
+            </label>
           </div>
           <textarea className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm font-mono" rows={6} placeholder="Paste a clinical report — or upload your own chart file below…" value={form.report_text} onChange={(e) => set("report_text", e.target.value)} />
           <div className="mt-2 flex items-center gap-2 flex-wrap">

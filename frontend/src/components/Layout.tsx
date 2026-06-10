@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
   LayoutList, LayoutDashboard, BarChart3, ShieldCheck, FlaskConical, GraduationCap,
   Cpu, Stethoscope, Plug, SlidersHorizontal, UserCog, ScrollText,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { api } from "../api";
 import { useRole, ROLES, canAccess } from "../role";
@@ -26,51 +28,82 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { role } = useRole();
   const visibleNav = nav.filter((n) => canAccess(n.to, role));
 
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("sidebar-collapsed") === "true");
+  useEffect(() => {
+    localStorage.setItem("sidebar-collapsed", String(collapsed));
+  }, [collapsed]);
+
   return (
     <div className="flex h-full">
       {/* Sidebar */}
-      <aside className="w-64 shrink-0 bg-ace-900 text-slate-200 flex flex-col">
-        <div className="px-5 py-5 border-b border-white/10">
+      <aside className={clsx(
+        "shrink-0 bg-ace-900 text-slate-200 flex flex-col transition-all duration-200",
+        collapsed ? "w-14" : "w-64",
+      )}>
+        {/* Logo */}
+        <div className={clsx("py-5 border-b border-white/10", collapsed ? "px-2" : "px-5")}>
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg bg-brand-500 grid place-items-center font-extrabold text-white">A</div>
-            <div>
-              <div className="font-bold text-white leading-tight">ACE</div>
-              <div className="text-[11px] text-slate-400 leading-tight">Autonomous Coding Engine</div>
+            <div className="h-9 w-9 shrink-0 rounded-lg bg-brand-500 grid place-items-center font-extrabold text-white">A</div>
+            {!collapsed && (
+              <div>
+                <div className="font-bold text-white leading-tight">ACE</div>
+                <div className="text-[11px] text-slate-400 leading-tight">Autonomous Coding Engine</div>
+              </div>
+            )}
+          </div>
+          {!collapsed && (
+            <div className="mt-3 text-[10px] uppercase tracking-wider text-slate-500">
+              inside RevAmp · Coding Studio
             </div>
-          </div>
-          <div className="mt-3 text-[10px] uppercase tracking-wider text-slate-500">
-            inside RevAmp · Coding Studio
-          </div>
+          )}
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        {/* Nav */}
+        <nav className={clsx("flex-1 py-4 space-y-1", collapsed ? "px-1" : "px-3")}>
           {visibleNav.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
               end={n.end}
+              title={collapsed ? n.label : undefined}
               className={({ isActive }) =>
                 clsx(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  isActive ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
+                  "flex items-center rounded-lg py-2 text-sm font-medium transition-colors",
+                  collapsed ? "justify-center px-2" : "gap-3 px-3",
+                  isActive ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white",
                 )
               }
             >
-              <n.icon size={18} />
-              {n.label}
+              <n.icon size={18} className="shrink-0" />
+              {!collapsed && n.label}
             </NavLink>
           ))}
         </nav>
 
-        <div className="px-4 py-4 border-t border-white/10 space-y-2">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <ShieldCheck size={14} className="text-emerald-400" />
-            HIPAA-shaped · US-region · audit-logged
-          </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <Cpu size={14} className={meta?.llm_available ? "text-emerald-400" : "text-rose-400"} />
-            <span className="font-mono truncate">{meta?.model_version ?? "…"}</span>
-          </div>
+        {/* Footer */}
+        <div className={clsx("py-4 border-t border-white/10", collapsed ? "px-1" : "px-4")}>
+          {!collapsed && (
+            <div className="space-y-2 mb-3">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <ShieldCheck size={14} className="text-emerald-400 shrink-0" />
+                HIPAA-shaped · US-region · audit-logged
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <Cpu size={14} className={meta?.llm_available ? "text-emerald-400 shrink-0" : "text-rose-400 shrink-0"} />
+                <span className="font-mono truncate">{meta?.model_version ?? "…"}</span>
+              </div>
+            </div>
+          )}
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={clsx(
+              "flex items-center w-full rounded-lg py-1.5 text-slate-400 hover:text-white hover:bg-white/5 transition-colors text-xs",
+              collapsed ? "justify-center px-2" : "gap-2 px-2",
+            )}
+          >
+            {collapsed ? <ChevronRight size={16} /> : <><ChevronLeft size={16} /> Collapse</>}
+          </button>
         </div>
       </aside>
 

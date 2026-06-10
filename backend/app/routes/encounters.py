@@ -38,6 +38,7 @@ def list_encounters(db: Session = Depends(get_db)) -> list[dict]:
             "specialty": e.specialty, "modality": e.modality, "payer": e.payer, "dos": e.dos,
             "client": e.client, "source_system": e.source_system, "scenario": e.scenario,
             "status": e.status,
+            "received_at": e.received_at.isoformat() if e.received_at else None,
             "routing_lane": run.routing_lane if run else "",
             "routing_reason": run.routing_reason if run else "",
             "overall_confidence": run.overall_confidence if run else 0.0,
