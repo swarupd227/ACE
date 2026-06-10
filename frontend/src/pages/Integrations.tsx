@@ -6,6 +6,7 @@ import { api } from "../api";
 import { Spinner } from "../lib";
 
 const SAMPLE = `RADIOLOGY REPORT
+PATIENT: Maria Delgado · MRN: 88412-7 · DOB: 03/14/1964 · Phone: (555) 201-8842
 EXAM: CT chest with contrast
 HISTORY: 61-year-old with persistent cough and abnormal chest X-ray.
 TECHNIQUE: Helical CT of the thorax following IV contrast.

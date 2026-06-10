@@ -16,7 +16,7 @@ from ..config import settings
 from ..knowledge import graph_rag
 from ..llm import prompts
 from ..llm.client import LLMUnavailable, complete_json, model_version
-from . import anes, apc, drg, hcc, validation
+from . import anes, apc, drg, hcc, pii, validation
 
 # Confidence routing thresholds (calibrated per-specialty in production)
 STB_THRESHOLD = 0.90
@@ -127,7 +127,15 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     db.add(run)
     db.flush()
     t0 = time.time()
-    numbered, lookup = _number_chart(enc.chart_text)
+    # Privacy guard: the model only ever sees the MASKED text. Masking is
+    # line-preserving, so citations still align with the original chart.
+    mask_on = cfg.get("privacy", {}).get("mask_identifiers", True)
+    if mask_on:
+        chart_for_model, pii_findings = pii.mask_identifiers(
+            enc.chart_text, known_name=enc.patient_name, known_mrn=enc.mrn)
+    else:
+        chart_for_model, pii_findings = enc.chart_text, []
+    numbered, lookup = _number_chart(chart_for_model)
     log: list[dict] = []
     usage: list[dict] = []   # real per-call token usage, accumulated across the run
 
@@ -185,6 +193,16 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     _audit(db, run, "0_eligibility", "eligibility_checked", elig)
     if not elig["eligible"]:
         return finish("MANUAL", f"Ineligible for auto-coding: {elig['reason']}")
+
+    # --- Stage 1 privacy guard — mask direct identifiers before any model call ---
+    if mask_on:
+        say("Privacy Guard", pii.summary(pii_findings), "good" if pii_findings else "info")
+        log.append({"stage": "1_privacy", "title": "PII Masking (pre-model)",
+                    "enabled": True, "masked": pii_findings,
+                    "note": "Direct identifiers masked from the model's copy; age/sex/DOS kept (coding needs them). "
+                            "Production: clinical de-id service behind the same hook."})
+        _audit(db, run, "1_privacy", "identifiers_masked",
+               {"masked": pii_findings, "total": sum(f["count"] for f in pii_findings)})
 
     # --- Stage 1+2 — analysis (conditioning + summary + extraction) ---
     step("1", "Conditioning")
@@ -525,7 +543,8 @@ def cdi_scan(db: Session, encounter_id: str, emit=None) -> list[models.CdiQuery]
     enc = db.get(models.Encounter, encounter_id)
     if enc is None:
         raise ValueError("encounter not found")
-    llmc = config_store.all_config(db).get("llm")
+    cfg = config_store.all_config(db)
+    llmc = cfg.get("llm")
     say("CDI Agent", f"reviewing documentation for {enc.patient_name} · {enc.specialty}", "head")
     run = db.scalars(
         select(models.CodingRun).where(models.CodingRun.encounter_id == enc.id)
@@ -536,7 +555,14 @@ def cdi_scan(db: Session, encounter_id: str, emit=None) -> list[models.CdiQuery]
         for c in (run.codes if run else [])
     ]
     say("CDI Agent", f"checking {len(codes)} assigned code(s) for documentation gaps · invoking {model_version(llmc)}…", "tool")
-    numbered, _ = _number_chart(enc.chart_text)
+    # The CDI agent gets the same privacy-guarded copy as the coding agent.
+    chart_for_model = enc.chart_text
+    if cfg.get("privacy", {}).get("mask_identifiers", True):
+        chart_for_model, cdi_pii = pii.mask_identifiers(
+            enc.chart_text, known_name=enc.patient_name, known_mrn=enc.mrn)
+        if cdi_pii:
+            say("Privacy Guard", pii.summary(cdi_pii), "good")
+    numbered, _ = _number_chart(chart_for_model)
     result = complete_json(
         prompts.CDI_SYSTEM,
         prompts.build_cdi_user(numbered, enc.specialty, codes),

@@ -57,6 +57,11 @@ DEFAULTS: dict = {
         {"name": "eClinicalWorks", "type": "EHR", "channel": "FHIR R4 / HL7 v2", "enabled": True},
         {"name": "Cerner", "type": "EHR", "channel": "FHIR R4 / HL7 v2", "enabled": True},
     ],
+    "privacy": {
+        # Mask direct identifiers (name/MRN/DOB/SSN/phone) from the model's copy of the
+        # chart before ANY model call. Age/sex/DOS are kept — coding needs them.
+        "mask_identifiers": True,
+    },
     "anesthesia": {
         # Representative national CMS anesthesia conversion factor ($/unit); varies by
         # locality and payer — admin-tunable. Physical-status unit adders follow
@@ -84,6 +89,7 @@ META: dict = {
     "specialties": "Enabled specialties and their model-tier (hard = Opus + self-consistency)",
     "roster": "Coders / auditors available for assignment",
     "connectors": "Source systems (PMS/EHR) shown on the Integrations screen",
+    "privacy": "Pre-model PII masking — direct identifiers are masked before any model call (age/sex/DOS kept)",
     "anesthesia": "Anesthesia unit payment — conversion factor ($/unit) and physical-status unit adders",
     "llm": "The reasoning model — provider, default/hard models and endpoint (API keys stay in the environment)",
 }

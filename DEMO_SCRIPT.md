@@ -55,10 +55,14 @@ The honest, layered answer:
 3. **Full de-identification would break the coding.** The chart's age, sex, dates and clinical detail are
    exactly what correct coding needs — our own sex/age gates validate codes against demographics. A
    Safe-Harbor-stripped chart cannot be coded accurately.
-4. **What carries no coding value, we mask — defense in depth.** Direct identifiers (name, MRN, SSN, phone,
-   address) can be redacted at the ingestion/conditioning front-end and re-attached after coding — Azure
-   Health Data Services de-identification or Microsoft Presidio, slotted exactly at Stage 1. A per-client
-   production configuration, not a rebuild.
+4. **What carries no coding value, we mask — and the app does it today, visibly.** Direct identifiers
+   (name, MRN, DOB, SSN, phone) are masked from the model's copy of the chart before ANY model call —
+   watch the Agent Console: *"Privacy Guard — masked N direct identifier(s) before any model call (age,
+   sex and dates of service kept — coding needs them)"*, and the pipeline trace records exactly what was
+   masked. Ingest the sample report (it carries a name/MRN/DOB/phone header) to show it live. Masking is
+   line-preserving, so citations still align with the original chart, and it's admin-togglable
+   (Admin → Configuration → privacy). Production swaps in a clinical de-identification service (Azure
+   Health Data Services de-id / Presidio) behind this same hook.
 
 ## 1. The worklist + the run (3 min) — `Worklist`
 - Show the queue (Radiology, E&M, ED; payers; clients Practice Admin/eCW/Cerner).
