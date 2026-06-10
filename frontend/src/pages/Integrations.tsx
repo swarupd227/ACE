@@ -92,9 +92,17 @@ export default function Integrations() {
                 }}
               />
             </label>
-            <button className="btn-primary py-1.5" disabled={form.report_text.trim().length < 20 || ingest.isPending} onClick={() => ingest.mutate()}>
+            <button
+              className="btn-primary py-1.5"
+              disabled={form.report_text.trim().length < 20 || ingest.isPending}
+              title={form.report_text.trim().length < 20 ? "Paste or upload at least 20 characters of report text" : ""}
+              onClick={() => ingest.mutate()}
+            >
               {ingest.isPending ? <Spinner className="h-4 w-4" /> : <FileInput size={14} />} Ingest into queue
             </button>
+            {form.report_text.trim().length > 0 && form.report_text.trim().length < 20 && (
+              <span className="text-xs text-amber-600">needs ≥ 20 characters of report text</span>
+            )}
             {last && (
               <span className="text-sm text-emerald-700 flex items-center gap-1">
                 <CheckCircle2 size={15} /> Ingested {last.mrn} —
