@@ -46,10 +46,26 @@ async function find(request, pred) {
 
 test("ACE end-to-end product tour", async ({ page, request }) => {
   await page.addInitScript(() => localStorage.setItem("ace_role", "Admin"));
-  const rad = await find(request, (e) => e.mrn === "RAD10001") || await find(request, (e) => e.specialty === "Radiology" && e.routing_lane === "STB");
-  const em = await find(request, (e) => e.mrn === "EM20001") || await find(request, (e) => e.specialty === "E&M");
-  const ip = await find(request, (e) => e.mrn === "IP10001") || await find(request, (e) => e.specialty === "Inpatient (DRG)");
-  const hcc = await find(request, (e) => e.mrn === "HC10001") || await find(request, (e) => e.specialty === "HCC / Risk Adjustment");
+
+  // 0 · TITLE CARD — FIRST action so the recording never opens on a blank frame.
+  // The encounter lookups run during the card's dwell time, not before it.
+  await page.setContent(`
+    <body style="margin:0;background:#0E1B33;height:100vh;display:flex;align-items:center;justify-content:center;font-family:Calibri,'Segoe UI',sans-serif">
+      <div style="position:fixed;left:0;top:0;bottom:0;width:14px;background:#13B5A6"></div>
+      <div style="text-align:left;max-width:900px;padding:0 60px">
+        <div style="color:#13B5A6;font-weight:800;letter-spacing:4px;font-size:16px">NOUS INFOSYSTEMS &nbsp;·&nbsp; FOR VEE HEALTHTEK</div>
+        <div style="color:#fff;font-family:Georgia,serif;font-weight:700;font-size:54px;margin-top:18px">ACE — Autonomous Coding Engine</div>
+        <div style="color:#CADCFC;font-size:24px;margin-top:14px">Agentic AI that turns clinical notes into billable codes</div>
+        <div style="color:#7E90A8;font-size:16px;margin-top:26px;font-style:italic">An end-to-end product tour &nbsp;·&nbsp; ~2½ minutes</div>
+      </div>
+    </body>`);
+  const encs = await (await request.get(`${API}/encounters`)).json();
+  const pick = (pred) => encs.find(pred);
+  const rad = pick((e) => e.mrn === "RAD10001") || pick((e) => e.specialty === "Radiology" && e.routing_lane === "STB");
+  const em = pick((e) => e.mrn === "EM20001") || pick((e) => e.specialty === "E&M");
+  const ip = pick((e) => e.mrn === "IP10001") || pick((e) => e.specialty === "Inpatient (DRG)");
+  const hcc = pick((e) => e.mrn === "HC10001") || pick((e) => e.specialty === "HCC / Risk Adjustment");
+  await wait(page, 3.0);
 
   // 1 · INTAKE / INTEGRATIONS — feeds + scanned-document OCR ──────────────────
   await page.goto("/integrations"); await settle(page);
