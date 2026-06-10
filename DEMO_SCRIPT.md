@@ -44,6 +44,22 @@ Correct — and the architecture assumes that. The honest answer, in three parts
    clean input. Production adds document classification, splitting/de-dup and bulk OCR (Azure Document
    Intelligence on their mandated stack) in front of the same Stage 0–5.
 
+### Anticipated question — "Are you removing PII before sending charts to the AI?"
+The honest, layered answer:
+1. **Today, nothing real reaches the model.** Every demo chart is synthetic, PHI-free seed data by design.
+2. **In production the lawful path is the BAA chain, not redaction.** Coding is a HIPAA payment/operations
+   use; PHI flows to the model under a Business Associate Agreement — on the mandated Azure stack, models
+   in Azure AI Foundry sit under Microsoft's BAA (Claude is available through Foundry, and is HIPAA-eligible
+   via Bedrock/Vertex; Anthropic offers enterprise BAA / zero-data-retention terms). US-region residency is
+   already an architecture commitment, and API inputs are never used for model training — contractually.
+3. **Full de-identification would break the coding.** The chart's age, sex, dates and clinical detail are
+   exactly what correct coding needs — our own sex/age gates validate codes against demographics. A
+   Safe-Harbor-stripped chart cannot be coded accurately.
+4. **What carries no coding value, we mask — defense in depth.** Direct identifiers (name, MRN, SSN, phone,
+   address) can be redacted at the ingestion/conditioning front-end and re-attached after coding — Azure
+   Health Data Services de-identification or Microsoft Presidio, slotted exactly at Stage 1. A per-client
+   production configuration, not a rebuild.
+
 ## 1. The worklist + the run (3 min) — `Worklist`
 - Show the queue (Radiology, E&M, ED; payers; clients Practice Admin/eCW/Cerner).
 - **The agentic moment:** on an *uncoded* chart (e.g. one you just ingested), click **Code** → the
