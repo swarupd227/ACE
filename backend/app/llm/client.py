@@ -106,6 +106,60 @@ def _openai_json(system, user, schema, model, temperature, e) -> dict[str, Any]:
     return json.loads(content), usage
 
 
+EXTRACT_SYSTEM = """You are the document-conditioning OCR step of a medical-coding pipeline.
+Transcribe the attached clinical document into plain text, faithfully and completely.
+RULES:
+- Transcribe VERBATIM. Never paraphrase, summarize, or invent content that is not visible.
+- Preserve the document's section structure (one section per line, e.g. 'EXAM:', 'FINDINGS:').
+- Mark anything you cannot read as [illegible]. Do not guess.
+- Output ONLY the transcription — no commentary."""
+
+
+def extract_document_text(
+    data: bytes, media_type: str, *, llm: dict | None = None, usage_sink: list | None = None
+) -> str:
+    """Vision OCR for scanned charts (PDF / PNG / JPEG): returns the verbatim plain-text
+    transcription that then enters the normal pipeline at Stage 1 (conditioning).
+    Anthropic provider only (document/image blocks); honest LLMUnavailable otherwise."""
+    import base64
+
+    e = effective_llm(llm)
+    if not llm_available(llm):
+        raise LLMUnavailable("No LLM backend configured for document extraction.")
+    if e["provider"] != "anthropic":
+        raise LLMUnavailable(
+            "Scanned-document extraction currently requires the Anthropic provider "
+            "(vision document blocks). Switch the reasoning model in Admin, or ingest text."
+        )
+
+    import anthropic
+
+    block_type = "document" if media_type == "application/pdf" else "image"
+    client = anthropic.Anthropic(api_key=e["anthropic_api_key"])
+    resp = client.messages.create(
+        model=e["model_default"],
+        max_tokens=e["max_tokens"],
+        temperature=0.0,
+        system=EXTRACT_SYSTEM,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": block_type,
+                 "source": {"type": "base64", "media_type": media_type,
+                            "data": base64.standard_b64encode(data).decode()}},
+                {"type": "text", "text": "Transcribe this clinical document."},
+            ],
+        }],
+    )
+    if usage_sink is not None:
+        usage_sink.append({"in": getattr(resp.usage, "input_tokens", 0),
+                           "out": getattr(resp.usage, "output_tokens", 0)})
+    text = "".join(b.text for b in resp.content if b.type == "text").strip()
+    if len(text) < 20:
+        raise LLMUnavailable("Document extraction produced no usable text.")
+    return text
+
+
 def complete_json(
     system: str,
     user: str,

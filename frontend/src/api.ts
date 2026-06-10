@@ -94,6 +94,27 @@ export const api = {
   ingest: (body: Record<string, any>) =>
     req<{ id: string; mrn: string; specialty: string; status: string; source_system: string }>(
       "/ingest", { method: "POST", body: JSON.stringify(body) }),
+  // Multipart upload — the browser sets the Content-Type boundary itself.
+  ingestDocument: async (file: File, fields: Record<string, string>) => {
+    const role = localStorage.getItem("ace_role") || "Admin";
+    const fd = new FormData();
+    fd.append("file", file);
+    Object.entries(fields).forEach(([k, v]) => fd.append(k, v));
+    const res = await fetch(`${BASE}/ingest/document`, {
+      method: "POST", body: fd,
+      headers: { "X-Actor": `${role.toLowerCase().replace(/\s+/g, "_")}:demo`, "X-Role": role },
+    });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try { const j = await res.json(); detail = j.detail || j.error || detail; } catch { /* ignore */ }
+      throw new Error(detail);
+    }
+    return res.json() as Promise<{
+      id: string; mrn: string; specialty: string; status: string; source_system: string;
+      filename: string; extracted_chars: number; extracted_preview: string;
+      tokens: { in: number; out: number };
+    }>;
+  },
   adminConfig: () => req<{ config: any; meta: Record<string, string>; defaults: any }>("/admin/config"),
   putConfig: (key: string, value: any) =>
     req(`/admin/config/${key}`, { method: "PUT", body: JSON.stringify({ value }) }),

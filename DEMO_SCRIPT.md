@@ -18,10 +18,31 @@
 - Message: *"This is the operating picture — live queues, SLA, and workforce assignment. Now let's see
   where the work comes from and how each chart is coded."*
 
-## 0.7 Integrations & Ingestion (1 min) — `Integrations & Ingestion`
+## 0.7 Integrations & Ingestion (1.5 min) — `Integrations & Ingestion`
 - Show connected source systems (Practice Admin / eCW / Cerner) + channels (FHIR R4 / HL7 v2 / EDI 837 /
   SFTP / REST). **Load a sample report → Ingest into queue → it appears live in the Worklist.**
-- Message: *"Charts arrive from the EHR/PMS; the connectors are simulated, the ingest is real."*
+- **The "real charts aren't clean text" beat:** scroll to **Ingest a scanned document** → upload the sample
+  scanned chart (PDF/image) → the model **transcribes it live (vision OCR)** → extracted text appears →
+  open the encounter → run coding → same pipeline, same citations. *"Real charts arrive as document
+  packets — scans, faxes, PDFs. This is the Document Ingestion & Conditioning front-end doing real OCR
+  with the same reasoning model; anything unreadable is marked [illegible], never invented. In production
+  this is industrialized — Azure Document Intelligence for bulk OCR, document classification and
+  splitting — feeding this identical pipeline."*
+- Message: *"Charts arrive from the EHR/PMS; the connectors are simulated, the ingest — text or scanned —
+  is real."*
+
+### Anticipated question — "Are real charts this clean? It's never one text blob."
+Correct — and the architecture assumes that. The honest answer, in three parts:
+1. **Radiology (the anchor) genuinely is text-first**: production radiology coding runs off the dictated
+   report (PowerScribe etc.) — a single text document, exactly as demoed.
+2. **The pipeline's Stage 1 is literally Document Conditioning**: the conditioning flags you saw
+   (`ocr_artifact`, `copy_forward`, `unsigned`, `addendum`, `missing_documentation`) exist because real
+   input is messy — RAD10004/RAD10005 show the engine *refusing* incomplete documents rather than coding them.
+3. **The scanned-document ingest you just watched is the multi-format path working live**: PDFs, scans and
+   faxes are transcribed by the same model family (vision), then enter the identical pipeline. The demo
+   charts are synthetic single-text because they are PHI-free seed data — not because the engine expects
+   clean input. Production adds document classification, splitting/de-dup and bulk OCR (Azure Document
+   Intelligence on their mandated stack) in front of the same Stage 0–5.
 
 ## 1. The worklist + the run (3 min) — `Worklist`
 - Show the queue (Radiology, E&M, ED; payers; clients Practice Admin/eCW/Cerner).

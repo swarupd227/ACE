@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import config_store, models
 from ..db import get_db
+from ..llm import client as llm_client
 from ._admin_audit import Actor, get_actor, log_change
 
 router = APIRouter()
@@ -680,3 +681,57 @@ def ingest(body: IngestIn, db: Session = Depends(get_db)) -> dict:
     db.refresh(enc)
     return {"id": enc.id, "mrn": enc.mrn, "specialty": enc.specialty, "status": enc.status,
             "source_system": enc.source_system}
+
+
+_DOC_TYPES = {"application/pdf", "image/png", "image/jpeg", "image/webp"}
+
+
+@router.post("/ingest/document")
+async def ingest_document(
+    file: UploadFile = File(...),
+    specialty: str = Form("Radiology"),
+    modality: str = Form(""),
+    payer: str = Form("Medicare"),
+    pos: str = Form("22"),
+    patient_name: str = Form("Scanned-Document Patient"),
+    sex: str = Form("F"),
+    age: int = Form(55),
+    dos: str = Form("2026-05-15"),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Ingest a SCANNED chart (PDF or image). The reasoning model transcribes the
+    document verbatim (vision OCR — the production Document Ingestion & Conditioning
+    front-end); the text then enters the normal pipeline at Stage 1. Real extraction,
+    honest failure: an unreadable document is rejected, never invented."""
+    media_type = (file.content_type or "").lower()
+    if media_type not in _DOC_TYPES:
+        raise HTTPException(400, f"unsupported document type '{media_type}' — use PDF/PNG/JPEG/WebP")
+    data = await file.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(400, "document too large (10 MB max for the demo)")
+
+    usage: list = []
+    llm = config_store.all_config(db).get("llm")
+    try:
+        text = llm_client.extract_document_text(data, media_type, llm=llm, usage_sink=usage)
+    except llm_client.LLMUnavailable as exc:
+        raise HTTPException(503, f"document extraction unavailable: {exc}")
+
+    mrn = f"DOC{abs(hash(text)) % 100000:05d}"
+    enc = models.Encounter(
+        mrn=mrn, patient_name=patient_name, age=age, sex=sex,
+        specialty=specialty, modality=modality, payer=payer, pos=pos,
+        dos=dos, client="Ingested", source_system="Document upload (vision OCR)",
+        report_type="scanned_document", chart_text=text,
+        scenario=f"Scanned {file.filename or 'document'} → vision OCR → pipeline",
+        status="NEW",
+    )
+    db.add(enc)
+    db.commit()
+    db.refresh(enc)
+    return {
+        "id": enc.id, "mrn": enc.mrn, "specialty": enc.specialty, "status": enc.status,
+        "source_system": enc.source_system, "filename": file.filename,
+        "extracted_chars": len(text), "extracted_preview": text[:400],
+        "tokens": {"in": sum(u.get("in", 0) for u in usage), "out": sum(u.get("out", 0) for u in usage)},
+    }
