@@ -375,6 +375,7 @@ def _eval_core(db: Session, emit) -> dict:
         if run_ids:
             db.execute(delete(models.CodeResult).where(models.CodeResult.run_id.in_(run_ids)))
             db.execute(delete(models.DrgResult).where(models.DrgResult.run_id.in_(run_ids)))
+            db.execute(delete(models.HccResult).where(models.HccResult.run_id.in_(run_ids)))
         db.execute(delete(models.CodingRun).where(models.CodingRun.encounter_id == e.id))
         db.delete(e)
     db.commit()
@@ -385,12 +386,17 @@ def _eval_core(db: Session, emit) -> dict:
     results = []
     agg: dict[str, dict] = {}
     for i, g in enumerate(golden):
+        # RAF depends on demographics, so risk-adjustment golden cases run as a fixed
+        # 72-year-old male (the band the golden truth RAFs were adjudicated against).
+        is_hcc = g.specialty == "HCC / Risk Adjustment"
         enc = models.Encounter(
-            mrn=f"GOLD{i:04d}", patient_name="Golden Case", age=55, sex="F",
+            mrn=f"GOLD{i:04d}", patient_name="Golden Case",
+            age=72 if is_hcc else 55, sex="M" if is_hcc else "F",
             specialty=g.specialty, modality=_modality_from_text(g.chart_text),
             encounter_type="established" if g.specialty == "E&M" else "",
-            payer="Medicare",
-            pos=("11" if g.specialty == "E&M" else "21" if g.specialty == "Inpatient (DRG)" else "22"),
+            payer="Medicare Advantage" if is_hcc else "Medicare",
+            pos=("11" if g.specialty == "E&M" or is_hcc
+                 else "21" if g.specialty == "Inpatient (DRG)" else "22"),
             dos="2026-04-15", client=HIDDEN, source_system="eval", chart_text=g.chart_text,
             scenario="golden", status="NEW",
         )
@@ -405,14 +411,17 @@ def _eval_core(db: Session, emit) -> dict:
         truth_pcs = set(g.truth.get("pcs", []))
         truth_drg = g.truth.get("drg", "")
         pred_drg = run.drg_result.drg if run.drg_result else ""
+        truth_raf = g.truth.get("raf")
+        pred_raf = run.hcc_result.raf if run.hcc_result else None
         icd_ok = bool(truth_icd & pred_icd) if truth_icd else True
         cpt_ok = bool(truth_cpt & pred_cpt) if truth_cpt else True
         pcs_ok = bool(truth_pcs & pred_pcs) if truth_pcs else True
         drg_ok = (pred_drg == truth_drg) if truth_drg else True
-        chart_ok = icd_ok and cpt_ok and pcs_ok and drg_ok
+        raf_ok = (pred_raf is not None and abs(pred_raf - truth_raf) <= 0.005) if truth_raf else True
+        chart_ok = icd_ok and cpt_ok and pcs_ok and drg_ok and raf_ok
         cit_ok = all(c.conf_doc_match >= 0.5 for c in run.codes if c.status == "accepted") if run.codes else False
 
-        a = agg.setdefault(g.specialty, {"specialty": g.specialty, "n": 0, "icd": 0, "cpt": 0, "chart": 0, "cit": 0, "stb": 0, "irr": [], "drg": 0, "drg_n": 0})
+        a = agg.setdefault(g.specialty, {"specialty": g.specialty, "n": 0, "icd": 0, "cpt": 0, "chart": 0, "cit": 0, "stb": 0, "irr": [], "drg": 0, "drg_n": 0, "raf": 0, "raf_n": 0})
         a["n"] += 1
         a["icd"] += int(icd_ok)
         a["cpt"] += int(cpt_ok)
@@ -423,13 +432,19 @@ def _eval_core(db: Session, emit) -> dict:
         if truth_drg:
             a["drg_n"] += 1
             a["drg"] += int(drg_ok)
+        if truth_raf:
+            a["raf_n"] += 1
+            a["raf"] += int(raf_ok)
         results.append({
             "specialty": g.specialty, "truth": g.truth,
             "predicted_icd": sorted(pred_icd), "predicted_cpt": sorted(pred_cpt or pred_pcs),
             "predicted_drg": pred_drg, "drg_ok": drg_ok,
+            "predicted_raf": pred_raf, "raf_ok": raf_ok,
             "icd_ok": icd_ok, "cpt_ok": cpt_ok, "chart_ok": chart_ok, "lane": run.routing_lane,
         })
-        pred = (sorted(pred_cpt) + sorted(pred_pcs) + sorted(pred_icd) + ([f"DRG {pred_drg}"] if pred_drg else [])) or ["(none)"]
+        pred = (sorted(pred_cpt) + sorted(pred_pcs) + sorted(pred_icd)
+                + ([f"DRG {pred_drg}"] if pred_drg else [])
+                + ([f"RAF {pred_raf}"] if pred_raf is not None else [])) or ["(none)"]
         say(f"  case {i + 1}/{total} · {g.specialty}",
             f"predicted {', '.join(pred)} — {'PASS' if chart_ok else 'MISS'}",
             "good" if chart_ok else "bad")
@@ -449,6 +464,8 @@ def _eval_core(db: Session, emit) -> dict:
         }
         if a.get("drg_n"):
             row["drg_accuracy"] = round(a["drg"] / a["drg_n"], 3)
+        if a.get("raf_n"):
+            row["raf_accuracy"] = round(a["raf"] / a["raf_n"], 3)
         by_spec.append(row)
     db.commit()
     overall_chart = round(sum(r["chart_ok"] for r in results) / len(results), 3) if results else 0.0

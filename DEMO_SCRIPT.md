@@ -148,6 +148,17 @@ nobody hands you a configurable platform" beat.*
   definitions or a certified grouper in production. ICD-10-PCS, the DRG weights and the CC/MCC lists are all
   public — so this is actually more defensible than outpatient CPT."* The Evaluation Harness scores **DRG
   accuracy** for these cases too.
+- **HCC / Risk Adjustment — the RevCap adjacency** → open an **HCC / Risk Adjustment** chart (HC10001 AWV).
+  *"This one is strategic: RevCap is already HCC-focused, so ACE doesn't replace it — it extends it with
+  agentic capture and a defensible audit trail. Risk adjustment is a third payment model: longitudinal
+  diagnosis capture, not per-claim procedures."* Point at the **RAF result card**: the RAF score, the
+  demographic base factor, each **HCC with its coefficient**, and two beats auditors love — *"hyperlipidemia
+  documented but it **doesn't risk-adjust**, so we don't pretend it does; and if both diabetes-with- and
+  -without-complications are coded, the **hierarchy suppresses** the lesser one — only the most severe in a
+  family pays."* Expand **"Show RAF computation"** for the full audited math. *"The CMS-HCC mappings,
+  hierarchies and coefficients are public CMS artifacts — curated V24 subset here, full annual model file in
+  production. The capture is MEAT-grounded and cited, which is exactly what a RADV audit asks for."* The
+  Evaluation Harness scores **RAF accuracy** for these cases.
 - **Change Log** tab (Admin / Configuration) → *"And every one of these edits is itself governed."* Show
   the append-only trail: who (by role), when, what area, action, and target — for config, policy, KG,
   guideline, reference-data, and golden-set edits. *"Your audit and compliance teams asked who changed the

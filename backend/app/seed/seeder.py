@@ -68,6 +68,16 @@ def seed_all(force: bool = False) -> dict:
         for pcs, base, mdc in rd.OR_PROC:
             db.add(models.OrProcedure(pcs_code=pcs, surgical_base_key=base, mdc=mdc))
 
+        # HCC / Risk Adjustment reference data
+        for hcc, label, coef in rd.HCC_CATEGORIES:
+            db.add(models.HccCategory(hcc=hcc, label=label, coefficient=coef))
+        for dx, hcc in rd.DX_HCC:
+            db.add(models.DxHccMap(dx_code=dx, hcc=hcc))
+        for sup, infr in rd.HCC_HIER:
+            db.add(models.HccHierarchy(superior_hcc=sup, suppressed_hcc=infr))
+        for sex, amin, amax, factor in rd.DEMO_FACTORS:
+            db.add(models.DemographicFactor(sex=sex, age_min=amin, age_max=amax, factor=factor))
+
         # golden set
         for g in charts.GOLDEN_CASES:
             db.add(models.GoldenCase(specialty=g["specialty"], chart_text=g["chart_text"],
@@ -215,6 +225,27 @@ def seed_missing() -> dict:
             if pcs not in orps:
                 db.add(models.OrProcedure(pcs_code=pcs, surgical_base_key=base, mdc=mdc))
                 orps.add(pcs); bump("or_procedures")
+
+        # HCC / Risk Adjustment — categories by hcc; map by dx; hierarchy by pair; demo by band
+        hccs = {h.hcc for h in db.scalars(select(models.HccCategory)).all()}
+        for hcc, label, coef in rd.HCC_CATEGORIES:
+            if hcc not in hccs:
+                db.add(models.HccCategory(hcc=hcc, label=label, coefficient=coef))
+                hccs.add(hcc); bump("hcc_categories")
+        dxmap = {m.dx_code for m in db.scalars(select(models.DxHccMap)).all()}
+        for dx, hcc in rd.DX_HCC:
+            if dx not in dxmap:
+                db.add(models.DxHccMap(dx_code=dx, hcc=hcc)); dxmap.add(dx); bump("dx_hcc_map")
+        hier = {(h.superior_hcc, h.suppressed_hcc) for h in db.scalars(select(models.HccHierarchy)).all()}
+        for sup, infr in rd.HCC_HIER:
+            if (sup, infr) not in hier:
+                db.add(models.HccHierarchy(superior_hcc=sup, suppressed_hcc=infr))
+                hier.add((sup, infr)); bump("hcc_hierarchies")
+        bands = {(d.sex, d.age_min, d.age_max) for d in db.scalars(select(models.DemographicFactor)).all()}
+        for sex, amin, amax, factor in rd.DEMO_FACTORS:
+            if (sex, amin, amax) not in bands:
+                db.add(models.DemographicFactor(sex=sex, age_min=amin, age_max=amax, factor=factor))
+                bands.add((sex, amin, amax)); bump("demographic_factors")
 
         # golden set — key (specialty, chart_text)
         gold = {(g.specialty, g.chart_text) for g in db.scalars(select(models.GoldenCase)).all()}

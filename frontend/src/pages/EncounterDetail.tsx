@@ -258,6 +258,84 @@ function DrgCard({ drg }: { drg: NonNullable<Detail["run"]>["drg"] }) {
   );
 }
 
+function HccCard({ hcc }: { hcc: NonNullable<Detail["run"]>["hcc"] }) {
+  const [open, setOpen] = useState(false);
+  if (!hcc) return null;
+  if (!hcc.resolved) {
+    return (
+      <div className="card p-4 border-l-4 border-amber-400">
+        <div className="flex items-center gap-2 text-amber-700 font-semibold">
+          <AlertTriangle size={16} /> RAF unresolved — routed to human coder
+        </div>
+        <p className="text-sm text-slate-500 mt-1">
+          The scorer could not compute a RAF (demographic segment outside the curated model); a human
+          completes risk-adjustment review.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="card overflow-hidden border-l-4 border-ace-500">
+      <div className="p-4 bg-ace-900 text-white">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-slate-300">CMS-HCC · risk adjustment</div>
+            <div className="text-2xl font-extrabold mt-0.5">RAF {hcc.raf.toFixed(3)}</div>
+            <div className="text-sm text-slate-200">
+              {hcc.hccs.length} HCC{hcc.hccs.length === 1 ? "" : "s"} captured
+              {hcc.demographic?.band ? ` · demographic ${hcc.demographic.band} (${hcc.demographic.factor?.toFixed(3)})` : ""}
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {hcc.hccs.map((h) => (
+            <span key={h.hcc} className="pill bg-white/10 text-white ring-1 ring-white/20">
+              HCC {h.hcc} · {h.label} · +{h.coefficient.toFixed(3)}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="p-4 space-y-2 text-sm">
+        {hcc.hccs.map((h) => (
+          <div key={h.hcc}>
+            <span className="text-slate-400">HCC {h.hcc}</span>{" "}
+            <span className="text-slate-700">{h.label}</span>{" "}
+            <span className="font-mono text-xs text-slate-500">({h.dx.join(", ")})</span>
+          </div>
+        ))}
+        {hcc.suppressed.length > 0 && (
+          <div className="text-amber-700">
+            Hierarchy: {hcc.suppressed.map((s) => `HCC ${s.hcc} suppressed by HCC ${s.by}`).join("; ")} —
+            only the most severe in a family pays.
+          </div>
+        )}
+        {hcc.unmapped.length > 0 && (
+          <div className="text-slate-500">
+            Does not risk-adjust: <span className="font-mono">{hcc.unmapped.join(", ")}</span>
+          </div>
+        )}
+      </div>
+      <button
+        className="w-full px-4 py-2 border-t border-slate-200 text-xs text-slate-500 hover:bg-slate-50 flex items-center justify-center gap-1"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Network size={13} /> {open ? "Hide" : "Show"} RAF computation
+        <ChevronRight size={13} className={clsx("transition-transform", open && "rotate-90")} />
+      </button>
+      {open && (
+        <ol className="px-5 pb-4 pt-1 space-y-1.5">
+          {hcc.trace.map((t, i) => (
+            <li key={i} className="text-xs text-slate-600 flex gap-2">
+              <span className="font-mono text-ace-600 shrink-0 w-28">{t.step}</span>
+              <span>{t.detail}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 export default function EncounterDetail() {
   const { id } = useParams();
   const { data, isLoading } = useQuery({ queryKey: ["encounter", id], queryFn: () => api.encounter(id!) });
@@ -370,6 +448,7 @@ export default function EncounterDetail() {
         <div className="space-y-3">
           {!run && <div className="card p-6 text-center text-slate-400">Not coded yet.</div>}
           {run?.drg && <DrgCard drg={run.drg} />}
+          {run?.hcc && <HccCard hcc={run.hcc} />}
           {run?.codes.map((c) => (
             <CodeCard key={c.id} code={c} selected={selected === c.id} onSelect={() => setSelected(c.id)} onHighlight={setHighlight} />
           ))}

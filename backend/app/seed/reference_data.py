@@ -231,6 +231,9 @@ CPT = [
 HCPCS = [
     ("Q9967", "Low osmolar contrast material, per ml", "ANY"),
     ("A9579", "Gadolinium-based MR contrast agent, per ml", "MRI"),
+    # HCC / Risk Adjustment — annual wellness visits (real public G-codes)
+    ("G0438", "Annual wellness visit; includes a personalized prevention plan of service, initial visit", "AWV"),
+    ("G0439", "Annual wellness visit; includes a personalized prevention plan of service, subsequent visit", "AWV"),
 ]
 
 # --- Modifiers ---
@@ -557,6 +560,14 @@ GUIDELINES = [
      "diagnostic nasal endoscopy is bundled into a same-session surgical sinus endoscopy — do not report "
      "both. Code the diagnosis (adenotonsillar hypertrophy J35.3, chronic otitis media with effusion "
      "H65.23, deviated nasal septum J34.2) and capture ear laterality.", "ENT"),
+    ("HCC Risk Adjustment Coding Guidance", "Capture",
+     "Risk-adjustment coding captures every chronic condition that is active and addressed at the "
+     "encounter with MEAT evidence (Monitored, Evaluated, Assessed, or Treated). Code combination codes "
+     "to full specificity (diabetes WITH its complication, e.g. E11.42, not E11.9 plus a separate "
+     "neuropathy code). Do not code historical or resolved conditions as active, and do not infer a "
+     "diagnosis from medications alone. Conditions must be re-documented each calendar year to "
+     "risk-adjust. The annual wellness visit is reported with G0438 (initial) or G0439 (subsequent).",
+     "HCC / Risk Adjustment"),
 ]
 
 
@@ -625,4 +636,59 @@ OR_PROC = [
     ("0DTN0ZZ", "BOWEL_PROC", "06"),
     ("0DTP0ZZ", "BOWEL_PROC", "06"),
     ("0DBN0ZZ", "BOWEL_PROC", "06"),
+]
+
+
+# ===========================================================================
+# HCC / Risk Adjustment reference data (Tier-B #2). The CMS-HCC model —
+# dx→HCC mappings, hierarchies, coefficients and demographic factors — is a
+# PUBLIC CMS artifact published annually (like the DRG tables, unlike CPT).
+# Curated V24 community/non-dual/aged subset; the RAF scorer is real.
+# Strategic fit: Vee's RevCap is HCC-focused — ACE extends what they already do.
+# ===========================================================================
+
+# --- HCC condition categories — (hcc, label, coefficient[CNA]) ---
+HCC_CATEGORIES = [
+    ("17", "Diabetes with Acute Complications", 0.302),
+    ("18", "Diabetes with Chronic Complications", 0.302),
+    ("19", "Diabetes without Complication", 0.105),
+    ("85", "Congestive Heart Failure", 0.331),
+    ("96", "Specified Heart Arrhythmias", 0.268),
+    ("111", "Chronic Obstructive Pulmonary Disease", 0.335),
+    ("138", "Chronic Kidney Disease, Moderate (Stage 3)", 0.069),
+    ("11", "Colorectal, Bladder, and Other Cancers", 0.307),
+    ("12", "Breast, Prostate, and Other Cancers and Tumors", 0.150),
+]
+
+# --- ICD-10-CM → HCC mapping — (dx_code, hcc) ---
+DX_HCC = [
+    ("E11.9", "19"),
+    ("E11.40", "18"),
+    ("E11.42", "18"),
+    ("E11.65", "18"),
+    ("I50.9", "85"),
+    ("I50.21", "85"),
+    ("I48.91", "96"),
+    ("J44.1", "111"),
+    ("N18.3", "138"),
+    ("C18.9", "11"),
+    ("C67.9", "11"),
+]
+
+# --- Hierarchies — (superior_hcc, suppressed_hcc): superior wins when both map ---
+HCC_HIER = [
+    ("17", "18"),
+    ("17", "19"),
+    ("18", "19"),
+    ("11", "12"),
+]
+
+# --- Demographic base factors (community, non-dual, aged) — (sex, age_min, age_max, factor) ---
+DEMO_FACTORS = [
+    ("M", 65, 69, 0.312),
+    ("F", 65, 69, 0.323),
+    ("M", 70, 74, 0.379),
+    ("F", 70, 74, 0.395),
+    ("M", 75, 79, 0.491),
+    ("F", 75, 79, 0.492),
 ]

@@ -87,7 +87,17 @@ export interface Run {
   priority: string;
   modified: boolean;
   drg: DrgResult | null;
+  hcc: HccResult | null;
   codes: CodeResult[];
+}
+export interface HccResult {
+  raf: number;
+  demographic: { band?: string; factor?: number; segment?: string };
+  hccs: { hcc: string; label: string; coefficient: number; dx: string[] }[];
+  suppressed: { hcc: string; by: string }[];
+  unmapped: string[];
+  trace: { step: string; detail: string }[];
+  resolved: boolean;
 }
 export interface DrgResult {
   drg: string;

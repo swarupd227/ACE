@@ -621,6 +621,46 @@ CHARTS = [
             "Electronically signed by Dr. M. Iqbal, MD, General Surgery."
         ),
     ),
+    # 36 — HCC / Risk Adjustment → 3 chronic conditions w/ MEAT → RAF 1.081
+    dict(
+        mrn="HC10001", patient_name="Vernon Ostrowski", age=72, sex="M", specialty="HCC / Risk Adjustment",
+        modality="", encounter_type="established", payer="Medicare Advantage", pos="11", dos="2026-05-12",
+        client="Lakeside Medical Group", source_system="eClinicalWorks", report_type="awv_note",
+        scenario="HCC — AWV: diabetes w/ polyneuropathy + CHF + CKD-3",
+        chart_text=(
+            "ANNUAL WELLNESS VISIT — SUBSEQUENT\n"
+            "SUBJECTIVE: 72-year-old man here for his subsequent annual wellness visit. No new complaints. "
+            "Health risk assessment and personalized prevention plan completed and reviewed.\n"
+            "ASSESSMENT / PLAN:\n"
+            "1. Type 2 diabetes mellitus with diabetic polyneuropathy — stable; monofilament foot exam "
+            "performed today, decreased sensation unchanged; A1c 7.1 reviewed; continue metformin.\n"
+            "2. Congestive heart failure — euvolemic on exam; continue lisinopril and carvedilol; "
+            "reinforced daily weights and low-sodium diet.\n"
+            "3. Chronic kidney disease, stage 3 — eGFR 48 reviewed, stable from prior; avoid NSAIDs; "
+            "repeat metabolic panel in 6 months.\n"
+            "Electronically signed by Dr. S. Whitfield, MD, Internal Medicine."
+        ),
+    ),
+    # 37 — HCC / Risk Adjustment → COPD + AFib capture; hyperlipidemia does NOT risk-adjust
+    dict(
+        mrn="HC10002", patient_name="Pearl Abernathy", age=76, sex="F", specialty="HCC / Risk Adjustment",
+        modality="", encounter_type="established", payer="Medicare Advantage", pos="11", dos="2026-05-12",
+        client="Lakeside Medical Group", source_system="eClinicalWorks", report_type="awv_note",
+        scenario="HCC — AWV: COPD + atrial fibrillation (lipids don't risk-adjust)",
+        chart_text=(
+            "ANNUAL WELLNESS VISIT — SUBSEQUENT\n"
+            "SUBJECTIVE: 76-year-old woman for her subsequent annual wellness visit. Personalized "
+            "prevention plan updated; screenings reviewed.\n"
+            "ASSESSMENT / PLAN:\n"
+            "1. Chronic obstructive pulmonary disease with acute exacerbation last month, now back at "
+            "baseline — lungs with mild expiratory wheeze; continue tiotropium daily; smoking cessation "
+            "reinforced.\n"
+            "2. Atrial fibrillation — rate-controlled today on exam; continue apixaban and metoprolol; "
+            "reviewed stroke-risk counseling.\n"
+            "3. Hyperlipidemia — lipid panel reviewed, at goal; continue atorvastatin.\n"
+            "Electronically signed by Dr. S. Whitfield, MD, Internal Medicine."
+        ),
+    ),
 ]
 
 
@@ -876,4 +916,23 @@ GOLDEN_CASES = [
              "PRINCIPAL DIAGNOSIS: Intestinal obstruction.\nPROCEDURE: Open resection of the sigmoid "
              "colon.\nHOSPITAL COURSE: Postoperative course complicated by sepsis treated with IV "
              "antibiotics.\nSECONDARY DIAGNOSES: Sepsis.\nElectronically signed by surgeon.")),
+    # HCC golden cases are adjudicated against a 72-year-old male (factor 0.379) — the
+    # eval harness creates risk-adjustment golden encounters with exactly that demographic.
+    dict(specialty="HCC / Risk Adjustment", irr=0.88, ambiguous=False,
+         truth={"icd": ["E11.42", "I50.9", "N18.3"], "cpt": ["G0439"], "raf": 1.081},
+         chart_text=(
+             "ANNUAL WELLNESS VISIT — SUBSEQUENT\nSUBJECTIVE: Subsequent annual wellness visit; "
+             "personalized prevention plan completed.\nASSESSMENT / PLAN:\n1. Type 2 diabetes mellitus "
+             "with diabetic polyneuropathy — monofilament exam performed, A1c reviewed, continue "
+             "metformin.\n2. Congestive heart failure — euvolemic, continue lisinopril, daily weights "
+             "reinforced.\n3. Chronic kidney disease, stage 3 — eGFR reviewed and stable, avoid NSAIDs.\n"
+             "Electronically signed by internist.")),
+    dict(specialty="HCC / Risk Adjustment", irr=0.86, ambiguous=False,
+         truth={"icd": ["J44.1", "I48.91"], "cpt": ["G0439"], "raf": 0.982},
+         chart_text=(
+             "ANNUAL WELLNESS VISIT — SUBSEQUENT\nSUBJECTIVE: Subsequent annual wellness visit; health "
+             "risk assessment updated.\nASSESSMENT / PLAN:\n1. Chronic obstructive pulmonary disease with "
+             "acute exacerbation last month, now at baseline — continue tiotropium, cessation counseling.\n"
+             "2. Atrial fibrillation — rate-controlled, continue apixaban and metoprolol.\n3. Hyperlipidemia "
+             "— at goal, continue atorvastatin.\nElectronically signed by internist.")),
 ]

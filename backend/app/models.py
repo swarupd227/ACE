@@ -90,6 +90,8 @@ class CodingRun(Base):
     codes: Mapped[list["CodeResult"]] = relationship(back_populates="run", cascade="all,delete-orphan")
     drg_result: Mapped["DrgResult | None"] = relationship(
         back_populates="run", uselist=False, cascade="all,delete-orphan")
+    hcc_result: Mapped["HccResult | None"] = relationship(
+        back_populates="run", uselist=False, cascade="all,delete-orphan")
 
 
 class CodeResult(Base):
@@ -311,6 +313,75 @@ class DrgResult(Base):
     resolved: Mapped[bool] = mapped_column(Boolean, default=False)
 
     run: Mapped[CodingRun] = relationship(back_populates="drg_result")
+
+
+# ---------------------------------------------------------------------------
+# HCC / Risk Adjustment (CMS-HCC model — public CMS artifacts) + RAF output.
+# A third mental model: outpatient = fee-for-service CPT; inpatient = per-admission
+# DRG; risk adjustment = LONGITUDINAL dx capture. ICD-10-CM diagnoses map to HCC
+# condition categories, hierarchies suppress less-severe categories in the same
+# family, and RAF = demographic factor + Σ HCC coefficients. Strategic adjacency:
+# Vee's RevCap is HCC-focused — ACE extends it with agentic capture + audit.
+# Curated CMS-HCC V24 subset for the demo; the scoring engine is real.
+# ---------------------------------------------------------------------------
+class HccCategory(Base):
+    """One HCC condition category with its payment coefficient (community/aged)."""
+    __tablename__ = "hcc_categories"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    hcc: Mapped[str] = mapped_column(String(8), unique=True)
+    label: Mapped[str] = mapped_column(String(160))
+    coefficient: Mapped[float] = mapped_column(Float)
+    source: Mapped[str] = mapped_column(String(40), default="CMS-HCC-V24")
+
+
+class DxHccMap(Base):
+    """ICD-10-CM diagnosis → HCC category mapping."""
+    __tablename__ = "dx_hcc_map"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dx_code: Mapped[str] = mapped_column(String(16), unique=True)
+    hcc: Mapped[str] = mapped_column(String(8))
+
+
+class HccHierarchy(Base):
+    """Hierarchy edge: the superior HCC suppresses the inferior one when both map
+    (e.g., diabetes-with-complications suppresses diabetes-without)."""
+    __tablename__ = "hcc_hierarchies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    superior_hcc: Mapped[str] = mapped_column(String(8))
+    suppressed_hcc: Mapped[str] = mapped_column(String(8))
+
+
+class DemographicFactor(Base):
+    """Demographic base factor (community, non-dual, aged segment)."""
+    __tablename__ = "demographic_factors"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    sex: Mapped[str] = mapped_column(String(1))
+    age_min: Mapped[int] = mapped_column(Integer)
+    age_max: Mapped[int] = mapped_column(Integer)
+    factor: Mapped[float] = mapped_column(Float)
+    segment: Mapped[str] = mapped_column(String(24), default="CNA")  # community non-dual aged
+
+
+class HccResult(Base):
+    """The RAF scorer's output for one coding run (one-to-one with CodingRun)."""
+    __tablename__ = "hcc_results"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    run_id: Mapped[str] = mapped_column(ForeignKey("coding_runs.id"), unique=True)
+    encounter_id: Mapped[str] = mapped_column(String(32), index=True)
+    raf: Mapped[float] = mapped_column(Float, default=0.0)
+    demographic: Mapped[dict] = mapped_column(JSONB, default=dict)   # {band, factor, segment}
+    hccs: Mapped[list] = mapped_column(JSONB, default=list)          # [{hcc,label,coefficient,dx:[codes]}]
+    suppressed: Mapped[list] = mapped_column(JSONB, default=list)    # [{hcc,by}] hierarchy suppressions
+    unmapped: Mapped[list] = mapped_column(JSONB, default=list)      # dx that do not risk-adjust
+    trace: Mapped[list] = mapped_column(JSONB, default=list)         # ordered scorer steps
+    resolved: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    run: Mapped[CodingRun] = relationship(back_populates="hcc_result")
 
 
 # ---------------------------------------------------------------------------

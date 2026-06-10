@@ -27,6 +27,14 @@ def drg_to_dict(d: models.DrgResult) -> dict:
     }
 
 
+def hcc_to_dict(h: models.HccResult) -> dict:
+    return {
+        "raf": h.raf, "demographic": h.demographic, "hccs": h.hccs,
+        "suppressed": h.suppressed, "unmapped": h.unmapped,
+        "trace": h.trace, "resolved": h.resolved,
+    }
+
+
 def run_to_dict(run: models.CodingRun) -> dict:
     modified = bool(
         run.escalated
@@ -43,5 +51,6 @@ def run_to_dict(run: models.CodingRun) -> dict:
         "latency_ms": run.latency_ms, "escalated": run.escalated, "escalated_to": run.escalated_to,
         "assigned_to": run.assigned_to, "priority": run.priority,
         "drg": drg_to_dict(run.drg_result) if run.drg_result else None,
+        "hcc": hcc_to_dict(run.hcc_result) if run.hcc_result else None,
         "codes": [code_to_dict(c) for c in sorted(run.codes, key=lambda x: (x.code_system, x.sequence))],
     }

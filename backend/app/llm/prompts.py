@@ -296,6 +296,21 @@ SPECIALTY_GUIDANCE = {
         "in the candidate context. The MS-DRG is computed downstream by the deterministic grouper; do not "
         "guess a DRG."
     ),
+    "HCC / Risk Adjustment": (
+        "HCC / RISK ADJUSTMENT RULES:\n"
+        "- This is a RISK-ADJUSTMENT encounter (e.g., Medicare Advantage annual wellness visit). The goal "
+        "is COMPLETE capture of every chronic condition documented as active and addressed.\n"
+        "- Code a chronic condition only with MEAT evidence in the note — it is Monitored, Evaluated, "
+        "Assessed, or Treated at this visit. A bare mention in a problem list is not enough.\n"
+        "- Code to full specificity (e.g., diabetes WITH its documented complication as the combination "
+        "code, not plain E11.9 alongside it).\n"
+        "- Do NOT code 'history of' / resolved conditions as active, and never infer a condition from "
+        "medications alone.\n"
+        "- Report the visit-level procedure (annual wellness visit G0438/G0439 — these are HCPCS, "
+        "code_system 'HCPCS') when documented.\n"
+        "- The HCC mapping, hierarchy resolution and RAF score are computed downstream by the "
+        "deterministic scorer; do not guess HCCs or a RAF."
+    ),
     "ENT": (
         "ENT / OTOLARYNGOLOGY RULES:\n"
         "- Code the procedure performed: tonsillectomy with adenoidectomy (<12 yrs) = 42820; bilateral "

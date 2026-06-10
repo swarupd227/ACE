@@ -136,7 +136,7 @@ export default function EvalHarness() {
               <thead><tr className="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-200">
                 <th className="px-4 py-3">Specialty</th><th className="px-4 py-3">Cases</th>
                 <th className="px-4 py-3">ICD acc</th><th className="px-4 py-3">CPT/PCS acc</th>
-                <th className="px-4 py-3">DRG acc</th>
+                <th className="px-4 py-3">DRG acc</th><th className="px-4 py-3">RAF acc</th>
                 <th className="px-4 py-3">Chart acc</th><th className="px-4 py-3">Citation valid</th>
                 <th className="px-4 py-3">STB share</th><th className="px-4 py-3">IRR ceiling</th>
               </tr></thead>
@@ -148,6 +148,7 @@ export default function EvalHarness() {
                     <td className="px-4 py-3">{pct(s.icd_accuracy)}</td>
                     <td className="px-4 py-3">{pct(s.cpt_accuracy)}</td>
                     <td className="px-4 py-3">{s.drg_accuracy != null ? pct(s.drg_accuracy) : "—"}</td>
+                    <td className="px-4 py-3">{s.raf_accuracy != null ? pct(s.raf_accuracy) : "—"}</td>
                     <td className="px-4 py-3 font-semibold">{pct(s.chart_accuracy)}</td>
                     <td className="px-4 py-3">{pct(s.citation_validity)}</td>
                     <td className="px-4 py-3">{pct(s.stb_share)}</td>

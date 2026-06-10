@@ -16,14 +16,15 @@ from ..config import settings
 from ..knowledge import graph_rag
 from ..llm import prompts
 from ..llm.client import LLMUnavailable, complete_json, model_version
-from . import drg, validation
+from . import drg, hcc, validation
 
 # Confidence routing thresholds (calibrated per-specialty in production)
 STB_THRESHOLD = 0.90
 QA_THRESHOLD = 0.75
 
-# Inpatient track — the MS-DRG grouper runs only for this specialty.
-INPATIENT = "Inpatient (DRG)"
+# Tracks with their own deterministic payment-model stage (Stage 6).
+INPATIENT = "Inpatient (DRG)"        # MS-DRG grouper
+RISK_ADJ = "HCC / Risk Adjustment"   # CMS-HCC RAF scorer
 
 
 def _now():
@@ -249,10 +250,16 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         log.append({"stage": "3_coding", "title": "Code Generation", "error": str(e)})
         return finish("MANUAL", "LLM_UNAVAILABLE during coding — routed to human coder")
 
-    # aggregate by code, compute self-consistency agreement
+    # aggregate by code, compute self-consistency agreement. A malformed entry in one
+    # sample (e.g., a bare string instead of a code object) simply doesn't count toward
+    # agreement — robustness over crashing the whole chart on one flaky sample.
     tally: dict[tuple[str, str], dict] = {}
     for s in coding_samples:
+        if not isinstance(s, dict):
+            continue
         for c in s.get("codes", []):
+            if not isinstance(c, dict) or "code_system" not in c or "code" not in c:
+                continue
             key = (c["code_system"], c["code"])
             slot = tally.setdefault(key, {"code": c, "count": 0})
             slot["count"] += 1
@@ -273,6 +280,20 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     # --- Stage 3b — citation verification + Stage 4 — gates + Stage 5 — calibration ---
     step("4", "Validation gates")
     say("Validation Engine", "verifying citations + running deterministic gates (existence, NCCI, MUE, modifiers, specificity, payer necessity)…", "tool")
+    # Deterministic code-system normalization: CPT is HCPCS Level I, so models sometimes
+    # claim a Level-II G/A/Q-code as "CPT". If the code is absent under its claimed family
+    # but present under the sibling family in the reference data, correct the family rather
+    # than rejecting an otherwise-valid, cited code. Data-driven — never invents a code.
+    for c in agg_codes:
+        if c["code_system"] in ("CPT", "HCPCS"):
+            sibling = "HCPCS" if c["code_system"] == "CPT" else "CPT"
+            if (validation._ref(db, c["code_system"], c["code"]) is None
+                    and validation._ref(db, sibling, c["code"]) is not None):
+                say("Validation Engine",
+                    f"normalized {c['code_system']} {c['code']} → {sibling} (HCPCS family lookup)", "warn")
+                c["code_system"] = sibling
+                c["rule_justification"] = (c.get("rule_justification", "") +
+                                           f" [auto: code-system normalized to {sibling}]").strip()
     code_dicts = [{"code_system": c["code_system"], "code": c["code"]} for c in agg_codes]
     persisted: list[models.CodeResult] = []
     gate_log = []
@@ -389,6 +410,33 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         else:
             bounded.append(f"DRG unresolved ({dg['reason']}) — human grouping required")
             say("MS-DRG Grouper", f"DRG unresolved — {dg['reason']}; routing to human", "bad")
+
+    # --- Stage 6 (risk adjustment only) — CMS-HCC RAF scoring ---
+    if enc.specialty == RISK_ADJ:
+        step("6", "HCC / RAF scoring")
+        say("HCC RAF Scorer", "mapping diagnoses → HCC categories, resolving hierarchies, computing RAF…", "tool")
+        acc_codes = [
+            {"code_system": cr.code_system, "code": cr.code, "description": cr.description}
+            for cr in accepted
+        ]
+        hr = hcc.score(db, acc_codes, enc.age, enc.sex)
+        db.add(models.HccResult(
+            run_id=run.id, encounter_id=enc.id, raf=hr["raf"], demographic=hr["demographic"],
+            hccs=hr["hccs"], suppressed=hr["suppressed"], unmapped=hr["unmapped"],
+            trace=hr["trace"], resolved=hr["resolved"],
+        ))
+        log.append({"stage": "6_hcc", "title": "HCC / RAF Scoring", "result": hr})
+        _audit(db, run, "6_hcc", "raf_scored" if hr["resolved"] else "raf_unresolved",
+               {"raf": hr["raf"], "hccs": [h["hcc"] for h in hr["hccs"]],
+                "suppressed": hr["suppressed"], "resolved": hr["resolved"]})
+        if hr["resolved"]:
+            say("HCC RAF Scorer",
+                f"RAF {hr['raf']:.3f} · {len(hr['hccs'])} HCC(s) captured"
+                + (f" · {len(hr['suppressed'])} suppressed by hierarchy" if hr["suppressed"] else "")
+                + (f" · {len(hr['unmapped'])} dx do not risk-adjust" if hr["unmapped"] else ""), "good")
+        else:
+            bounded.append(f"RAF unresolved ({hr['reason']}) — human review required")
+            say("HCC RAF Scorer", f"RAF unresolved — {hr['reason']}; routing to human", "bad")
 
     log.append({"stage": "5_calibration", "title": "Confidence Calibration & Routing",
                 "overall_confidence": overall, "accepted": len(accepted),
