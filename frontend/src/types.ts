@@ -10,6 +10,7 @@ export interface EncounterRow {
   modality: string;
   payer: string;
   dos: string;
+  received_at?: string;
   client: string;
   source_system: string;
   scenario: string;
