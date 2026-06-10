@@ -88,7 +88,22 @@ export interface Run {
   modified: boolean;
   drg: DrgResult | null;
   hcc: HccResult | null;
+  anes: AnesResult | null;
   codes: CodeResult[];
+}
+export interface AnesResult {
+  code: string;
+  base_units: number;
+  time_minutes: number;
+  time_units: number;
+  phys_modifier: string;
+  phys_units: number;
+  qual_circ: { code: string; units: number; description: string }[];
+  total_units: number;
+  conversion_factor: number;
+  estimated_allowable: number;
+  trace: { step: string; detail: string }[];
+  resolved: boolean;
 }
 export interface HccResult {
   raf: number;

@@ -57,6 +57,13 @@ DEFAULTS: dict = {
         {"name": "eClinicalWorks", "type": "EHR", "channel": "FHIR R4 / HL7 v2", "enabled": True},
         {"name": "Cerner", "type": "EHR", "channel": "FHIR R4 / HL7 v2", "enabled": True},
     ],
+    "anesthesia": {
+        # Representative national CMS anesthesia conversion factor ($/unit); varies by
+        # locality and payer — admin-tunable. Physical-status unit adders follow
+        # commercial convention (Medicare pays 0 for P-modifiers; the trace says so).
+        "conversion_factor": 20.32,
+        "phys_status_units": {"P1": 0, "P2": 0, "P3": 1, "P4": 2, "P5": 3, "P6": 0},
+    },
     "llm": {
         "provider": "anthropic",            # anthropic | openai_compatible
         "model_default": "claude-sonnet-4-5",
@@ -77,6 +84,7 @@ META: dict = {
     "specialties": "Enabled specialties and their model-tier (hard = Opus + self-consistency)",
     "roster": "Coders / auditors available for assignment",
     "connectors": "Source systems (PMS/EHR) shown on the Integrations screen",
+    "anesthesia": "Anesthesia unit payment — conversion factor ($/unit) and physical-status unit adders",
     "llm": "The reasoning model — provider, default/hard models and endpoint (API keys stay in the environment)",
 }
 

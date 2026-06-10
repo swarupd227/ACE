@@ -496,8 +496,8 @@ CHARTS = [
             "ANESTHESIA RECORD\n"
             "PROCEDURE ANESTHETIZED: Laparoscopic cholecystectomy (upper-abdomen intraperitoneal).\n"
             "PREOPERATIVE DIAGNOSIS: Symptomatic cholelithiasis.\n"
-            "ANESTHESIA: General endotracheal anesthesia. ASA physical status II (mild systemic disease, "
-            "controlled hypertension).\n"
+            "ANESTHESIA: General endotracheal anesthesia. ASA physical status III (severe systemic "
+            "disease — poorly controlled COPD on home oxygen).\n"
             "TIME: Anesthesia start 08:12, stop 09:34. Stable throughout; no complications.\n"
             "Electronically signed by Dr. C. Romano, MD, Anesthesiologist."
         ),
@@ -861,18 +861,23 @@ GOLDEN_CASES = [
              "PROCEDURE: Cystourethroscopy with fulguration/resection of a small bladder tumor.\nFINDINGS: "
              "Solitary ~1 cm papillary bladder tumor resected.\nIMPRESSION: Bladder neoplasm, resected.\n"
              "Electronically signed by urologist.")),
+    # Anesthesia golden truth.units = base + time + physical-status units (deterministic
+    # from the documented start/stop): 00790=7 base, 82 min = 5.47 TU, ASA II = +0 → 12.47.
     dict(specialty="Anesthesia", irr=0.90, ambiguous=False,
-         truth={"icd": ["K80.20"], "cpt": ["00790"]},
+         truth={"icd": ["K80.20"], "cpt": ["00790"], "units": 12.47},
          chart_text=(
              "ANESTHESIA RECORD\nPROCEDURE ANESTHETIZED: Laparoscopic cholecystectomy (upper abdomen).\n"
              "PREOPERATIVE DIAGNOSIS: Symptomatic cholelithiasis.\nANESTHESIA: General endotracheal; ASA "
-             "physical status II.\nTIME: 08:12-09:34, uneventful.\nElectronically signed by anesthesiologist.")),
+             "physical status II.\nTIME: Anesthesia start 08:12, stop 09:34. Uneventful.\n"
+             "Electronically signed by anesthesiologist.")),
+    # 01402=7 base, 105 min = 7.0 TU, ASA II = +0 → 14.0.
     dict(specialty="Anesthesia", irr=0.88, ambiguous=False,
-         truth={"icd": ["M17.11"], "cpt": ["01402"]},
+         truth={"icd": ["M17.11"], "cpt": ["01402"], "units": 14.0},
          chart_text=(
              "ANESTHESIA RECORD\nPROCEDURE ANESTHETIZED: Total knee arthroplasty, right.\nPREOPERATIVE "
              "DIAGNOSIS: Severe primary osteoarthritis, right knee.\nANESTHESIA: Spinal with sedation; ASA "
-             "physical status II.\nTIME: 07:40-09:25.\nElectronically signed by anesthesiologist.")),
+             "physical status II.\nTIME: Anesthesia start 07:40, stop 09:25.\n"
+             "Electronically signed by anesthesiologist.")),
     dict(specialty="Ophthalmology", irr=0.90, ambiguous=False,
          truth={"icd": ["H25.9"], "cpt": ["66984"]},
          chart_text=(

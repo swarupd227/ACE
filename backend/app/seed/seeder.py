@@ -78,6 +78,12 @@ def seed_all(force: bool = False) -> dict:
         for sex, amin, amax, factor in rd.DEMO_FACTORS:
             db.add(models.DemographicFactor(sex=sex, age_min=amin, age_max=amax, factor=factor))
 
+        # anesthesia unit calculation reference data
+        for code, units in rd.ANES_BASE_UNITS:
+            db.add(models.AnesBaseUnit(code=code, base_units=units))
+        for code, units, desc in rd.QUAL_CIRC:
+            db.add(models.QualCircumstance(code=code, units=units, description=desc))
+
         # golden set
         for g in charts.GOLDEN_CASES:
             db.add(models.GoldenCase(specialty=g["specialty"], chart_text=g["chart_text"],
@@ -246,6 +252,18 @@ def seed_missing() -> dict:
             if (sex, amin, amax) not in bands:
                 db.add(models.DemographicFactor(sex=sex, age_min=amin, age_max=amax, factor=factor))
                 bands.add((sex, amin, amax)); bump("demographic_factors")
+
+        # anesthesia units — base units by code; qualifying circumstances by code
+        abu = {a.code for a in db.scalars(select(models.AnesBaseUnit)).all()}
+        for code, units in rd.ANES_BASE_UNITS:
+            if code not in abu:
+                db.add(models.AnesBaseUnit(code=code, base_units=units))
+                abu.add(code); bump("anes_base_units")
+        qcs = {q.code for q in db.scalars(select(models.QualCircumstance)).all()}
+        for code, units, desc in rd.QUAL_CIRC:
+            if code not in qcs:
+                db.add(models.QualCircumstance(code=code, units=units, description=desc))
+                qcs.add(code); bump("qual_circumstances")
 
         # golden set — key (specialty, chart_text)
         gold = {(g.specialty, g.chart_text) for g in db.scalars(select(models.GoldenCase)).all()}

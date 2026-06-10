@@ -92,6 +92,8 @@ class CodingRun(Base):
         back_populates="run", uselist=False, cascade="all,delete-orphan")
     hcc_result: Mapped["HccResult | None"] = relationship(
         back_populates="run", uselist=False, cascade="all,delete-orphan")
+    anes_result: Mapped["AnesResult | None"] = relationship(
+        back_populates="run", uselist=False, cascade="all,delete-orphan")
 
 
 class CodeResult(Base):
@@ -382,6 +384,58 @@ class HccResult(Base):
     resolved: Mapped[bool] = mapped_column(Boolean, default=False)
 
     run: Mapped[CodingRun] = relationship(back_populates="hcc_result")
+
+
+# ---------------------------------------------------------------------------
+# Anesthesia unit calculation (Tier-B #3). Anesthesia is NOT paid as CPT
+# line-items: payment = (base units + time units + modifying units) × the
+# anesthesia conversion factor. The CMS base-unit file and conversion factor
+# are public artifacts; time units come from documented anesthesia start/stop
+# (15-minute units); physical-status P3-P5 add units under commercial
+# convention (Medicare pays 0 for them — traced honestly).
+# ---------------------------------------------------------------------------
+class AnesBaseUnit(Base):
+    """CMS base units for one anesthesia CPT (00100-01999)."""
+    __tablename__ = "anes_base_units"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(8), unique=True)
+    base_units: Mapped[int] = mapped_column(Integer)
+    source: Mapped[str] = mapped_column(String(40), default="CMS-AnesBaseUnits")
+
+
+class QualCircumstance(Base):
+    """Qualifying-circumstance add-on code → extra units (99100 extreme age,
+    99116 hypothermia, 99135 controlled hypotension, 99140 emergency)."""
+    __tablename__ = "qual_circumstances"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(8), unique=True)
+    units: Mapped[int] = mapped_column(Integer)
+    description: Mapped[str] = mapped_column(String(160), default="")
+
+
+class AnesResult(Base):
+    """The unit calculator's output for one coding run (one-to-one with CodingRun)."""
+    __tablename__ = "anes_results"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    run_id: Mapped[str] = mapped_column(ForeignKey("coding_runs.id"), unique=True)
+    encounter_id: Mapped[str] = mapped_column(String(32), index=True)
+    code: Mapped[str] = mapped_column(String(8), default="")
+    base_units: Mapped[int] = mapped_column(Integer, default=0)
+    time_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    time_units: Mapped[float] = mapped_column(Float, default=0.0)
+    phys_modifier: Mapped[str] = mapped_column(String(4), default="")
+    phys_units: Mapped[int] = mapped_column(Integer, default=0)
+    qual_circ: Mapped[list] = mapped_column(JSONB, default=list)  # [{code, units, description}]
+    total_units: Mapped[float] = mapped_column(Float, default=0.0)
+    conversion_factor: Mapped[float] = mapped_column(Float, default=0.0)
+    estimated_allowable: Mapped[float] = mapped_column(Float, default=0.0)
+    trace: Mapped[list] = mapped_column(JSONB, default=list)
+    resolved: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    run: Mapped[CodingRun] = relationship(back_populates="anes_result")
 
 
 # ---------------------------------------------------------------------------

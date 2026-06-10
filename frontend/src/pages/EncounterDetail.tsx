@@ -336,6 +336,83 @@ function HccCard({ hcc }: { hcc: NonNullable<Detail["run"]>["hcc"] }) {
   );
 }
 
+function AnesCard({ anes }: { anes: NonNullable<Detail["run"]>["anes"] }) {
+  const [open, setOpen] = useState(false);
+  if (!anes) return null;
+  if (!anes.resolved) {
+    return (
+      <div className="card p-4 border-l-4 border-amber-400">
+        <div className="flex items-center gap-2 text-amber-700 font-semibold">
+          <AlertTriangle size={16} /> Anesthesia units unresolved — routed to human coder
+        </div>
+        <p className="text-sm text-slate-500 mt-1">
+          The calculator needs a base-unit entry and documented anesthesia start/stop time; a human
+          completes the unit calculation.
+        </p>
+      </div>
+    );
+  }
+  const modifying = anes.phys_units + anes.qual_circ.reduce((s, q) => s + q.units, 0);
+  return (
+    <div className="card overflow-hidden border-l-4 border-ace-500">
+      <div className="p-4 bg-ace-900 text-white">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-slate-300">Anesthesia units · {anes.code}</div>
+            <div className="text-2xl font-extrabold mt-0.5">{anes.total_units.toFixed(2)} units</div>
+            <div className="text-sm text-slate-200">
+              {anes.base_units} base + {anes.time_units.toFixed(2)} time ({anes.time_minutes} min) + {modifying} modifying
+            </div>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-xs uppercase tracking-wide text-slate-300">Estimated allowable</div>
+            <div className="text-3xl font-extrabold tabular-nums">${anes.estimated_allowable.toFixed(2)}</div>
+            <div className="text-xs text-slate-300">× ${anes.conversion_factor.toFixed(2)}/unit</div>
+          </div>
+        </div>
+      </div>
+      <div className="p-4 space-y-2 text-sm">
+        <div>
+          <span className="text-slate-400">Time units</span>{" "}
+          <span className="text-slate-700">{anes.time_minutes} min documented ÷ 15 = {anes.time_units.toFixed(2)}</span>
+        </div>
+        {anes.phys_modifier && (
+          <div>
+            <span className="text-slate-400">Physical status</span>{" "}
+            <span className="font-mono font-semibold text-slate-700">{anes.phys_modifier}</span>{" "}
+            <span className="text-slate-600">→ +{anes.phys_units} unit{anes.phys_units === 1 ? "" : "s"}</span>{" "}
+            <span className="text-xs text-slate-400">(commercial convention; Medicare pays 0)</span>
+          </div>
+        )}
+        {anes.qual_circ.map((q) => (
+          <div key={q.code}>
+            <span className="text-slate-400">Qualifying circumstance</span>{" "}
+            <span className="font-mono font-semibold text-slate-700">{q.code}</span>{" "}
+            <span className="text-slate-600">{q.description} → +{q.units}</span>
+          </div>
+        ))}
+      </div>
+      <button
+        className="w-full px-4 py-2 border-t border-slate-200 text-xs text-slate-500 hover:bg-slate-50 flex items-center justify-center gap-1"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Network size={13} /> {open ? "Hide" : "Show"} unit calculation
+        <ChevronRight size={13} className={clsx("transition-transform", open && "rotate-90")} />
+      </button>
+      {open && (
+        <ol className="px-5 pb-4 pt-1 space-y-1.5">
+          {anes.trace.map((t, i) => (
+            <li key={i} className="text-xs text-slate-600 flex gap-2">
+              <span className="font-mono text-ace-600 shrink-0 w-28">{t.step}</span>
+              <span>{t.detail}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 export default function EncounterDetail() {
   const { id } = useParams();
   const { data, isLoading } = useQuery({ queryKey: ["encounter", id], queryFn: () => api.encounter(id!) });
@@ -449,6 +526,7 @@ export default function EncounterDetail() {
           {!run && <div className="card p-6 text-center text-slate-400">Not coded yet.</div>}
           {run?.drg && <DrgCard drg={run.drg} />}
           {run?.hcc && <HccCard hcc={run.hcc} />}
+          {run?.anes && <AnesCard anes={run.anes} />}
           {run?.codes.map((c) => (
             <CodeCard key={c.id} code={c} selected={selected === c.id} onSelect={() => setSelected(c.id)} onHighlight={setHighlight} />
           ))}

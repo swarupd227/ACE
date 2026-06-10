@@ -214,6 +214,11 @@ CPT = [
     ("00840", "Anesthesia for intraperitoneal procedures in lower abdomen", "ANES"),
     ("01402", "Anesthesia for total knee arthroplasty", "ANES"),
     ("01967", "Neuraxial labor analgesia/anesthesia for planned vaginal delivery", "ANES"),
+    # Anesthesia qualifying-circumstance add-ons — DEMO placeholder
+    ("99100", "Anesthesia for patient of extreme age (under 1 year or over 70), add-on", "ANES"),
+    ("99116", "Anesthesia complicated by utilization of total body hypothermia, add-on", "ANES"),
+    ("99135", "Anesthesia complicated by utilization of controlled hypotension, add-on", "ANES"),
+    ("99140", "Anesthesia complicated by emergency conditions, add-on", "ANES"),
     # Ophthalmology — DEMO placeholder
     ("66984", "Extracapsular cataract removal with insertion of intraocular lens prosthesis, 1 stage", "OPHTH"),
     ("67028", "Intravitreal injection of a pharmacologic agent", "OPHTH"),
@@ -691,4 +696,28 @@ DEMO_FACTORS = [
     ("F", 70, 74, 0.395),
     ("M", 75, 79, 0.491),
     ("F", 75, 79, 0.492),
+]
+
+
+# ===========================================================================
+# Anesthesia unit calculation (Tier-B #3). Anesthesia is paid as
+# (base + time + modifying units) × conversion factor — NOT as CPT line-items.
+# The CMS anesthesia base-unit file and conversion factor are PUBLIC artifacts.
+# Curated subset for the seeded codes; the calculator is real.
+# ===========================================================================
+
+# --- CMS base units per anesthesia code — (code, base_units) ---
+ANES_BASE_UNITS = [
+    ("00790", 7),   # upper-abdomen intraperitoneal (incl. lap chole)
+    ("00840", 6),   # lower-abdomen intraperitoneal
+    ("01402", 7),   # total knee arthroplasty
+    ("01967", 5),   # neuraxial labor analgesia
+]
+
+# --- Qualifying circumstances — (code, units, description) ---
+QUAL_CIRC = [
+    ("99100", 1, "Patient of extreme age (under 1 year or over 70)"),
+    ("99116", 5, "Total body hypothermia"),
+    ("99135", 5, "Controlled hypotension"),
+    ("99140", 2, "Emergency conditions"),
 ]

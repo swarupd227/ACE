@@ -272,9 +272,12 @@ SPECIALTY_GUIDANCE = {
         "ANESTHESIA RULES:\n"
         "- Report the anesthesia CPT for the procedure being anesthetized (e.g., 00790 upper-abdomen / "
         "laparoscopic cholecystectomy; 01402 total knee arthroplasty; 01967 labor epidural).\n"
-        "- Append the physical-status modifier P1-P6 from the documentation.\n"
-        "- Code the underlying surgical/obstetric diagnosis (e.g., cholelithiasis K80.20, knee OA M17.11). "
-        "(Base-unit + time-unit calculation is handled downstream.)"
+        "- Append the physical-status modifier P1-P6 matching the documented ASA physical status.\n"
+        "- Report a qualifying-circumstance add-on only when documented: 99100 extreme age (<1 or >70), "
+        "99116 total body hypothermia, 99135 controlled hypotension, 99140 emergency conditions.\n"
+        "- Code the underlying surgical/obstetric diagnosis (e.g., cholelithiasis K80.20, knee OA M17.11).\n"
+        "- Do NOT compute units or payment — the deterministic calculator derives base units (CMS file), "
+        "time units (documented anesthesia start/stop ÷ 15 min) and modifying units downstream."
     ),
     "Ophthalmology": (
         "OPHTHALMOLOGY RULES:\n"

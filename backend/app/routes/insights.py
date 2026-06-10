@@ -376,6 +376,7 @@ def _eval_core(db: Session, emit) -> dict:
             db.execute(delete(models.CodeResult).where(models.CodeResult.run_id.in_(run_ids)))
             db.execute(delete(models.DrgResult).where(models.DrgResult.run_id.in_(run_ids)))
             db.execute(delete(models.HccResult).where(models.HccResult.run_id.in_(run_ids)))
+            db.execute(delete(models.AnesResult).where(models.AnesResult.run_id.in_(run_ids)))
         db.execute(delete(models.CodingRun).where(models.CodingRun.encounter_id == e.id))
         db.delete(e)
     db.commit()
@@ -413,12 +414,15 @@ def _eval_core(db: Session, emit) -> dict:
         pred_drg = run.drg_result.drg if run.drg_result else ""
         truth_raf = g.truth.get("raf")
         pred_raf = run.hcc_result.raf if run.hcc_result else None
+        truth_units = g.truth.get("units")
+        pred_units = run.anes_result.total_units if run.anes_result else None
         icd_ok = bool(truth_icd & pred_icd) if truth_icd else True
         cpt_ok = bool(truth_cpt & pred_cpt) if truth_cpt else True
         pcs_ok = bool(truth_pcs & pred_pcs) if truth_pcs else True
         drg_ok = (pred_drg == truth_drg) if truth_drg else True
         raf_ok = (pred_raf is not None and abs(pred_raf - truth_raf) <= 0.005) if truth_raf else True
-        chart_ok = icd_ok and cpt_ok and pcs_ok and drg_ok and raf_ok
+        units_ok = (pred_units is not None and abs(pred_units - truth_units) <= 0.1) if truth_units else True
+        chart_ok = icd_ok and cpt_ok and pcs_ok and drg_ok and raf_ok and units_ok
         cit_ok = all(c.conf_doc_match >= 0.5 for c in run.codes if c.status == "accepted") if run.codes else False
 
         a = agg.setdefault(g.specialty, {"specialty": g.specialty, "n": 0, "icd": 0, "cpt": 0, "chart": 0, "cit": 0, "stb": 0, "irr": [], "drg": 0, "drg_n": 0, "raf": 0, "raf_n": 0})
@@ -435,16 +439,22 @@ def _eval_core(db: Session, emit) -> dict:
         if truth_raf:
             a["raf_n"] += 1
             a["raf"] += int(raf_ok)
+        if truth_units:
+            a.setdefault("units_n", 0); a.setdefault("units", 0)
+            a["units_n"] += 1
+            a["units"] += int(units_ok)
         results.append({
             "specialty": g.specialty, "truth": g.truth,
             "predicted_icd": sorted(pred_icd), "predicted_cpt": sorted(pred_cpt or pred_pcs),
             "predicted_drg": pred_drg, "drg_ok": drg_ok,
             "predicted_raf": pred_raf, "raf_ok": raf_ok,
+            "predicted_units": pred_units, "units_ok": units_ok,
             "icd_ok": icd_ok, "cpt_ok": cpt_ok, "chart_ok": chart_ok, "lane": run.routing_lane,
         })
         pred = (sorted(pred_cpt) + sorted(pred_pcs) + sorted(pred_icd)
                 + ([f"DRG {pred_drg}"] if pred_drg else [])
-                + ([f"RAF {pred_raf}"] if pred_raf is not None else [])) or ["(none)"]
+                + ([f"RAF {pred_raf}"] if pred_raf is not None else [])
+                + ([f"{pred_units}u"] if pred_units is not None else [])) or ["(none)"]
         say(f"  case {i + 1}/{total} · {g.specialty}",
             f"predicted {', '.join(pred)} — {'PASS' if chart_ok else 'MISS'}",
             "good" if chart_ok else "bad")
@@ -466,6 +476,8 @@ def _eval_core(db: Session, emit) -> dict:
             row["drg_accuracy"] = round(a["drg"] / a["drg_n"], 3)
         if a.get("raf_n"):
             row["raf_accuracy"] = round(a["raf"] / a["raf_n"], 3)
+        if a.get("units_n"):
+            row["units_accuracy"] = round(a["units"] / a["units_n"], 3)
         by_spec.append(row)
     db.commit()
     overall_chart = round(sum(r["chart_ok"] for r in results) / len(results), 3) if results else 0.0

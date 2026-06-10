@@ -159,6 +159,15 @@ nobody hands you a configurable platform" beat.*
   hierarchies and coefficients are public CMS artifacts — curated V24 subset here, full annual model file in
   production. The capture is MEAT-grounded and cited, which is exactly what a RADV audit asks for."* The
   Evaluation Harness scores **RAF accuracy** for these cases.
+- **Anesthesia units — payment math, not line-items** → open an **Anesthesia** chart (AN10001 lap chole).
+  *"Anesthesia doesn't pay like CPT line-items: it's **(base + time + modifying units) × a conversion
+  factor**. The model codes the anesthesia CPT, the diagnosis and the ASA physical-status modifier — and
+  then the deterministic calculator takes over: base units from the public CMS file, time units from the
+  **documented anesthesia start/stop** divided into 15-minute units — never estimated by the model — and
+  the P3 modifier adds a unit under commercial convention (the trace honestly notes Medicare pays zero for
+  it)."* Point at the **unit card**: base + time + modifying = total units × $/unit = estimated allowable.
+  Expand **"Show unit calculation"** for the audited math. *"The conversion factor is admin-configurable —
+  it varies by locality and payer."* The Evaluation Harness scores **units accuracy** for these cases.
 - **Change Log** tab (Admin / Configuration) → *"And every one of these edits is itself governed."* Show
   the append-only trail: who (by role), when, what area, action, and target — for config, policy, KG,
   guideline, reference-data, and golden-set edits. *"Your audit and compliance teams asked who changed the

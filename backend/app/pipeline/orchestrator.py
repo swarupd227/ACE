@@ -16,7 +16,7 @@ from ..config import settings
 from ..knowledge import graph_rag
 from ..llm import prompts
 from ..llm.client import LLMUnavailable, complete_json, model_version
-from . import drg, hcc, validation
+from . import anes, drg, hcc, validation
 
 # Confidence routing thresholds (calibrated per-specialty in production)
 STB_THRESHOLD = 0.90
@@ -25,6 +25,7 @@ QA_THRESHOLD = 0.75
 # Tracks with their own deterministic payment-model stage (Stage 6).
 INPATIENT = "Inpatient (DRG)"        # MS-DRG grouper
 RISK_ADJ = "HCC / Risk Adjustment"   # CMS-HCC RAF scorer
+ANESTHESIA = "Anesthesia"            # base + time + modifying units × CF
 
 
 def _now():
@@ -437,6 +438,38 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         else:
             bounded.append(f"RAF unresolved ({hr['reason']}) — human review required")
             say("HCC RAF Scorer", f"RAF unresolved — {hr['reason']}; routing to human", "bad")
+
+    # --- Stage 6 (anesthesia only) — base + time + modifying units × conversion factor ---
+    if enc.specialty == ANESTHESIA:
+        step("6", "Anesthesia units")
+        say("Anesthesia Unit Calculator",
+            "looking up CMS base units, computing 15-min time units from documented start/stop…", "tool")
+        acc_codes = [
+            {"code_system": cr.code_system, "code": cr.code, "modifiers": list(cr.modifiers or [])}
+            for cr in accepted
+        ]
+        ar = anes.calculate(db, acc_codes, enc.chart_text, cfg.get("anesthesia", {}))
+        db.add(models.AnesResult(
+            run_id=run.id, encounter_id=enc.id, code=ar["code"], base_units=ar["base_units"],
+            time_minutes=ar["time_minutes"], time_units=ar["time_units"],
+            phys_modifier=ar["phys_modifier"], phys_units=ar["phys_units"],
+            qual_circ=ar["qual_circ"], total_units=ar["total_units"],
+            conversion_factor=ar["conversion_factor"],
+            estimated_allowable=ar["estimated_allowable"],
+            trace=ar["trace"], resolved=ar["resolved"],
+        ))
+        log.append({"stage": "6_anes", "title": "Anesthesia Unit Calculation", "result": ar})
+        _audit(db, run, "6_anes", "units_calculated" if ar["resolved"] else "units_unresolved",
+               {"code": ar["code"], "total_units": ar["total_units"],
+                "estimated_allowable": ar["estimated_allowable"], "resolved": ar["resolved"]})
+        if ar["resolved"]:
+            say("Anesthesia Unit Calculator",
+                f"{ar['code']}: {ar['base_units']} base + {ar['time_units']} time "
+                f"({ar['time_minutes']} min) + {ar['phys_units']} modifying = {ar['total_units']} units "
+                f"× ${ar['conversion_factor']:.2f} = ${ar['estimated_allowable']:.2f}", "good")
+        else:
+            bounded.append(f"anesthesia units unresolved ({ar['reason']}) — human review required")
+            say("Anesthesia Unit Calculator", f"unresolved — {ar['reason']}; routing to human", "bad")
 
     log.append({"stage": "5_calibration", "title": "Confidence Calibration & Routing",
                 "overall_confidence": overall, "accepted": len(accepted),

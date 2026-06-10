@@ -35,6 +35,16 @@ def hcc_to_dict(h: models.HccResult) -> dict:
     }
 
 
+def anes_to_dict(a: models.AnesResult) -> dict:
+    return {
+        "code": a.code, "base_units": a.base_units, "time_minutes": a.time_minutes,
+        "time_units": a.time_units, "phys_modifier": a.phys_modifier, "phys_units": a.phys_units,
+        "qual_circ": a.qual_circ, "total_units": a.total_units,
+        "conversion_factor": a.conversion_factor, "estimated_allowable": a.estimated_allowable,
+        "trace": a.trace, "resolved": a.resolved,
+    }
+
+
 def run_to_dict(run: models.CodingRun) -> dict:
     modified = bool(
         run.escalated
@@ -52,5 +62,6 @@ def run_to_dict(run: models.CodingRun) -> dict:
         "assigned_to": run.assigned_to, "priority": run.priority,
         "drg": drg_to_dict(run.drg_result) if run.drg_result else None,
         "hcc": hcc_to_dict(run.hcc_result) if run.hcc_result else None,
+        "anes": anes_to_dict(run.anes_result) if run.anes_result else None,
         "codes": [code_to_dict(c) for c in sorted(run.codes, key=lambda x: (x.code_system, x.sequence))],
     }
