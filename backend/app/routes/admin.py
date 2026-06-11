@@ -13,6 +13,7 @@ from .. import config_store, models
 from ..config import settings
 from ..db import get_db
 from ..llm import client as llm_client
+from ..seed.seeder import seed_all, seed_missing
 from ._admin_audit import Actor, get_actor, log_change
 
 router = APIRouter()
@@ -94,6 +95,28 @@ def llm_test(db: Session = Depends(get_db), actor: Actor = Depends(get_actor)) -
         return {"ok": True, "model": llm_client.model_version(llm), "latency_ms": ms, "sample": out}
     except Exception as exc:
         return {"ok": False, "model": llm_client.model_version(llm), "error": f"{type(exc).__name__}: {exc}"}
+
+
+# --- Seed endpoint -----------------------------------------------------------
+
+@router.post("/admin/seed")
+def trigger_seed(force: bool = False, db: Session = Depends(get_db),
+                 actor: Actor = Depends(get_actor)) -> dict:
+    """(Re)seed reference data and worklist.
+
+    ?force=false (default): additive — inserts any rows missing from the DB
+    without touching existing encounters or coding runs.  Safe to call at any time.
+
+    ?force=true: destructive full reseed — clears all seed-managed tables then
+    reloads everything from the seed files.  Existing coding runs are deleted.
+    """
+    if force:
+        result = seed_all(force=True)
+    else:
+        result = seed_missing()
+    log_change(db, actor, "reference", "seed", "all", {"force": force, "result": result})
+    db.commit()
+    return result
 
 
 # --- Admin change log (append-only governance trail) -----------------------

@@ -32,6 +32,45 @@ def _seeded(db) -> bool:
     return db.scalar(select(models.ReferenceCode).limit(1)) is not None
 
 
+def _clear_all_seed_data(db) -> None:
+    """Delete all seed-managed rows so seed_all(force=True) is fully idempotent.
+    Bulk DELETE bypasses ORM cascade, so FK children must come before parents."""
+    for cls in (
+        # coding_run children first (FK → coding_runs)
+        models.CodeResult,
+        models.DrgResult,
+        models.HccResult,
+        models.AnesResult,
+        models.ApcResult,
+        # then coding_runs (FK → encounters)
+        models.CodingRun,
+        # then encounters and the rest of the seed tables
+        models.Encounter,
+        models.GoldenCase,
+        models.ApcEntry,
+        models.QualCircumstance,
+        models.AnesBaseUnit,
+        models.DemographicFactor,
+        models.HccHierarchy,
+        models.DxHccMap,
+        models.HccCategory,
+        models.OrProcedure,
+        models.MdcAssignment,
+        models.CcMcc,
+        models.DrgDefinition,
+        models.GuidelineChunk,
+        models.OntologyEdge,
+        models.OntologyConcept,
+        models.PayerPolicy,
+        models.MueLimit,
+        models.NcciEdit,
+        models.ModifierRule,
+        models.ReferenceCode,
+    ):
+        db.query(cls).delete(synchronize_session=False)
+    db.flush()
+
+
 def seed_all(force: bool = False) -> dict:
     init_db()
     db = SessionLocal()
@@ -39,6 +78,9 @@ def seed_all(force: bool = False) -> dict:
         config_store.seed_defaults(db)  # idempotent — ensures admin config exists
         if _seeded(db) and not force:
             return {"status": "already_seeded"}
+
+        if force:
+            _clear_all_seed_data(db)
 
         # reference codes
         for code, desc, billable, parent in rd.ICD10CM:
@@ -109,6 +151,7 @@ def seed_all(force: bool = False) -> dict:
         # encounters (work items) — stagger arrival times so SLA aging is realistic
         now = datetime.now(timezone.utc)
         for i, ch in enumerate(charts.CHARTS):
+            ch = {**ch, "scenario": ch.get("scenario", "")[:80]}
             enc = models.Encounter(**ch)
             # spread arrivals across the last ~3.5 hours so SLA shows a realistic
             # on-track / at-risk / breached mix (deterministic, varied)
@@ -304,6 +347,7 @@ def seed_missing() -> dict:
         now = datetime.now(timezone.utc)
         for i, ch in enumerate(charts.CHARTS):
             if ch["mrn"] not in mrns:
+                ch = {**ch, "scenario": ch.get("scenario", "")[:80]}
                 enc = models.Encounter(**ch)
                 enc.received_at = now - timedelta(minutes=(i % 6) * 9)
                 db.add(enc)
