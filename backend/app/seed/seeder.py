@@ -151,6 +151,7 @@ def seed_all(force: bool = False) -> dict:
         # encounters (work items) — stagger arrival times so SLA aging is realistic
         now = datetime.now(timezone.utc)
         for i, ch in enumerate(charts.CHARTS):
+            ch = {**ch, "scenario": ch.get("scenario", "")[:80]}
             enc = models.Encounter(**ch)
             # spread arrivals across the last ~3.5 hours so SLA shows a realistic
             # on-track / at-risk / breached mix (deterministic, varied)
@@ -346,6 +347,7 @@ def seed_missing() -> dict:
         now = datetime.now(timezone.utc)
         for i, ch in enumerate(charts.CHARTS):
             if ch["mrn"] not in mrns:
+                ch = {**ch, "scenario": ch.get("scenario", "")[:80]}
                 enc = models.Encounter(**ch)
                 enc.received_at = now - timedelta(minutes=(i % 6) * 9)
                 db.add(enc)
