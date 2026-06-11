@@ -43,6 +43,11 @@ Correct — and the architecture assumes that. The honest answer, in three parts
    with the signature pending; the *unsigned* flag keeps it off straight-through billing no matter how
    confident the coding is. *"Stale copied text and unattested notes are exactly how compliance problems
    start — the conditioning stage catches both before a single code is assigned."*
+   And it's not only the model noticing: attestation is also a **deterministic metadata check**
+   (`doc_status` from the EHR feed — RAD10014 carries `preliminary`, so the hold fires even if the text
+   said nothing), and any chart's **Add addendum** action after it has billed raises a
+   **"late addendum after billing"** compliance flag from a plain timestamp comparison — try it live on
+   an STB chart and re-code it.
 3. **The scanned-document ingest you just watched is the multi-format path working live**: PDFs, scans and
    faxes are transcribed by the same model family (vision), then enter the identical pipeline. The demo
    charts are synthetic single-text because they are PHI-free seed data — not because the engine expects

@@ -2,6 +2,7 @@
 Policy & Knowledge Admin (editable payer policies that drive the necessity gate)."""
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -662,6 +663,20 @@ class IngestIn(BaseModel):
     age: int = 55
     dos: str = "2026-04-21"
     source_system: str = "Practice Admin"
+    doc_status: str = ""  # final | preliminary — derived from the text when omitted
+
+
+_UNATTESTED_RE = re.compile(
+    r"(?i)(report\s*[—\-]\s*preliminary|status:\s*preliminary|signature\s+pending|"
+    r"not\s+yet\s+attested|\bunsigned\b)")
+
+
+def _derive_doc_status(explicit: str, text: str) -> str:
+    """Attestation metadata: explicit field when the feed provides it (FHIR docStatus),
+    else a deterministic textual derivation. Never model judgment."""
+    if explicit in ("final", "preliminary", "amended"):
+        return explicit
+    return "preliminary" if _UNATTESTED_RE.search(text) else "final"
 
 
 @router.post("/ingest")
@@ -674,7 +689,7 @@ def ingest(body: IngestIn, db: Session = Depends(get_db)) -> dict:
         specialty=body.specialty, modality=body.modality, payer=body.payer, pos=body.pos,
         dos=body.dos, client="Ingested", source_system=body.source_system,
         report_type="ingested", chart_text=body.report_text, scenario="Live ingest",
-        status="NEW",
+        status="NEW", doc_status=_derive_doc_status(body.doc_status, body.report_text),
     )
     db.add(enc)
     db.commit()
@@ -724,7 +739,7 @@ async def ingest_document(
         dos=dos, client="Ingested", source_system="Document upload (vision OCR)",
         report_type="scanned_document", chart_text=text,
         scenario=f"Scanned {file.filename or 'document'} → vision OCR → pipeline",
-        status="NEW",
+        status="NEW", doc_status=_derive_doc_status("", text),
     )
     db.add(enc)
     db.commit()

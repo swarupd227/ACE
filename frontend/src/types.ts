@@ -156,6 +156,10 @@ export interface EncounterDetail {
   scenario: string;
   status: string;
   chart_lines: { n: number; text: string }[];
+  doc_status: string;
+  signed_by: string;
+  addendum_at: string | null;
+  late_addendum: boolean;
   run: Run | null;
 }
 export interface Meta {

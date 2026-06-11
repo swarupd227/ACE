@@ -155,6 +155,8 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         run.routing_reason = reason
         run.status = "DONE"
         run.stage_log = log
+        if lane == "STB":
+            run.billed_at = _now()  # straight-through → the claim goes out
         run.latency_ms = int((time.time() - t0) * 1000)
         run.input_tokens = sum(u.get("in", 0) for u in usage)
         run.output_tokens = sum(u.get("out", 0) for u in usage)
@@ -393,8 +395,29 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         bounded.append("blocking conditioning flag")
     if ba.get("ambiguous_or_contradiction", True) and is_ambiguous:
         bounded.append("ambiguous/contradictory documentation")
-    if ba.get("unsigned_note", True) and any(f.get("type") == "unsigned" for f in flags):
-        bounded.append("unsigned/unattested note — cannot drive billing")
+    if ba.get("unsigned_note", True):
+        # Deterministic metadata check first (FHIR docStatus-style); the model's
+        # text-derived 'unsigned' flag remains as the backup signal.
+        if (enc.doc_status or "final") != "final":
+            bounded.append(f"document not attested (doc_status={enc.doc_status}) — cannot drive billing")
+        elif any(f.get("type") == "unsigned" and f.get("severity") in ("warn", "block") for f in flags):
+            # severity-gated: models sometimes emit an info-level 'unsigned' flag just to
+            # NOTE that a signature is present — only warn/block means actually unsigned.
+            bounded.append("unsigned/unattested note — cannot drive billing")
+    # Late-entered addendum: an addendum timestamped AFTER a prior billed run is a
+    # compliance flag (deterministic timestamp comparison, never model judgment).
+    if enc.addendum_at:
+        prior_billed = [
+            (r.billed_at or r.finished_at) for r in db.scalars(
+                select(models.CodingRun).where(
+                    models.CodingRun.encounter_id == enc.id,
+                    models.CodingRun.id != run.id,
+                    models.CodingRun.routing_lane == "STB",
+                )
+            ).all() if (r.billed_at or r.finished_at)
+        ]
+        if prior_billed and enc.addendum_at > max(prior_billed):
+            bounded.append("late addendum after billing — compliance review required")
     if ba.get("critical_care", True) and any("critical care" in (c.get("description", "").lower()) for c in agg_codes):
         bounded.append("critical-care code present")
     ncci_break = any(

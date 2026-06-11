@@ -32,6 +32,10 @@ export const api = {
   code: (id: string) => req<import("./types").Run>(`/encounters/${id}/code`, { method: "POST" }),
   runAll: () => req<{ coded: number; lanes: Record<string, number> }>("/coding/run-all", { method: "POST" }),
   audit: (runId: string) => req<any[]>(`/runs/${runId}/audit`),
+  addendum: (encId: string, text: string) =>
+    req<{ addendum_at: string; late_after_billing: boolean }>(`/encounters/${encId}/addendum`, {
+      method: "POST", body: JSON.stringify({ text, author: "physician:demo" }),
+    }),
   accept: (codeId: string) =>
     req(`/codes/${codeId}/accept`, { method: "POST", body: JSON.stringify({ coder_id: "coder:demo" }) }),
   override: (codeId: string, override_code: string, reason: string) =>
