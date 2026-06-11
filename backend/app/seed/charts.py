@@ -661,6 +661,64 @@ CHARTS = [
             "Electronically signed by Dr. S. Whitfield, MD, Internal Medicine."
         ),
     ),
+    # 39 — Radiology MRI brain → expect 70551-26 + R51.9
+    dict(
+        mrn="RAD10011", patient_name="Celeste Marchetti", age=44, sex="F", specialty="Radiology",
+        modality="MRI", encounter_type="", payer="Medicare", pos="22", dos="2026-05-16",
+        client="Mercy General Hospital", source_system="Cerner", report_type="report",
+        scenario="Radiology — MRI brain without contrast (chronic headache)",
+        chart_text=(
+            "RADIOLOGY REPORT\n"
+            "EXAM: MRI brain without contrast.\n"
+            "HISTORY: 44-year-old woman with chronic daily headaches for three months; neurologic "
+            "examination normal. No prior imaging.\n"
+            "TECHNIQUE: Multiplanar multisequence MRI of the brain performed without intravenous contrast.\n"
+            "FINDINGS: No acute infarct, hemorrhage, mass or extra-axial collection. Ventricles and sulci "
+            "are normal for age. No abnormal signal on FLAIR or diffusion-weighted images.\n"
+            "IMPRESSION: Normal MRI of the brain. No structural cause for headache identified.\n"
+            "Electronically signed by Dr. A. Reyes, MD, Radiologist."
+        ),
+    ),
+    # 40 — Radiology MRI knee → expect 73721-26 (+RT) + M23.205
+    dict(
+        mrn="RAD10012", patient_name="Dominic Albrecht", age=49, sex="M", specialty="Radiology",
+        modality="MRI", encounter_type="", payer="Medicare", pos="22", dos="2026-05-16",
+        client="Mercy General Hospital", source_system="Cerner", report_type="report",
+        scenario="Radiology — MRI right knee (degenerative meniscal tear)",
+        chart_text=(
+            "RADIOLOGY REPORT\n"
+            "EXAM: MRI right knee without contrast.\n"
+            "HISTORY: 49-year-old man with right knee pain and mechanical symptoms for several months; "
+            "no acute injury recalled.\n"
+            "TECHNIQUE: Multiplanar multisequence MRI of the right knee without intravenous contrast.\n"
+            "FINDINGS: Horizontal oblique signal in the posterior horn of the medial meniscus extending "
+            "to the inferior articular surface, degenerative in character, consistent with an old tear. "
+            "Ligaments intact. Small joint effusion.\n"
+            "IMPRESSION: Degenerative tear of the posterior horn of the medial meniscus, right knee, "
+            "consistent with old injury.\n"
+            "Electronically signed by Dr. A. Reyes, MD, Radiologist."
+        ),
+    ),
+    # 41 — Radiology MRI shoulder → expect 73221-26 (+LT) + M75.102
+    dict(
+        mrn="RAD10013", patient_name="Yvonne Castellanos", age=57, sex="F", specialty="Radiology",
+        modality="MRI", encounter_type="", payer="Medicare", pos="22", dos="2026-05-16",
+        client="Mercy General Hospital", source_system="Cerner", report_type="report",
+        scenario="Radiology — MRI left shoulder (rotator cuff tear)",
+        chart_text=(
+            "RADIOLOGY REPORT\n"
+            "EXAM: MRI left shoulder without contrast.\n"
+            "HISTORY: 57-year-old woman with progressive left shoulder pain and weakness on abduction; "
+            "no specific trauma documented.\n"
+            "TECHNIQUE: Multiplanar multisequence MRI of the left shoulder without intravenous contrast.\n"
+            "FINDINGS: Partial-thickness articular-surface tear of the supraspinatus tendon without "
+            "full-thickness extension or retraction. Mild subacromial-subdeltoid bursitis. "
+            "Acromioclavicular joint degenerative change.\n"
+            "IMPRESSION: Incomplete (partial-thickness) rotator cuff tear of the left shoulder, "
+            "not specified as traumatic.\n"
+            "Electronically signed by Dr. A. Reyes, MD, Radiologist."
+        ),
+    ),
     # 38 — GI / Endoscopy at HOSPITAL OUTPATIENT (POS 22) → facility APC card alongside pro-fee.
     # Both scopes are comprehensive-APC (J1): facility pays ONE session payment (45385, APC 5312),
     # the EGD is packaged into it — while the pro-fee claim reports both procedures.
@@ -961,6 +1019,14 @@ GOLDEN_CASES = [
              "acute exacerbation last month, now at baseline — continue tiotropium, cessation counseling.\n"
              "2. Atrial fibrillation — rate-controlled, continue apixaban and metoprolol.\n3. Hyperlipidemia "
              "— at goal, continue atorvastatin.\nElectronically signed by internist.")),
+    dict(specialty="Radiology", irr=0.93, ambiguous=False,
+         truth={"icd": ["R51.9"], "cpt": ["70551"]},
+         chart_text=(
+             "RADIOLOGY REPORT\nEXAM: MRI brain without contrast.\nHISTORY: Chronic daily headaches, "
+             "neurologic exam normal.\nTECHNIQUE: Multiplanar multisequence MRI of the brain without "
+             "intravenous contrast.\nFINDINGS: No acute infarct, hemorrhage or mass. Normal ventricles "
+             "and sulci.\nIMPRESSION: Normal MRI of the brain; no structural cause for headache.\n"
+             "Electronically signed by radiologist.")),
     # Facility truth: both scopes are J1 → comprehensive APC pays one session payment
     # (45385 → APC 5312 $1,015.00); the EGD packages into it. Eval runs GI golden at POS 22.
     dict(specialty="GI / Endoscopy", irr=0.86, ambiguous=False,
