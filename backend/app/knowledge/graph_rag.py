@@ -20,6 +20,27 @@ from .. import models
 _STOP = {"the", "a", "an", "of", "and", "or", "with", "without", "no", "left", "right",
          "patient", "history", "for", "to", "in", "on", "is", "are", "was"}
 
+# Canonical radiology modality tags used on CPT reference rows: XR, CT, MRI, US, MG, NM.
+# The ingest `modality` field is free text, so normalize synonyms/casing to the canonical
+# tag before the radiology candidate filter. Purely additive: exact tags still match; this
+# only prevents a report from missing its codes (→ manual) on a modality-string mismatch.
+_MODALITY_ALIASES = {
+    "xr": "XR", "x-ray": "XR", "xray": "XR", "x ray": "XR", "cr": "XR", "dx": "XR",
+    "radiograph": "XR", "radiography": "XR", "plain film": "XR", "dxa": "XR", "dexa": "XR",
+    "bone density": "XR", "fluoro": "XR", "fluoroscopy": "XR",
+    "ct": "CT", "cat": "CT", "cta": "CT", "ct angiography": "CT", "ct angio": "CT",
+    "mri": "MRI", "mr": "MRI", "mra": "MRI", "mr angiography": "MRI", "mr angio": "MRI",
+    "us": "US", "ultrasound": "US", "u/s": "US", "sonography": "US", "sonogram": "US",
+    "sono": "US", "echo": "US", "doppler": "US", "duplex": "US", "color doppler": "US",
+    "mg": "MG", "mammography": "MG", "mammogram": "MG", "mammo": "MG",
+    "nm": "NM", "pet": "NM", "pet/ct": "NM", "nuclear": "NM", "nuclear medicine": "NM",
+}
+
+
+def _norm_modality(m: str) -> str:
+    key = (m or "").strip().lower()
+    return _MODALITY_ALIASES.get(key, (m or "").strip().upper())
+
 
 def _tokens(text: str) -> set[str]:
     return {t for t in re.findall(r"[a-z0-9]+", (text or "").lower()) if len(t) > 2 and t not in _STOP}
@@ -121,7 +142,9 @@ def retrieve(db: Session, encounter: models.Encounter, analysis: dict, *, top_k:
             select(models.ReferenceCode).where(models.ReferenceCode.code_system.in_(["CPT", "HCPCS"]))
         ).all()
         if encounter.specialty == "Radiology":
-            procs = [c for c in procs if (not c.modality) or c.modality == encounter.modality or c.modality == "ANY"]
+            enc_mod = _norm_modality(encounter.modality)
+            procs = [c for c in procs
+                     if (not c.modality) or c.modality == "ANY" or _norm_modality(c.modality) == enc_mod]
         elif encounter.specialty == "Pathology":
             procs = [c for c in procs if c.modality in ("PATH", "ANY", "")]
         elif encounter.specialty == "Surgical":
