@@ -1,13 +1,25 @@
 """Reference data for the demo.
 
 PROVENANCE (honest by design):
-- ICD-10-CM : REAL, public-domain (CMS/NCHS) — a curated subset for Radiology + E&M.
-- HCPCS L2  : REAL, public-domain (CMS) — small subset.
-- CPT       : DEMO_PLACEHOLDER. Radiology 70000-series numbers are widely-known facts,
-              but descriptors here are our own paraphrase, NOT AMA's copyrighted text.
+- ICD-10-CM : REAL, public-domain (CMS/NCHS) — curated subset for Radiology + E&M,
+              expanded with common radiology indications (signs/symptoms + findings).
+- HCPCS L2  : REAL, public-d
+omain (CMS) — incl. iodinated/gadolinium contrast + radiopharm.
+- CPT       : DEMO_PLACEHOLDER. The 70000-series radiology numbers are widely-published
+              facts (verified against CMS/AAPC fee-schedule references), but the
+              descriptors here are our own paraphrase, NOT AMA's copyrighted text.
               Swap in a licensed AMA distribution for production (same table shape).
-- NCCI/MUE  : modeled on REAL CMS edit logic, subset.
+              Now covers X-ray, CT/CTA, MRI/MRA, Ultrasound, Doppler/duplex, mammography
+              and DXA across head/neck, chest, spine, abdomen/pelvis and extremities.
+- NCCI/MUE  : modeled on REAL CMS edit logic (component coding, one-per-day defaults), subset.
+- APC/OPPS  : representative national amounts grouped into the published imaging-level
+              buckets; the packaging/discounting logic is real.
 - Payer policy / ontology / guidelines : representative, clearly-labeled.
+
+Inpatient (MS-DRG), HCC and anesthesia tables are intentionally NOT expanded here:
+their precise weights/coefficients/base-units are external CMS artifacts that must be
+loaded from the official files rather than recalled, and partial expansion would risk
+grouper inconsistency. They keep their existing curated subsets.
 """
 from __future__ import annotations
 
@@ -123,6 +135,77 @@ ICD10CM = [
     ("E11.4", "Type 2 diabetes mellitus with neurological complications", False, "E11"),
     ("M25.56", "Pain in knee", False, "M25.5"),
     ("S52.50", "Unspecified fracture of the lower end of radius", False, "S52.5"),
+
+    # =======================================================================
+    # RADIOLOGY INDICATIONS EXPANSION — REAL public-domain ICD-10-CM
+    # (CMS/NCHS). Common signs/symptoms and findings that prompt imaging, so
+    # the agent can code the ordering indication when no definitive dx exists.
+    # =======================================================================
+    # Abdominal pain by quadrant (drives CT/US abdomen)
+    ("R10.11", "Right upper quadrant pain", True, "R10.1"),
+    ("R10.12", "Left upper quadrant pain", True, "R10.1"),
+    ("R10.13", "Epigastric pain", True, "R10.1"),
+    ("R10.31", "Right lower quadrant pain", True, "R10.3"),
+    ("R10.32", "Left lower quadrant pain", True, "R10.3"),
+    ("R10.30", "Lower abdominal pain, unspecified", True, "R10.3"),
+    ("R10.0", "Acute abdomen", True, "R10"),
+    ("R19.00", "Intra-abdominal and pelvic swelling, mass and lump, unspecified site", True, "R19.0"),
+    ("R19.8", "Other specified symptoms and signs involving the digestive system and abdomen", True, "R19"),
+    ("R16.0", "Hepatomegaly, not elsewhere classified", True, "R16"),
+    ("R16.1", "Splenomegaly, not elsewhere classified", True, "R16"),
+    ("R18.8", "Other ascites", True, "R18"),
+    ("K92.2", "Gastrointestinal hemorrhage, unspecified", True, "K92"),
+    # Chest / pulmonary imaging indications & findings
+    ("R91.1", "Solitary pulmonary nodule", True, "R91"),
+    ("J90", "Pleural effusion, not elsewhere classified", True, ""),
+    ("J98.11", "Atelectasis", True, "J98.1"),
+    ("R09.1", "Pleurisy", True, "R09"),
+    ("I26.99", "Other pulmonary embolism without acute cor pulmonale", True, "I26.9"),
+    ("C34.90", "Malignant neoplasm of unspecified part of unspecified bronchus or lung", True, "C34.9"),
+    # Spine / musculoskeletal imaging indications
+    ("M54.12", "Radiculopathy, cervical region", True, "M54.1"),
+    ("M54.16", "Radiculopathy, lumbar region", True, "M54.1"),
+    ("M54.17", "Radiculopathy, lumbosacral region", True, "M54.1"),
+    ("M54.2", "Cervicalgia", True, "M54"),
+    ("M54.6", "Pain in thoracic spine", True, "M54"),
+    ("M54.9", "Dorsalgia, unspecified", True, "M54"),
+    ("M51.26", "Other intervertebral disc displacement, lumbar region", True, "M51.2"),
+    ("M48.06", "Spinal stenosis, lumbar region", True, "M48.0"),
+    ("M25.511", "Pain in right shoulder", True, "M25.51"),
+    ("M25.512", "Pain in left shoulder", True, "M25.51"),
+    # Neuro imaging indications (R51.9 headache already defined above and reused)
+    ("R55", "Syncope and collapse", True, ""),
+    ("R56.9", "Unspecified convulsions", True, "R56"),
+    ("G45.9", "Transient cerebral ischemic attack, unspecified", True, "G45"),
+    ("I63.9", "Cerebral infarction, unspecified", True, "I63"),
+    # Vascular / Doppler indications
+    ("I71.4", "Abdominal aortic aneurysm, without rupture", True, "I71"),
+    ("I73.9", "Peripheral vascular disease, unspecified", True, "I73"),
+    ("I65.23", "Occlusion and stenosis of bilateral carotid arteries", True, "I65.2"),
+    ("I82.409", "Acute embolism and thrombosis of unspecified deep veins of unspecified lower extremity", True, "I82.40"),
+    # GU / renal imaging indications
+    ("N13.30", "Unspecified hydronephrosis", True, "N13.3"),
+    ("N28.1", "Cyst of kidney, acquired", True, "N28"),
+    ("R31.0", "Gross hematuria", True, "R31"),
+    # Thyroid / neck US indications
+    ("E04.1", "Nontoxic single thyroid nodule", True, "E04"),
+    ("E04.2", "Nontoxic multinodular goiter", True, "E04"),
+    # Breast imaging indications
+    ("N63.0", "Unspecified lump in unspecified breast", True, "N63"),
+    ("R92.8", "Other abnormal and inconclusive findings on diagnostic imaging of breast", True, "R92"),
+    ("Z12.31", "Encounter for screening mammogram for malignant neoplasm of breast", True, "Z12.3"),
+    # Constitutional / lymphatic imaging indications
+    ("R50.9", "Fever, unspecified", True, "R50"),
+    ("R59.0", "Localized enlarged lymph nodes", True, "R59"),
+    ("R59.1", "Generalized enlarged lymph nodes", True, "R59"),
+    # Abnormal imaging finding codes (when the read itself is the codable result)
+    ("R93.5", "Abnormal findings on diagnostic imaging of other abdominal regions, including retroperitoneum", True, "R93"),
+    ("R93.89", "Abnormal findings on diagnostic imaging of other specified body structures", True, "R93.8"),
+    # non-billable parents (specificity gate should reject these)
+    ("R10.1", "Pain localized to upper abdomen", False, "R10"),
+    ("R10.3", "Pain localized to other parts of lower abdomen", False, "R10"),
+    ("M54.1", "Radiculopathy", False, "M54"),
+    ("E04", "Other nontoxic goiter", False, "E04"),
 ]
 
 # --- CPT (DEMO_PLACEHOLDER) — (code, description, modality) ---
@@ -231,14 +314,244 @@ CPT = [
     ("31231", "Nasal endoscopy, diagnostic, unilateral or bilateral (separate procedure)", "ENT"),
     ("30520", "Septoplasty or submucous resection, with or without cartilage scoring/contouring/replacement", "ENT"),
     ("31237", "Nasal/sinus endoscopy, surgical; with biopsy, polypectomy or debridement", "ENT"),
+
+    # =======================================================================
+    # RADIOLOGY EXPANSION (DEMO_PLACEHOLDER) — real, widely-published CPT
+    # numbers (verified against CMS/AAPC fee-schedule references); descriptors
+    # are our own paraphrase, NOT AMA's copyrighted text. Modality tags drive
+    # the Radiology retrieval filter: XR / CT / MRI / US / MG.
+    # =======================================================================
+
+    # --- Plain radiography · head & neck (XR) ---
+    ("70140", "Radiologic exam, facial bones; fewer than 3 views", "XR"),
+    ("70150", "Radiologic exam, facial bones; complete, minimum 3 views", "XR"),
+    ("70160", "Radiologic exam, nasal bones; complete", "XR"),
+    ("70210", "Radiologic exam, paranasal sinuses; fewer than 3 views", "XR"),
+    ("70220", "Radiologic exam, paranasal sinuses; complete, minimum 3 views", "XR"),
+    ("70250", "Radiologic exam, skull; fewer than 4 views", "XR"),
+    ("70260", "Radiologic exam, skull; complete, minimum 4 views", "XR"),
+    ("70360", "Radiologic exam, neck; soft tissue", "XR"),
+    # --- Plain radiography · chest & ribs (XR) ---
+    ("71047", "Radiologic exam, chest; 3 views", "XR"),
+    ("71048", "Radiologic exam, chest; 4 or more views", "XR"),
+    ("71100", "Radiologic exam, ribs, unilateral; 2 views", "XR"),
+    ("71110", "Radiologic exam, ribs, bilateral; 3 views", "XR"),
+    # --- Plain radiography · spine (XR) ---
+    ("72020", "Radiologic exam, spine; single view, specified level", "XR"),
+    ("72040", "Radiologic exam, cervical spine; 2-3 views", "XR"),
+    ("72050", "Radiologic exam, cervical spine; 4-5 views", "XR"),
+    ("72052", "Radiologic exam, cervical spine; 6 or more views", "XR"),
+    ("72070", "Radiologic exam, thoracic spine; 2 views", "XR"),
+    ("72072", "Radiologic exam, thoracic spine; 3 views", "XR"),
+    ("72080", "Radiologic exam, thoracolumbar spine; 2 views", "XR"),
+    ("72100", "Radiologic exam, lumbosacral spine; 2-3 views", "XR"),
+    ("72110", "Radiologic exam, lumbosacral spine; 4 or more views", "XR"),
+    ("72170", "Radiologic exam, pelvis; 1-2 views", "XR"),
+    ("72190", "Radiologic exam, pelvis; 3 or more views", "XR"),
+    # --- Plain radiography · upper extremity (XR) ---
+    ("73000", "Radiologic exam, clavicle; complete", "XR"),
+    ("73010", "Radiologic exam, scapula; complete", "XR"),
+    ("73020", "Radiologic exam, shoulder; 1 view", "XR"),
+    ("73060", "Radiologic exam, humerus; minimum 2 views", "XR"),
+    ("73070", "Radiologic exam, elbow; 2 views", "XR"),
+    ("73080", "Radiologic exam, elbow; 3 or more views", "XR"),
+    ("73090", "Radiologic exam, forearm; 2 views", "XR"),
+    ("73100", "Radiologic exam, wrist; 2 views", "XR"),
+    ("73120", "Radiologic exam, hand; 2 views", "XR"),
+    ("73130", "Radiologic exam, hand; 3 or more views", "XR"),
+    ("73140", "Radiologic exam, finger(s); minimum 2 views", "XR"),
+    # --- Plain radiography · lower extremity (XR) ---
+    ("73501", "Radiologic exam, hip, unilateral; 1 view", "XR"),
+    ("73502", "Radiologic exam, hip, unilateral; 2-3 views", "XR"),
+    ("73503", "Radiologic exam, hip, unilateral; 4 or more views", "XR"),
+    ("73521", "Radiologic exam, hips, bilateral; 2 views", "XR"),
+    ("73522", "Radiologic exam, hips, bilateral; 3-4 views", "XR"),
+    ("73523", "Radiologic exam, hips, bilateral; 5 or more views", "XR"),
+    ("73551", "Radiologic exam, femur; 1 view", "XR"),
+    ("73552", "Radiologic exam, femur; 2 or more views", "XR"),
+    ("73560", "Radiologic exam, knee; 1 or 2 views", "XR"),
+    ("73565", "Radiologic exam, knee; both knees, standing AP", "XR"),
+    ("73590", "Radiologic exam, tibia and fibula; 2 views", "XR"),
+    ("73600", "Radiologic exam, ankle; 2 views", "XR"),
+    ("73610", "Radiologic exam, ankle; 3 or more views", "XR"),
+    ("73620", "Radiologic exam, foot; 2 views", "XR"),
+    ("73630", "Radiologic exam, foot; 3 or more views", "XR"),
+    ("73650", "Radiologic exam, calcaneus; minimum 2 views", "XR"),
+    ("73660", "Radiologic exam, toe(s); minimum 2 views", "XR"),
+    # --- Plain radiography · abdomen (XR) ---
+    ("74019", "Radiologic exam, abdomen; 2 views", "XR"),
+    ("74021", "Radiologic exam, abdomen; 3 or more views", "XR"),
+    ("74022", "Radiologic exam, acute abdomen series, including a chest view", "XR"),
+    # --- Bone densitometry (DXA, X-ray based) ---
+    ("77080", "DXA bone density study, axial skeleton (hips, pelvis, spine)", "XR"),
+    ("77081", "DXA bone density study, appendicular skeleton (peripheral)", "XR"),
+
+    # --- CT · head & neck (CT) ---
+    ("70470", "CT, head or brain; without then with contrast", "CT"),
+    ("70480", "CT, orbit/sella/posterior fossa/ear; without contrast", "CT"),
+    ("70481", "CT, orbit/sella/posterior fossa/ear; with contrast", "CT"),
+    ("70482", "CT, orbit/sella/posterior fossa/ear; without then with contrast", "CT"),
+    ("70486", "CT, maxillofacial area; without contrast", "CT"),
+    ("70487", "CT, maxillofacial area; with contrast", "CT"),
+    ("70488", "CT, maxillofacial area; without then with contrast", "CT"),
+    ("70490", "CT, soft tissue neck; without contrast", "CT"),
+    ("70491", "CT, soft tissue neck; with contrast", "CT"),
+    ("70492", "CT, soft tissue neck; without then with contrast", "CT"),
+    # --- CT · chest (CT) ---
+    ("71270", "CT, thorax; without then with contrast", "CT"),
+    # --- CT · spine (CT) ---
+    ("72125", "CT, cervical spine; without contrast", "CT"),
+    ("72126", "CT, cervical spine; with contrast", "CT"),
+    ("72127", "CT, cervical spine; without then with contrast", "CT"),
+    ("72128", "CT, thoracic spine; without contrast", "CT"),
+    ("72129", "CT, thoracic spine; with contrast", "CT"),
+    ("72130", "CT, thoracic spine; without then with contrast", "CT"),
+    ("72131", "CT, lumbar spine; without contrast", "CT"),
+    ("72132", "CT, lumbar spine; with contrast", "CT"),
+    ("72133", "CT, lumbar spine; without then with contrast", "CT"),
+    # --- CT · pelvis & abdomen (CT) ---
+    ("72193", "CT, pelvis; with contrast", "CT"),
+    ("72194", "CT, pelvis; without then with contrast", "CT"),
+    ("74160", "CT, abdomen; with contrast", "CT"),
+    ("74170", "CT, abdomen; without then with contrast", "CT"),
+    # --- CT · extremities (CT) ---
+    ("73200", "CT, upper extremity; without contrast", "CT"),
+    ("73201", "CT, upper extremity; with contrast", "CT"),
+    ("73202", "CT, upper extremity; without then with contrast", "CT"),
+    ("73700", "CT, lower extremity; without contrast", "CT"),
+    ("73701", "CT, lower extremity; with contrast", "CT"),
+    ("73702", "CT, lower extremity; without then with contrast", "CT"),
+    # --- CT angiography (CTA, tagged CT) ---
+    ("70496", "CT angiography, head; with contrast and post-processing", "CT"),
+    ("70498", "CT angiography, neck; with contrast and post-processing", "CT"),
+    ("71275", "CT angiography, chest (non-coronary); with contrast", "CT"),
+    ("73206", "CT angiography, upper extremity; with contrast", "CT"),
+    ("73706", "CT angiography, lower extremity; with contrast", "CT"),
+    ("72191", "CT angiography, pelvis; with contrast", "CT"),
+    ("74174", "CT angiography, abdomen and pelvis; with contrast", "CT"),
+    ("74175", "CT angiography, abdomen; with contrast", "CT"),
+    # --- Cardiac CT (CT) ---
+    ("75571", "CT, heart; coronary artery calcium scoring", "CT"),
+    ("75574", "CT angiography, coronary arteries (CCTA), with contrast and 3D", "CT"),
+
+    # --- MRI · head & neck (MRI) ---
+    ("70540", "MRI, orbit/face/neck; without contrast", "MRI"),
+    ("70542", "MRI, orbit/face/neck; with contrast", "MRI"),
+    ("70543", "MRI, orbit/face/neck; without then with contrast", "MRI"),
+    ("70552", "MRI, brain; with contrast", "MRI"),
+    ("70553", "MRI, brain; without then with contrast", "MRI"),
+    # --- MRI · chest (MRI) ---
+    ("71550", "MRI, chest; without contrast", "MRI"),
+    ("71551", "MRI, chest; with contrast", "MRI"),
+    ("71552", "MRI, chest; without then with contrast", "MRI"),
+    # --- MRI · spine (MRI) ---
+    ("72141", "MRI, cervical spine; without contrast", "MRI"),
+    ("72142", "MRI, cervical spine; with contrast", "MRI"),
+    ("72156", "MRI, cervical spine; without then with contrast", "MRI"),
+    ("72146", "MRI, thoracic spine; without contrast", "MRI"),
+    ("72147", "MRI, thoracic spine; with contrast", "MRI"),
+    ("72157", "MRI, thoracic spine; without then with contrast", "MRI"),
+    ("72158", "MRI, lumbar spine; without then with contrast", "MRI"),
+    # --- MRI · pelvis & abdomen (MRI) ---
+    ("72195", "MRI, pelvis; without contrast", "MRI"),
+    ("72196", "MRI, pelvis; with contrast", "MRI"),
+    ("72197", "MRI, pelvis; without then with contrast", "MRI"),
+    ("74181", "MRI, abdomen; without contrast", "MRI"),
+    ("74182", "MRI, abdomen; with contrast", "MRI"),
+    ("74183", "MRI, abdomen; without then with contrast", "MRI"),
+    # --- MRI · extremities (MRI) ---
+    ("73218", "MRI, upper extremity (non-joint); without contrast", "MRI"),
+    ("73219", "MRI, upper extremity (non-joint); with contrast", "MRI"),
+    ("73220", "MRI, upper extremity (non-joint); without then with contrast", "MRI"),
+    ("73222", "MRI, upper extremity joint; with contrast", "MRI"),
+    ("73223", "MRI, upper extremity joint; without then with contrast", "MRI"),
+    ("73718", "MRI, lower extremity (non-joint); without contrast", "MRI"),
+    ("73719", "MRI, lower extremity (non-joint); with contrast", "MRI"),
+    ("73720", "MRI, lower extremity (non-joint); without then with contrast", "MRI"),
+    ("73722", "MRI, lower extremity joint; with contrast", "MRI"),
+    ("73723", "MRI, lower extremity joint; without then with contrast", "MRI"),
+    # --- MR angiography (MRA, tagged MRI) ---
+    ("70544", "MR angiography, head; without contrast", "MRI"),
+    ("70545", "MR angiography, head; with contrast", "MRI"),
+    ("70546", "MR angiography, head; without then with contrast", "MRI"),
+    ("70547", "MR angiography, neck; without contrast", "MRI"),
+    ("70548", "MR angiography, neck; with contrast", "MRI"),
+    ("70549", "MR angiography, neck; without then with contrast", "MRI"),
+    ("71555", "MR angiography, chest (non-coronary); with or without contrast", "MRI"),
+    ("72159", "MR angiography, spinal canal; with or without contrast", "MRI"),
+    ("72198", "MR angiography, pelvis; with or without contrast", "MRI"),
+    ("73225", "MR angiography, upper extremity; with or without contrast", "MRI"),
+    ("73725", "MR angiography, lower extremity; with or without contrast", "MRI"),
+    ("74185", "MR angiography, abdomen; with or without contrast", "MRI"),
+
+    # --- Ultrasound · body (US) ---
+    ("76536", "Ultrasound, soft tissue of head and neck (e.g., thyroid, parathyroid)", "US"),
+    ("76604", "Ultrasound, chest (excluding the heart)", "US"),
+    ("76641", "Ultrasound, breast, unilateral; complete", "US"),
+    ("76642", "Ultrasound, breast, unilateral; limited", "US"),
+    ("76700", "Ultrasound, abdomen; complete", "US"),
+    ("76705", "Ultrasound, abdomen; limited or follow-up", "US"),
+    ("76706", "Ultrasound, abdominal aorta screening for aneurysm (AAA)", "US"),
+    ("76770", "Ultrasound, retroperitoneum (kidneys/aorta/nodes); complete", "US"),
+    ("76775", "Ultrasound, retroperitoneum; limited", "US"),
+    ("76776", "Ultrasound, transplanted kidney, with duplex Doppler", "US"),
+    ("76856", "Ultrasound, pelvis (non-obstetric); complete", "US"),
+    ("76857", "Ultrasound, pelvis (non-obstetric); limited or follow-up", "US"),
+    ("76830", "Ultrasound, transvaginal (non-obstetric)", "US"),
+    ("76831", "Saline infusion sonohysterography, including color flow Doppler", "US"),
+    ("76870", "Ultrasound, scrotum and contents", "US"),
+    ("76872", "Ultrasound, transrectal", "US"),
+    ("76881", "Ultrasound, extremity, non-vascular; complete joint", "US"),
+    ("76882", "Ultrasound, extremity, non-vascular; limited (joint/soft tissue)", "US"),
+    # --- Ultrasound · obstetric (US) ---
+    ("76801", "Ultrasound, pregnant uterus, < 14 weeks; single/first gestation, transabdominal", "US"),
+    ("76802", "Ultrasound, pregnant uterus, < 14 weeks; each additional gestation (add-on)", "US"),
+    ("76810", "Ultrasound, pregnant uterus, >= 14 weeks; each additional gestation (add-on)", "US"),
+    ("76811", "Ultrasound, pregnant uterus, >= 14 weeks; detailed fetal anatomic exam, single", "US"),
+    ("76812", "Ultrasound, pregnant uterus, >= 14 weeks; detailed, each additional gestation (add-on)", "US"),
+    ("76815", "Ultrasound, pregnant uterus; limited (one or more fetuses)", "US"),
+    ("76816", "Ultrasound, pregnant uterus; follow-up, per fetus", "US"),
+    ("76817", "Ultrasound, pregnant uterus; transvaginal", "US"),
+    # --- Doppler / duplex vascular ultrasound (tagged US) ---
+    ("93880", "Duplex scan, extracranial (carotid) arteries; complete bilateral", "US"),
+    ("93882", "Duplex scan, extracranial (carotid) arteries; unilateral or limited", "US"),
+    ("93886", "Transcranial Doppler study of intracranial arteries; complete", "US"),
+    ("93922", "Limited bilateral noninvasive physiologic studies, extremity arteries", "US"),
+    ("93923", "Complete bilateral noninvasive physiologic studies, extremity arteries", "US"),
+    ("93925", "Duplex scan, lower extremity arteries/bypass grafts; complete bilateral", "US"),
+    ("93926", "Duplex scan, lower extremity arteries/bypass grafts; unilateral or limited", "US"),
+    ("93930", "Duplex scan, upper extremity arteries/bypass grafts; complete bilateral", "US"),
+    ("93931", "Duplex scan, upper extremity arteries/bypass grafts; unilateral or limited", "US"),
+    ("93970", "Duplex scan, extremity veins; complete bilateral", "US"),
+    ("93971", "Duplex scan, extremity veins; unilateral or limited", "US"),
+    ("93975", "Duplex scan, abdominal/pelvic/scrotal arterial and venous flow; complete", "US"),
+    ("93976", "Duplex scan, abdominal/pelvic/scrotal arterial and venous flow; limited", "US"),
+    ("93978", "Duplex scan, aorta/IVC/iliac vasculature; complete", "US"),
+    ("93979", "Duplex scan, aorta/IVC/iliac vasculature; unilateral or limited", "US"),
+    ("93990", "Duplex scan of hemodialysis access (graft/fistula)", "US"),
+    # --- Mammography (MG) ---
+    ("77065", "Diagnostic mammography, unilateral; including CAD when performed", "MG"),
+    ("77066", "Diagnostic mammography, bilateral; including CAD when performed", "MG"),
+    ("77067", "Screening mammography, bilateral; including CAD when performed", "MG"),
+    ("77061", "Diagnostic digital breast tomosynthesis, unilateral", "MG"),
+    ("77062", "Diagnostic digital breast tomosynthesis, bilateral", "MG"),
+    ("77063", "Screening digital breast tomosynthesis, bilateral (add-on)", "MG"),
 ]
 
 HCPCS = [
-    ("Q9967", "Low osmolar contrast material, per ml", "ANY"),
-    ("A9579", "Gadolinium-based MR contrast agent, per ml", "MRI"),
+    ("Q9967", "Low osmolar contrast material, 300-399 mg/ml iodine concentration, per ml", "ANY"),
+    ("A9579", "Gadolinium-based MR contrast agent, not otherwise specified, per ml", "MRI"),
     # HCC / Risk Adjustment — annual wellness visits (real public G-codes)
     ("G0438", "Annual wellness visit; includes a personalized prevention plan of service, initial visit", "AWV"),
     ("G0439", "Annual wellness visit; includes a personalized prevention plan of service, subsequent visit", "AWV"),
+    # --- Radiology contrast / radiopharmaceuticals (REAL public-domain CMS L2) ---
+    ("Q9965", "Low osmolar contrast material, 100-199 mg/ml iodine concentration, per ml", "ANY"),
+    ("Q9966", "Low osmolar contrast material, 200-299 mg/ml iodine concentration, per ml", "ANY"),
+    ("A9575", "Gadoterate meglumine-based MR contrast agent, per ml", "MRI"),
+    ("A9581", "Gadoxetate disodium, per ml", "MRI"),
+    ("A9585", "Gadobutrol, per 0.1 ml", "MRI"),
+    ("A9500", "Technetium Tc-99m sestamibi, diagnostic, per study dose", "NM"),
+    ("A9503", "Technetium Tc-99m medronate (MDP), diagnostic, per study dose, up to 30 millicuries", "NM"),
 ]
 
 # --- Modifiers ---
@@ -280,6 +593,30 @@ NCCI = [
     ("45385", "45378", False, "Diagnostic colonoscopy is a component of colonoscopy with polypectomy; not separately reportable"),
     ("43239", "43235", False, "Diagnostic EGD is a component of EGD with biopsy; not separately reportable"),
     ("31237", "31231", False, "Diagnostic nasal endoscopy is a component of surgical nasal/sinus endoscopy; not separately reportable"),
+    # --- Radiology component coding (combined-contrast studies bundle the singles) ---
+    ("70470", "70450", False, "CT head w/o is a component of the combined without-then-with study"),
+    ("70470", "70460", False, "CT head with is a component of the combined without-then-with study"),
+    ("71270", "71250", False, "CT chest w/o is a component of the combined without-then-with study"),
+    ("71270", "71260", False, "CT chest with is a component of the combined without-then-with study"),
+    ("74170", "74150", False, "CT abdomen w/o is a component of the combined without-then-with study"),
+    ("74170", "74160", False, "CT abdomen with is a component of the combined without-then-with study"),
+    ("74178", "74176", False, "CT abd+pelvis w/o is a component of the combined without-then-with study"),
+    ("74178", "74177", False, "CT abd+pelvis with is a component of the combined without-then-with study"),
+    ("72156", "72141", False, "MRI cervical w/o is a component of the combined without-then-with study"),
+    ("72156", "72142", False, "MRI cervical with is a component of the combined without-then-with study"),
+    ("72158", "72148", False, "MRI lumbar w/o is a component of the combined without-then-with study"),
+    ("72158", "72149", False, "MRI lumbar with is a component of the combined without-then-with study"),
+    ("74174", "74175", False, "CTA abdomen+pelvis includes CTA abdomen; report the combined code"),
+    # --- Complete-vs-limited ultrasound (complete includes a limited study) ---
+    ("76700", "76705", True, "Complete abdominal US includes a limited study; report only one per session unless distinct"),
+    ("76700", "76770", True, "Complete abdominal US views retroperitoneal structures; report retroperitoneal-only when the exam is limited to those structures"),
+    ("76770", "76775", True, "Complete retroperitoneal US includes a limited study"),
+    ("76856", "76857", True, "Complete pelvic US includes a limited study"),
+    # --- Duplex/Doppler: complete bilateral includes a unilateral/limited study ---
+    ("93880", "93882", True, "Complete bilateral carotid duplex includes a unilateral/limited study"),
+    ("93970", "93971", True, "Complete bilateral venous duplex includes a unilateral/limited study"),
+    ("93925", "93926", True, "Complete bilateral lower-extremity arterial duplex includes a unilateral/limited study"),
+    ("93930", "93931", True, "Complete bilateral upper-extremity arterial duplex includes a unilateral/limited study"),
 ]
 
 # --- MUE (max units/day) ---
@@ -309,6 +646,42 @@ MUE = [
     ("69436", 1, "Tympanostomy tube insertion, reported once (bilateral via modifier 50)"),
     ("30520", 1, "Septoplasty, one per day"),
     ("31237", 1, "Surgical nasal/sinus endoscopy, one per day"),
+    # --- Radiology cross-sectional / advanced imaging (representative; one/day typical) ---
+    ("70460", 1, "CT head with contrast, one per day typical"),
+    ("70470", 1, "CT head w/o then with, one per day typical"),
+    ("70486", 1, "CT maxillofacial, one per day typical"),
+    ("70490", 1, "CT soft tissue neck, one per day typical"),
+    ("70496", 1, "CTA head, one per day typical"),
+    ("70498", 1, "CTA neck, one per day typical"),
+    ("70551", 1, "MRI brain w/o, one per day typical"),
+    ("70552", 1, "MRI brain with, one per day typical"),
+    ("70553", 1, "MRI brain w/o then with, one per day typical"),
+    ("71260", 1, "CT chest with contrast, one per day typical"),
+    ("71270", 1, "CT chest w/o then with, one per day typical"),
+    ("71275", 1, "CTA chest, one per day typical"),
+    ("72125", 1, "CT cervical spine w/o, one per day typical"),
+    ("72131", 1, "CT lumbar spine w/o, one per day typical"),
+    ("72141", 1, "MRI cervical spine w/o, one per day typical"),
+    ("72146", 1, "MRI thoracic spine w/o, one per day typical"),
+    ("74150", 1, "CT abdomen w/o, one per day typical"),
+    ("74160", 1, "CT abdomen with, one per day typical"),
+    ("74170", 1, "CT abdomen w/o then with, one per day typical"),
+    ("74174", 1, "CTA abdomen and pelvis, one per day typical"),
+    ("74181", 1, "MRI abdomen w/o, one per day typical"),
+    ("76700", 1, "Complete abdominal US, one per day typical"),
+    ("76770", 1, "Complete retroperitoneal US, one per day typical"),
+    ("76856", 1, "Complete pelvic US, one per day typical"),
+    ("76536", 1, "Thyroid/soft-tissue neck US, one per day typical"),
+    ("76805", 1, "Obstetric US >= 14 weeks, one per day typical"),
+    ("76817", 1, "Transvaginal obstetric US, one per day typical"),
+    ("93880", 1, "Complete carotid duplex, one per day typical"),
+    ("93970", 1, "Complete extremity venous duplex, one per day typical"),
+    ("93925", 1, "Complete lower-extremity arterial duplex, one per day typical"),
+    ("93930", 1, "Complete upper-extremity arterial duplex, one per day typical"),
+    ("77065", 1, "Diagnostic mammography unilateral, one per day typical"),
+    ("77066", 1, "Diagnostic mammography bilateral, one per day typical"),
+    ("77067", 1, "Screening mammography bilateral, one per day typical"),
+    ("77080", 1, "DXA axial bone density, one per day typical"),
 ]
 
 # --- Payer policy (representative) ---
@@ -366,6 +739,42 @@ PAYER_POLICY = [
      "otitis media with effusion; report bilateral with modifier 50.", False, "Bilateral → modifier 50", ["H65", "H66"]),
     ("Anthem", "30520", "Prior authorization required for septoplasty; covered for symptomatic deviated "
      "nasal septum with nasal obstruction failing medical therapy.", True, "Auth # required on claim", ["J34.2"]),
+    # --- Radiology medical necessity (representative LCD/NCD-style) ---
+    ("Medicare", "70450", "CT head/brain without contrast covered for acute neurologic symptoms "
+     "(headache red flags, syncope, seizure, suspected stroke).", False, "", ["R51", "R55", "R56", "G45", "I63"]),
+    ("Medicare", "70551", "MRI brain covered for new neurologic deficit, suspected mass, or persistent "
+     "headache with red-flag features.", False, "", ["R51", "G45", "I63", "R55"]),
+    ("Anthem", "70551", "Prior authorization required for outpatient brain MRI.",
+     True, "Auth # required on claim", ["R51", "G45", "I63"]),
+    ("Medicare", "72141", "MRI cervical spine covered for radiculopathy or myelopathy, or neck pain with "
+     "neurologic deficit persisting after conservative care.", False, "", ["M54.1", "M54.2", "M50"]),
+    ("Anthem", "72141", "Prior authorization required for outpatient cervical spine MRI.",
+     True, "Auth # required on claim", ["M54.1", "M54.2"]),
+    ("Medicare", "71250", "CT chest covered for an indeterminate pulmonary nodule, abnormal chest "
+     "radiograph, or evaluation of suspected thoracic pathology.", False, "", ["R91", "R09", "C34", "J98"]),
+    ("Medicare", "71275", "CTA chest covered for suspected pulmonary embolism or thoracic vascular "
+     "pathology with a documented indication.", False, "", ["I26", "R09.1", "R07.1"]),
+    ("Medicare", "93970", "Extremity venous duplex covered for suspected deep vein thrombosis or "
+     "documented leg swelling/pain.", False, "", ["I82", "R60", "M79.6"]),
+    ("Medicare", "93880", "Carotid duplex covered for TIA, stroke, amaurosis fugax, or a documented "
+     "cervical bruit.", False, "", ["G45", "I63", "I65", "R55"]),
+    ("Medicare", "74174", "CTA abdomen and pelvis covered for suspected aortic aneurysm/dissection or "
+     "mesenteric/visceral vascular pathology.", False, "", ["I71", "I73", "R10"]),
+    ("Medicare", "76700", "Complete abdominal ultrasound covered for abdominal pain, organomegaly, or a "
+     "palpable mass.", False, "", ["R10", "R16", "R19", "K92.2"]),
+    ("Medicare", "76770", "Retroperitoneal (renal) ultrasound covered for hematuria, suspected "
+     "hydronephrosis, calculus, or renal mass.", False, "", ["N13", "N20", "N28", "R31"]),
+    ("Medicare", "76856", "Pelvic ultrasound covered for pelvic pain, mass, or abnormal bleeding.",
+     False, "", ["R10.2", "N93", "N83", "R19.00"]),
+    # (Anthem 76805 obstetric ultrasound policy already defined above)
+    ("Medicare", "76536", "Thyroid/soft-tissue neck ultrasound covered for a thyroid nodule, goiter, or "
+     "palpable neck mass.", False, "", ["E04", "R22.1", "R59"]),
+    ("Medicare", "77067", "Screening mammography covered once every 12 months for women aged 40 and older.",
+     False, "", ["Z12.31"]),
+    ("Medicare", "77066", "Diagnostic mammography covered for a breast lump, abnormal screening finding, "
+     "or other breast sign/symptom.", False, "", ["N63", "R92", "N64"]),
+    ("Medicare", "77080", "DXA bone density covered every 24 months for osteoporosis screening/monitoring "
+     "in qualifying beneficiaries (more often if medically necessary).", False, "", ["M81", "M80", "Z13.820"]),
 ]
 
 # --- Medical ontology (concept graph for Graph-RAG) ---
@@ -429,6 +838,11 @@ ONTOLOGY_CONCEPTS = [
     ("C0040408", "Palatine tonsil structure", "Body Part", []),
     ("C0025347", "Middle ear structure", "Body Part", []),
     ("C0028429", "Nasal septum structure", "Body Part", []),
+    # Radiology concepts (real UMLS CUIs; supplements lexical retrieval)
+    ("C0034065", "Pulmonary embolism", "Disease", [{"system": "ICD10CM", "code": "I26.99"}]),
+    ("C0032227", "Pleural effusion", "Disease", [{"system": "ICD10CM", "code": "J90"}]),
+    ("C0022646", "Kidney structure", "Body Part", []),
+    ("C0023884", "Liver structure", "Body Part", []),
 ]
 # (src_cui, rel, dst_cui)
 ONTOLOGY_EDGES = [
@@ -460,6 +874,9 @@ ONTOLOGY_EDGES = [
     ("C0040421", "finding_site", "C0040408"),    # adenotonsillar hypertrophy -> palatine tonsil
     ("C0029883", "finding_site", "C0025347"),    # otitis media with effusion -> middle ear
     ("C0259779", "finding_site", "C0028429"),    # deviated nasal septum -> nasal septum
+    ("C0034065", "finding_site", "C0024109"),    # pulmonary embolism -> lung
+    ("C0032227", "finding_site", "C0024109"),    # pleural effusion -> lung
+    ("C0022650", "finding_site", "C0022646"),    # calculus of kidney -> kidney
 ]
 
 # --- Guideline chunks (ICD-10-CM Official Guidelines are public domain; paraphrased) ---
@@ -566,6 +983,38 @@ GUIDELINES = [
      "diagnostic nasal endoscopy is bundled into a same-session surgical sinus endoscopy — do not report "
      "both. Code the diagnosis (adenotonsillar hypertrophy J35.3, chronic otitis media with effusion "
      "H65.23, deviated nasal septum J34.2) and capture ear laterality.", "ENT"),
+    ("Radiology Coding Guidance", "ContrastPhases",
+     "For CT and MRI, three studies exist per region: 'without contrast', 'with contrast', and "
+     "'without followed by with contrast'. Select the single code matching the phases performed. Do not "
+     "report the without and with codes separately when a combined-phase code exists.", "Radiology"),
+    ("Radiology Coding Guidance", "Ultrasound",
+     "A complete ultrasound study requires that all required elements of the anatomic region be "
+     "documented; otherwise report the limited study. A complete abdominal ultrasound (76700) views the "
+     "liver, gallbladder, pancreas, spleen, kidneys, and upper abdominal aorta/IVC; report a "
+     "retroperitoneal study (76770/76775) only when the exam is limited to those structures.", "Radiology"),
+    ("Radiology Coding Guidance", "Doppler",
+     "Duplex scans combine grey-scale imaging with spectral/color Doppler. Choose 'complete bilateral' "
+     "vs 'unilateral or limited' by what was performed (e.g., carotid 93880 vs 93882; extremity veins "
+     "93970 vs 93971). Do not report a unilateral/limited duplex in addition to the complete bilateral "
+     "study of the same vasculature on the same day.", "Radiology"),
+    ("Radiology Coding Guidance", "Angiography",
+     "CT angiography (CTA) and MR angiography (MRA) include image post-processing and are coded by region "
+     "(e.g., CTA chest 71275, CTA head 70496, MRA neck 70547-70549). Do not separately report the "
+     "non-angiographic CT/MRI of the same region performed solely to create the angiographic dataset.",
+     "Radiology"),
+    ("Radiology Coding Guidance", "Mammography",
+     "Screening mammography (77067, bilateral) is for an asymptomatic patient; diagnostic mammography "
+     "(77065 unilateral, 77066 bilateral) is for a breast sign/symptom or to evaluate an abnormal "
+     "screening finding. If a screening study converts to diagnostic the same day, report the diagnostic "
+     "code with the appropriate modifier per payer policy.", "Radiology"),
+    ("Radiology Coding Guidance", "Screening",
+     "When a screening study (e.g., screening mammography Z12.31, screening AAA ultrasound) is performed, "
+     "sequence the screening Z-code as the reason for the exam; report any incidental finding secondarily. "
+     "Do not replace the screening indication with a finding code.", "Radiology"),
+    ("Radiology Coding Guidance", "AbnormalFindings",
+     "When imaging is abnormal but no definitive diagnosis is established, code the specific abnormal "
+     "finding (e.g., solitary pulmonary nodule R91.1, abnormal retroperitoneal imaging R93.5) or the "
+     "sign/symptom that prompted the study, per the uncertain-diagnosis rule.", "Radiology"),
     ("HCC Risk Adjustment Coding Guidance", "Capture",
      "Risk-adjustment coding captures every chronic condition that is active and addressed at the "
      "encounter with MEAT evidence (Monitored, Evaluated, Assessed, or Treated). Code combination codes "
@@ -782,4 +1231,106 @@ APC_ADDENDUM_B = [
     ("43239", "J1", "5301", "Level 1 Upper GI Procedures", 806.00),
     # Surgery (hospital outpatient)
     ("47562", "J1", "5341", "Level 1 Laparoscopy & Related Services", 6233.00),
+
+    # --- Radiology expansion (representative OPPS buckets; rates reuse the
+    #     existing level amounts already in this table) ---
+    # Plain radiography → Level 1 Imaging without Contrast (5521)
+    ("71047", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("71048", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("72040", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("72050", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("72100", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("72110", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("72170", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("72190", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("73560", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("73600", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("73610", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("73620", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("73630", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("74019", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("74021", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    ("74022", "Q1", "5521", "Level 1 Imaging without Contrast", 83.00),
+    # CT single-region without contrast → Level 2 Imaging without Contrast (5522)
+    ("70486", "Q1", "5522", "Level 2 Imaging without Contrast", 120.00),
+    ("70490", "Q1", "5522", "Level 2 Imaging without Contrast", 120.00),
+    ("72125", "Q1", "5522", "Level 2 Imaging without Contrast", 120.00),
+    ("72128", "Q1", "5522", "Level 2 Imaging without Contrast", 120.00),
+    ("72131", "Q1", "5522", "Level 2 Imaging without Contrast", 120.00),
+    ("73200", "Q1", "5522", "Level 2 Imaging without Contrast", 120.00),
+    ("73700", "Q1", "5522", "Level 2 Imaging without Contrast", 120.00),
+    # MRI single-region without contrast → Level 3 Imaging without Contrast (5523)
+    ("70540", "Q1", "5523", "Level 3 Imaging without Contrast", 238.00),
+    ("71550", "Q1", "5523", "Level 3 Imaging without Contrast", 238.00),
+    ("72141", "Q1", "5523", "Level 3 Imaging without Contrast", 238.00),
+    ("72146", "Q1", "5523", "Level 3 Imaging without Contrast", 238.00),
+    ("72195", "Q1", "5523", "Level 3 Imaging without Contrast", 238.00),
+    ("73218", "Q1", "5523", "Level 3 Imaging without Contrast", 238.00),
+    ("73718", "Q1", "5523", "Level 3 Imaging without Contrast", 238.00),
+    ("74181", "Q1", "5523", "Level 3 Imaging without Contrast", 238.00),
+    # CT single-region with contrast → Level 2 Imaging with Contrast (5572)
+    ("70487", "Q1", "5572", "Level 2 Imaging with Contrast", 315.00),
+    ("70491", "Q1", "5572", "Level 2 Imaging with Contrast", 315.00),
+    ("72126", "Q1", "5572", "Level 2 Imaging with Contrast", 315.00),
+    ("72129", "Q1", "5572", "Level 2 Imaging with Contrast", 315.00),
+    ("72132", "Q1", "5572", "Level 2 Imaging with Contrast", 315.00),
+    ("72193", "Q1", "5572", "Level 2 Imaging with Contrast", 315.00),
+    ("73201", "Q1", "5572", "Level 2 Imaging with Contrast", 315.00),
+    ("73701", "Q1", "5572", "Level 2 Imaging with Contrast", 315.00),
+    ("74160", "Q1", "5572", "Level 2 Imaging with Contrast", 315.00),
+    # CT combined-phase + CTA → Level 3 Imaging with Contrast (5573)
+    ("70470", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("71270", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("74170", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("72127", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("72130", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("72133", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("72194", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("73202", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("73702", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("70496", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("70498", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("71275", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("73206", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("73706", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("72191", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("74174", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("74175", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    # MRI with-contrast / combined-phase + MRA → Level 3 Imaging with Contrast (5573)
+    ("70542", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("70543", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("70552", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("70553", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("71551", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("71552", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("72142", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("72147", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    # (72149 MRI lumbar with contrast already in the table above)
+    ("72156", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("72157", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("72158", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("72196", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("72197", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("73219", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("73220", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("73222", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("73223", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("73719", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("73720", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("73722", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("73723", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("74182", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("74183", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("70544", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("70545", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("70546", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("70547", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("70548", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("70549", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("71555", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("72159", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("72198", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("73225", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("73725", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+    ("74185", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
 ]

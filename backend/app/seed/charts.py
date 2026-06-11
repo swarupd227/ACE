@@ -781,6 +781,96 @@ CHARTS = [
             "Electronically signed by Dr. H. Nakagawa, MD, Gastroenterology."
         ),
     ),
+
+    # --- Radiology modality-coverage demos (exercise the expanded code sets) ---
+    # MRI brain without contrast for headache → 70551 + R51.9
+    dict(
+        mrn="RAD20001", patient_name="Devon Carter", age=44, sex="F", specialty="Radiology",
+        modality="MRI", payer="Medicare", pos="22", dos="2026-05-15", client="Riverbend Health",
+        source_system="PracticeAdmin", report_type="radiology_report",
+        scenario="MRI brain — single study (expanded MRI coverage)",
+        chart_text=(
+            "RADIOLOGY REPORT\n"
+            "EXAM: MRI of the brain without contrast\n"
+            "HISTORY: 44-year-old female with chronic headaches.\n"
+            "TECHNIQUE: Multiplanar multisequence MRI of the brain was performed without contrast.\n"
+            "FINDINGS: No acute infarct, mass, or hemorrhage. Ventricles and sulci are normal for age.\n"
+            "IMPRESSION: Normal MRI of the brain. Headache, no intracranial abnormality.\n"
+            "Electronically signed by Dr. P. Nair, MD."
+        ),
+    ),
+    # Complete abdominal ultrasound for RUQ pain → 76700 + R10.11  (modality typed free-text)
+    dict(
+        mrn="RAD20002", patient_name="Morgan Hale", age=51, sex="F", specialty="Radiology",
+        modality="Ultrasound", payer="Medicare", pos="22", dos="2026-05-15", client="Lakeshore Clinics",
+        source_system="eClinicalWorks", report_type="radiology_report",
+        scenario="Abdominal ultrasound — new US modality + free-text modality normalization",
+        chart_text=(
+            "RADIOLOGY REPORT\n"
+            "EXAM: Complete abdominal ultrasound\n"
+            "HISTORY: 51-year-old female with right upper quadrant pain.\n"
+            "TECHNIQUE: Real-time grey-scale ultrasound of the liver, gallbladder, pancreas, spleen, "
+            "kidneys and upper abdominal aorta.\n"
+            "FINDINGS: Liver normal in echotexture. Gallbladder without stones or wall thickening. "
+            "No biliary ductal dilatation. Kidneys unremarkable.\n"
+            "IMPRESSION: Normal complete abdominal ultrasound. Right upper quadrant pain, no "
+            "sonographic abnormality.\n"
+            "Electronically signed by Dr. L. Osei, MD."
+        ),
+    ),
+    # Bilateral lower-extremity venous duplex, positive DVT → 93970 + I82.409 (Doppler → US)
+    dict(
+        mrn="RAD20003", patient_name="Riley Quinn", age=67, sex="M", specialty="Radiology",
+        modality="Doppler", payer="Medicare", pos="22", dos="2026-05-16", client="Riverbend Health",
+        source_system="PracticeAdmin", report_type="radiology_report",
+        scenario="Venous duplex Doppler — vascular ultrasound coverage + normalization",
+        chart_text=(
+            "RADIOLOGY REPORT\n"
+            "EXAM: Bilateral lower extremity venous duplex\n"
+            "HISTORY: 67-year-old male with left leg swelling and pain; rule out DVT.\n"
+            "TECHNIQUE: Complete bilateral duplex evaluation of the lower extremity deep veins with "
+            "compression, color and spectral Doppler.\n"
+            "FINDINGS: Non-compressible left popliteal vein with echogenic intraluminal thrombus and "
+            "absent flow. Right lower extremity deep veins are patent and fully compressible.\n"
+            "IMPRESSION: Acute deep vein thrombosis of the left popliteal vein.\n"
+            "Electronically signed by Dr. P. Nair, MD."
+        ),
+    ),
+    # CTA chest for suspected PE, positive → 71275 + I26.99 (CTA → CT)
+    dict(
+        mrn="RAD20004", patient_name="Casey Flores", age=59, sex="F", specialty="Radiology",
+        modality="CTA", payer="Medicare", pos="22", dos="2026-05-16", client="Lakeshore Clinics",
+        source_system="eClinicalWorks", report_type="radiology_report",
+        scenario="CTA chest — CT angiography coverage + normalization",
+        chart_text=(
+            "RADIOLOGY REPORT\n"
+            "EXAM: CT angiography of the chest with contrast\n"
+            "HISTORY: 59-year-old female with acute pleuritic chest pain and shortness of breath.\n"
+            "TECHNIQUE: CT angiography of the pulmonary arteries performed after intravenous "
+            "administration of iodinated contrast, with post-processing.\n"
+            "FINDINGS: Filling defects within the right lower lobe segmental pulmonary arteries. No "
+            "right heart strain. Lungs otherwise clear.\n"
+            "IMPRESSION: Acute segmental pulmonary embolism, right lower lobe.\n"
+            "Electronically signed by Dr. L. Osei, MD."
+        ),
+    ),
+    # Screening mammography → 77067 + Z12.31 (new MG modality)
+    dict(
+        mrn="RAD20005", patient_name="Jamie Sutton", age=56, sex="F", specialty="Radiology",
+        modality="Mammography", payer="Medicare", pos="22", dos="2026-05-17", client="Summit Primary Care",
+        source_system="PracticeAdmin", report_type="radiology_report",
+        scenario="Screening mammography — new MG modality + screening Z-code sequencing",
+        chart_text=(
+            "RADIOLOGY REPORT\n"
+            "EXAM: Screening mammography, bilateral\n"
+            "HISTORY: 56-year-old asymptomatic female presenting for routine breast cancer screening.\n"
+            "TECHNIQUE: Bilateral two-view digital screening mammography with computer-aided detection.\n"
+            "FINDINGS: Scattered fibroglandular density. No suspicious mass, calcification, or "
+            "architectural distortion.\n"
+            "IMPRESSION: Negative screening mammogram. BI-RADS 1.\n"
+            "Electronically signed by Dr. R. Kim, MD."
+        ),
+    ),
 ]
 
 
@@ -1060,14 +1150,6 @@ GOLDEN_CASES = [
              "acute exacerbation last month, now at baseline — continue tiotropium, cessation counseling.\n"
              "2. Atrial fibrillation — rate-controlled, continue apixaban and metoprolol.\n3. Hyperlipidemia "
              "— at goal, continue atorvastatin.\nElectronically signed by internist.")),
-    dict(specialty="Radiology", irr=0.93, ambiguous=False,
-         truth={"icd": ["R51.9"], "cpt": ["70551"]},
-         chart_text=(
-             "RADIOLOGY REPORT\nEXAM: MRI brain without contrast.\nHISTORY: Chronic daily headaches, "
-             "neurologic exam normal.\nTECHNIQUE: Multiplanar multisequence MRI of the brain without "
-             "intravenous contrast.\nFINDINGS: No acute infarct, hemorrhage or mass. Normal ventricles "
-             "and sulci.\nIMPRESSION: Normal MRI of the brain; no structural cause for headache.\n"
-             "Electronically signed by radiologist.")),
     # Facility truth: both scopes are J1 → comprehensive APC pays one session payment
     # (45385 → APC 5312 $1,015.00); the EGD packages into it. Eval runs GI golden at POS 22.
     dict(specialty="GI / Endoscopy", irr=0.86, ambiguous=False,
@@ -1078,4 +1160,48 @@ GOLDEN_CASES = [
              "8 mm sigmoid polyp removed by snare technique.\nPROCEDURE 2: EGD to the duodenum; antral "
              "erythema, cold-forceps gastric biopsies obtained.\nIMPRESSION: Colon polyp removed; "
              "gastritis, biopsy pending.\nElectronically signed by gastroenterologist.")),
+    # --- Radiology golden cases for the expanded modality coverage ---
+    dict(specialty="Radiology", irr=0.94, ambiguous=False,
+         truth={"icd": ["R51.9"], "cpt": ["70551"]},
+         chart_text=(
+             "RADIOLOGY REPORT\nEXAM: MRI of the brain without contrast\n"
+             "HISTORY: Chronic headaches.\n"
+             "TECHNIQUE: Multiplanar multisequence MRI of the brain without contrast.\n"
+             "FINDINGS: No acute infarct, mass, or hemorrhage. Age-appropriate ventricles and sulci.\n"
+             "IMPRESSION: Normal MRI of the brain.\nElectronically signed by attending radiologist.")),
+    dict(specialty="Radiology", irr=0.93, ambiguous=False,
+         truth={"icd": ["R10.11"], "cpt": ["76700"]},
+         chart_text=(
+             "RADIOLOGY REPORT\nEXAM: Complete abdominal ultrasound\n"
+             "HISTORY: Right upper quadrant pain.\n"
+             "TECHNIQUE: Grey-scale ultrasound of the liver, gallbladder, pancreas, spleen and kidneys.\n"
+             "FINDINGS: Normal liver echotexture; gallbladder without stones; no ductal dilatation.\n"
+             "IMPRESSION: Normal complete abdominal ultrasound.\nElectronically signed by attending radiologist.")),
+    dict(specialty="Radiology", irr=0.93, ambiguous=False,
+         truth={"icd": ["I82.409"], "cpt": ["93970"]},
+         chart_text=(
+             "RADIOLOGY REPORT\nEXAM: Bilateral lower extremity venous duplex\n"
+             "HISTORY: Left leg swelling and pain; rule out DVT.\n"
+             "TECHNIQUE: Complete bilateral duplex of the lower extremity deep veins with compression "
+             "and spectral Doppler.\n"
+             "FINDINGS: Non-compressible left popliteal vein with intraluminal thrombus and absent flow; "
+             "right side patent.\nIMPRESSION: Acute left popliteal deep vein thrombosis.\n"
+             "Electronically signed by attending radiologist.")),
+    dict(specialty="Radiology", irr=0.92, ambiguous=False,
+         truth={"icd": ["I26.99"], "cpt": ["71275"]},
+         chart_text=(
+             "RADIOLOGY REPORT\nEXAM: CT angiography of the chest with contrast\n"
+             "HISTORY: Acute pleuritic chest pain and dyspnea.\n"
+             "TECHNIQUE: CT angiography of the pulmonary arteries after intravenous iodinated contrast.\n"
+             "FINDINGS: Segmental filling defects in the right lower lobe pulmonary arteries; no right "
+             "heart strain.\nIMPRESSION: Acute right lower lobe segmental pulmonary embolism.\n"
+             "Electronically signed by attending radiologist.")),
+    dict(specialty="Radiology", irr=0.95, ambiguous=False,
+         truth={"icd": ["Z12.31"], "cpt": ["77067"]},
+         chart_text=(
+             "RADIOLOGY REPORT\nEXAM: Screening mammography, bilateral\n"
+             "HISTORY: Routine screening; asymptomatic.\n"
+             "TECHNIQUE: Bilateral two-view digital screening mammography with CAD.\n"
+             "FINDINGS: Scattered fibroglandular density; no suspicious mass or calcification.\n"
+             "IMPRESSION: Negative screening mammogram, BI-RADS 1.\nElectronically signed by attending radiologist.")),
 ]
