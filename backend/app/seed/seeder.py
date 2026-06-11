@@ -14,6 +14,18 @@ def init_db() -> None:
     with engine.begin() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     Base.metadata.create_all(engine)
+    # create_all only creates missing TABLES — additive columns on existing tables need
+    # idempotent ALTERs so a running database upgrades without a destructive reseed.
+    # Existing rows default to 'final'/attested, so already-coded charts behave identically.
+    with engine.begin() as conn:
+        for ddl in (
+            "ALTER TABLE encounters ADD COLUMN IF NOT EXISTS doc_status VARCHAR(16) DEFAULT 'final'",
+            "ALTER TABLE encounters ADD COLUMN IF NOT EXISTS signed_by VARCHAR(120) DEFAULT ''",
+            "ALTER TABLE encounters ADD COLUMN IF NOT EXISTS signed_at TIMESTAMPTZ",
+            "ALTER TABLE encounters ADD COLUMN IF NOT EXISTS addendum_at TIMESTAMPTZ",
+            "ALTER TABLE coding_runs ADD COLUMN IF NOT EXISTS billed_at TIMESTAMPTZ",
+        ):
+            conn.execute(text(ddl))
 
 
 def _seeded(db) -> bool:

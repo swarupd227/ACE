@@ -688,6 +688,7 @@ CHARTS = [
         mrn="RAD10014", patient_name="Beatrice Falk", age=63, sex="F", specialty="Radiology",
         modality="XR", encounter_type="", payer="Medicare", pos="22", dos="2026-05-18",
         client="Mercy General Hospital", source_system="Cerner", report_type="report",
+        doc_status="preliminary",  # attestation metadata — the deterministic gate input
         scenario="Radiology — unsigned preliminary dictation (attestation pending)",
         chart_text=(
             "RADIOLOGY REPORT — PRELIMINARY\n"

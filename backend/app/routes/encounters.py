@@ -58,11 +58,25 @@ def get_encounter(enc_id: str, db: Session = Depends(get_db)) -> dict:
     run = _latest_run(db, e.id)
     # number the chart for the UI so it can align citations to lines
     chart_lines = [{"n": i + 1, "text": ln} for i, ln in enumerate(e.chart_text.splitlines())]
+    # Deterministic compliance signal: an addendum timestamped after a billed (STB) run.
+    late_addendum = False
+    if e.addendum_at:
+        billed = [
+            (r.billed_at or r.finished_at) for r in db.scalars(
+                select(models.CodingRun).where(
+                    models.CodingRun.encounter_id == e.id, models.CodingRun.routing_lane == "STB"
+                )
+            ).all() if (r.billed_at or r.finished_at)
+        ]
+        late_addendum = bool(billed and e.addendum_at > max(billed))
     return {
         "id": e.id, "mrn": e.mrn, "patient_name": e.patient_name, "age": e.age, "sex": e.sex,
         "specialty": e.specialty, "modality": e.modality, "encounter_type": e.encounter_type,
         "payer": e.payer, "pos": e.pos, "dos": e.dos, "client": e.client,
         "source_system": e.source_system, "report_type": e.report_type, "scenario": e.scenario,
         "status": e.status, "chart_lines": chart_lines,
+        "doc_status": e.doc_status or "final", "signed_by": e.signed_by or "",
+        "addendum_at": e.addendum_at.isoformat() if e.addendum_at else None,
+        "late_addendum": late_addendum,
         "run": run_to_dict(run) if run else None,
     }

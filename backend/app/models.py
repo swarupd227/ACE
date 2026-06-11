@@ -53,6 +53,12 @@ class Encounter(Base):
     # demo authoring metadata: what this synthetic chart is designed to exercise
     scenario: Mapped[str] = mapped_column(String(80), default="")
     status: Mapped[str] = mapped_column(String(24), default="NEW")  # NEW|CODED|...
+    # Attestation metadata (deterministic Stage-1 checks — not model judgment).
+    # In production these come from the EHR feed (FHIR DocumentReference docStatus/attester).
+    doc_status: Mapped[str] = mapped_column(String(16), default="final")  # final | preliminary | amended
+    signed_by: Mapped[str] = mapped_column(String(120), default="")
+    signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    addendum_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)  # queue arrival (for SLA aging)
 
@@ -85,6 +91,7 @@ class CodingRun(Base):
     ai_snapshot: Mapped[dict] = mapped_column(JSONB, default=dict)  # original AI output for rollback/undo
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    billed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # STB → claim out
 
     encounter: Mapped[Encounter] = relationship(back_populates="runs")
     codes: Mapped[list["CodeResult"]] = relationship(back_populates="run", cascade="all,delete-orphan")

@@ -1,6 +1,8 @@
 """Run the coding pipeline; human-in-the-loop override/accept; audit & learning."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
@@ -191,6 +193,46 @@ def get_run(run_id: str, db: Session = Depends(get_db)) -> dict:
     if run is None:
         raise HTTPException(404, "run not found")
     return run_to_dict(run)
+
+
+class AddendumIn(BaseModel):
+    text: str
+    author: str = "physician:demo"
+
+
+@router.post("/encounters/{enc_id}/addendum")
+def add_addendum(enc_id: str, body: AddendumIn, db: Session = Depends(get_db)) -> dict:
+    """Append a timestamped addendum to the record. If a prior run already billed
+    (STB), the addendum is LATE — a deterministic compliance flag: the next coding
+    run is held from straight-through billing for human review."""
+    enc = db.get(models.Encounter, enc_id)
+    if enc is None:
+        raise HTTPException(404, "encounter not found")
+    if len(body.text.strip()) < 10:
+        raise HTTPException(400, "addendum text too short")
+    now = datetime.now(timezone.utc)
+    enc.addendum_at = now
+    enc.chart_text = (enc.chart_text.rstrip()
+                      + f"\n\nADDENDUM ({now.strftime('%Y-%m-%d %H:%M UTC')}, {body.author}): "
+                      + body.text.strip())
+    stb_runs = db.scalars(
+        select(models.CodingRun).where(
+            models.CodingRun.encounter_id == enc.id, models.CodingRun.routing_lane == "STB"
+        )
+    ).all()
+    billed = [(r.billed_at or r.finished_at) for r in stb_runs if (r.billed_at or r.finished_at)]
+    late = bool(billed and now > max(billed))
+    latest = db.scalars(
+        select(models.CodingRun).where(models.CodingRun.encounter_id == enc.id)
+        .order_by(models.CodingRun.started_at.desc()).limit(1)
+    ).first()
+    if latest:
+        db.add(models.AuditEntry(
+            run_id=latest.id, encounter_id=enc.id, stage="workflow", actor=body.author,
+            event="addendum_added", detail={"late_after_billing": late, "at": now.isoformat()},
+        ))
+    db.commit()
+    return {"addendum_at": now.isoformat(), "late_after_billing": late}
 
 
 @router.get("/runs/{run_id}/audit")

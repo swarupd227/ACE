@@ -521,9 +521,19 @@ export default function EncounterDetail() {
       <div className="card p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-xl font-extrabold text-slate-900">{d.patient_name}</h1>
               <LaneBadge lane={lane} />
+              {d.doc_status && d.doc_status !== "final" && (
+                <span className="pill bg-amber-50 text-amber-700 ring-1 ring-amber-200 uppercase">
+                  {d.doc_status} — unattested
+                </span>
+              )}
+              {d.late_addendum && (
+                <span className="pill bg-rose-50 text-rose-700 ring-1 ring-rose-200">
+                  Late addendum after billing
+                </span>
+              )}
             </div>
             <div className="mt-1 text-sm text-slate-500">
               {d.age}{d.sex} · {d.specialty}{d.modality && ` · ${d.modality}`} · {d.payer} · POS {d.pos} · DOS {d.dos}
@@ -709,6 +719,12 @@ function WorkflowActions({ run }: { run: any }) {
     onSuccess: inval,
   });
   const rollback = useMutation({ mutationFn: () => api.rollback(run.id), onSuccess: inval });
+  const [addText, setAddText] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const addendum = useMutation({
+    mutationFn: () => api.addendum(run.encounter_id, addText),
+    onSuccess: () => { setAddText(""); setShowAdd(false); inval(); },
+  });
   const { role } = useRole();
   const mayReassign = can(role, "reassign");
   const mayEscalate = can(role, "escalate");
@@ -771,7 +787,25 @@ function WorkflowActions({ run }: { run: any }) {
             <Undo2 size={14} className="text-slate-500" /> {rollback.isPending ? "Reverting…" : "Revert to AI recommendation"}
           </button>
         )}
+
+        <button className="btn-ghost py-1.5" onClick={() => setShowAdd((v) => !v)}
+                title="Append a timestamped physician addendum — after billing it raises a compliance flag">
+          <FileText size={14} className="text-slate-500" /> Add addendum
+        </button>
       </div>
+      {showAdd && (
+        <div className="mt-3 flex items-start gap-2">
+          <textarea
+            className="flex-1 rounded border border-slate-200 px-2 py-1.5 text-sm font-mono" rows={2}
+            placeholder="Physician addendum text — timestamped now; if this chart already billed, it flags as a LATE addendum…"
+            value={addText} onChange={(e) => setAddText(e.target.value)}
+          />
+          <button className="btn-primary py-1.5" disabled={addText.trim().length < 10 || addendum.isPending}
+                  onClick={() => addendum.mutate()}>
+            {addendum.isPending ? <Spinner className="h-4 w-4" /> : <FileText size={14} />} Append
+          </button>
+        </div>
+      )}
       {(reassign.isPending || escalate.isPending) && (
         <div className="mt-2 text-xs text-slate-400 flex items-center gap-1"><Spinner className="h-3 w-3" /> applying…</div>
       )}
