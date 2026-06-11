@@ -24,6 +24,7 @@ DEFAULTS: dict = {
     "bounded_autonomy": {
         "block_flag": True,
         "ambiguous_or_contradiction": True,
+        "unsigned_note": True,
         "critical_care": True,
         "ncci_break": True,
     },

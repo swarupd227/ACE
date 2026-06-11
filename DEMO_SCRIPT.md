@@ -38,6 +38,11 @@ Correct — and the architecture assumes that. The honest answer, in three parts
 2. **The pipeline's Stage 1 is literally Document Conditioning**: the conditioning flags you saw
    (`ocr_artifact`, `copy_forward`, `unsigned`, `addendum`, `missing_documentation`) exist because real
    input is messy — RAD10004/RAD10005 show the engine *refusing* incomplete documents rather than coding them.
+   **Show it live:** code **EM20003** — the HPI is carried forward from a prior visit and contradicts the
+   A/P timeline; watch the console flag *"⚑ copy_forward"*. Then **RAD10014** — a preliminary dictation
+   with the signature pending; the *unsigned* flag keeps it off straight-through billing no matter how
+   confident the coding is. *"Stale copied text and unattested notes are exactly how compliance problems
+   start — the conditioning stage catches both before a single code is assigned."*
 3. **The scanned-document ingest you just watched is the multi-format path working live**: PDFs, scans and
    faxes are transcribed by the same model family (vision), then enter the identical pipeline. The demo
    charts are synthetic single-text because they are PHI-free seed data — not because the engine expects
