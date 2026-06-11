@@ -291,6 +291,313 @@ ICD10CM = [
     # non-billable parents (specificity gate should reject these in favor of the laterality codes)
     ("S42.00", "Fracture of unspecified part of clavicle", False, "S42.0"),
     ("S72.00", "Fracture of unspecified part of neck of femur", False, "S72.0"),
+
+    # =======================================================================
+    # RADIOLOGY EXPANSION PHASE 2 — Additional ICD-10-CM codes from CMS/NCHS
+    # public-domain ICD-10-CM tabular (FY2025), verified against NLM Clinical
+    # Tables ICD-10-CM API (clinicaltables.nlm.nih.gov). Covers M / S / R /
+    # J / K / Z / G series that drive common radiology report indications.
+    # =======================================================================
+
+    # -----------------------------------------------------------------------
+    # M SERIES — Musculoskeletal / spine (MSK MRI, CT spine, XR)
+    # -----------------------------------------------------------------------
+    # Spondylosis with radiculopathy (lumbar/cervical MRI)
+    ("M47.812", "Spondylosis with radiculopathy, cervical region", True, "M47.81"),
+    ("M47.813", "Spondylosis with radiculopathy, cervicothoracic region", True, "M47.81"),
+    ("M47.815", "Spondylosis with radiculopathy, thoracolumbar region", True, "M47.81"),
+    ("M47.816", "Spondylosis with radiculopathy, lumbar region", True, "M47.81"),
+    ("M47.817", "Spondylosis with radiculopathy, lumbosacral region", True, "M47.81"),
+    # Other spondylosis (without radiculopathy)
+    ("M47.892", "Other spondylosis, cervical region", True, "M47.89"),
+    ("M47.895", "Other spondylosis, thoracolumbar region", True, "M47.89"),
+    ("M47.896", "Other spondylosis, lumbar region", True, "M47.89"),
+    ("M47.897", "Other spondylosis, lumbosacral region", True, "M47.89"),
+    # Spinal stenosis (more specific than parent M48.06)
+    ("M48.061", "Spinal stenosis, lumbar region, without neurogenic claudication", True, "M48.06"),
+    ("M48.062", "Spinal stenosis, lumbar region, with neurogenic claudication", True, "M48.06"),
+    # Cervical disc disease (cervical MRI)
+    ("M50.12", "Cervical disc degeneration with radiculopathy, mid-cervical region", True, "M50.1"),
+    ("M50.20", "Other cervical disc displacement, unspecified cervical region", True, "M50.2"),
+    ("M50.22", "Other cervical disc displacement, mid-cervical region, group unspecified", True, "M50.2"),
+    # Lumbar/lumbosacral disc disease
+    ("M51.16", "Intervertebral disc degeneration with radiculopathy, lumbar region", True, "M51.1"),
+    ("M51.17", "Intervertebral disc degeneration with radiculopathy, lumbosacral region", True, "M51.1"),
+    ("M51.27", "Other intervertebral disc displacement, lumbosacral region", True, "M51.2"),
+    ("M51.36", "Other intervertebral disc degeneration, lumbar region", True, "M51.3"),
+    ("M51.37", "Other intervertebral disc degeneration, lumbosacral region", True, "M51.3"),
+    ("M51.46", "Schmorl's nodes, lumbar region", True, "M51.4"),
+    # Spondylolisthesis
+    ("M43.16", "Spondylolisthesis, lumbar region", True, "M43.1"),
+    ("M43.17", "Spondylolisthesis, lumbosacral region", True, "M43.1"),
+    # Discitis
+    ("M46.46", "Discitis, unspecified, lumbar region", True, "M46.4"),
+    ("M46.42", "Discitis, unspecified, cervical region", True, "M46.4"),
+    # Scoliosis (spinal XR / MRI)
+    ("M41.9",  "Scoliosis, unspecified", True, "M41"),
+    ("M41.20", "Other idiopathic scoliosis, site unspecified", True, "M41.2"),
+    ("M41.25", "Other idiopathic scoliosis, thoracolumbar region", True, "M41.2"),
+    ("M41.26", "Other idiopathic scoliosis, lumbar region", True, "M41.2"),
+    # Hip osteoarthritis (hip XR / MRI)
+    ("M16.11", "Unilateral primary osteoarthritis, right hip", True, "M16.1"),
+    ("M16.12", "Unilateral primary osteoarthritis, left hip", True, "M16.1"),
+    ("M16.31", "Unilateral secondary osteoarthritis, right hip", True, "M16.3"),
+    ("M16.32", "Unilateral secondary osteoarthritis, left hip", True, "M16.3"),
+    # Rotator cuff — complete tears (shoulder MRI/US)
+    ("M75.111", "Complete rotator cuff tear or rupture of right shoulder, not specified as traumatic", True, "M75.11"),
+    ("M75.112", "Complete rotator cuff tear or rupture of left shoulder, not specified as traumatic", True, "M75.11"),
+    # Wrist / hand joint stiffness / pain (wrist/hand MRI/US)
+    ("M25.461", "Stiffness of right wrist, not elsewhere classified", True, "M25.46"),
+    ("M25.462", "Stiffness of left wrist, not elsewhere classified", True, "M25.46"),
+    ("M79.641", "Pain in right hand", True, "M79.64"),
+    ("M79.642", "Pain in left hand", True, "M79.64"),
+    ("M79.621", "Pain in right upper arm", True, "M79.62"),
+    ("M79.622", "Pain in left upper arm", True, "M79.62"),
+    ("M79.671", "Pain in right foot", True, "M79.67"),
+    ("M79.672", "Pain in left foot", True, "M79.67"),
+    # Soft tissue / other MSK
+    ("M79.89", "Other specified soft tissue disorders", True, "M79.8"),
+    ("M79.3",  "Panniculitis, unspecified", True, "M79"),
+    ("M86.9",  "Osteomyelitis, unspecified", True, "M86"),
+    # Osteoporosis / bone density (DXA / bone scan)
+    ("M81.0",  "Age-related osteoporosis without current pathological fracture", True, "M81"),
+    ("M81.8",  "Other osteoporosis without current pathological fracture", True, "M81"),
+    ("M84.351A", "Stress fracture, right femur, initial encounter for fracture", True, "M84.35"),
+    ("M84.352A", "Stress fracture, left femur, initial encounter for fracture", True, "M84.35"),
+    ("M84.361A", "Stress fracture, right tibia, initial encounter for fracture", True, "M84.36"),
+    ("M84.362A", "Stress fracture, left tibia, initial encounter for fracture", True, "M84.36"),
+    ("M84.371A", "Stress fracture, right ankle, initial encounter for fracture", True, "M84.37"),
+    ("M84.374A", "Stress fracture, right foot, initial encounter for fracture", True, "M84.37"),
+    # Cervical root / lumbar root nerve disorders (spine MRI)
+    ("G54.2",  "Cervical root disorders, not elsewhere classified", True, "G54"),
+    ("G54.4",  "Lumbosacral root disorders, not elsewhere classified", True, "G54"),
+    # non-billable parents
+    ("M47.81", "Spondylosis with radiculopathy", False, "M47.8"),
+    ("M47.89", "Other spondylosis", False, "M47.8"),
+    ("M50.1",  "Cervical disc disorder with radiculopathy", False, "M50"),
+    ("M51.1",  "Thoracic, thoracolumbar, and lumbosacral intervertebral disc degeneration with radiculopathy", False, "M51"),
+    ("M51.3",  "Other intervertebral disc degeneration", False, "M51"),
+
+    # -----------------------------------------------------------------------
+    # S SERIES — Additional trauma (fractures, contusions, organ injuries)
+    # -----------------------------------------------------------------------
+    # Radius / ulna fractures
+    ("S52.571A", "Salter-Harris Type III physeal fracture of lower end of right radius, initial encounter", True, "S52.57"),
+    ("S52.572A", "Salter-Harris Type III physeal fracture of lower end of left radius, initial encounter", True, "S52.57"),
+    ("S52.611A", "Displaced fracture of right ulna styloid process, initial encounter for closed fracture", True, "S52.61"),
+    ("S52.612A", "Displaced fracture of left ulna styloid process, initial encounter for closed fracture", True, "S52.61"),
+    # Pelvic fractures
+    ("S32.591A", "Other fracture of right pubis, initial encounter for closed fracture", True, "S32.59"),
+    ("S32.592A", "Other fracture of left pubis, initial encounter for closed fracture", True, "S32.59"),
+    ("S32.511A", "Fracture of superior rim of right acetabulum, initial encounter for closed fracture", True, "S32.51"),
+    ("S32.512A", "Fracture of superior rim of left acetabulum, initial encounter for closed fracture", True, "S32.51"),
+    # Femur fractures
+    ("S72.141A", "Displaced intertrochanteric fracture of right femur, initial encounter for closed fracture", True, "S72.14"),
+    ("S72.142A", "Displaced intertrochanteric fracture of left femur, initial encounter for closed fracture", True, "S72.14"),
+    ("S72.321A", "Displaced transverse fracture of shaft of right femur, initial encounter for closed fracture", True, "S72.32"),
+    ("S72.322A", "Displaced transverse fracture of shaft of left femur, initial encounter for closed fracture", True, "S72.32"),
+    # TBI / head trauma (head CT)
+    ("S06.0X0A", "Concussion without loss of consciousness, initial encounter", True, "S06.0X"),
+    ("S06.0X1A", "Concussion with loss of consciousness of 30 minutes or less, initial encounter", True, "S06.0X"),
+    ("S06.300A", "Unspecified focal traumatic brain injury without loss of consciousness, initial encounter", True, "S06.30"),
+    ("S06.301A", "Unspecified focal traumatic brain injury with loss of consciousness of 30 min or less, initial encounter", True, "S06.30"),
+    ("S09.90XA", "Unspecified injury of head, initial encounter", True, "S09.9"),
+    # Thoracic trauma (chest CT)
+    ("S27.0XXA", "Traumatic pneumothorax, initial encounter", True, "S27.0"),
+    ("S27.1XXA", "Traumatic hemothorax, initial encounter", True, "S27.1"),
+    ("S27.2XXA", "Traumatic hemopneumothorax, initial encounter", True, "S27.2"),
+    ("S27.001A", "Unspecified injury of right lung, initial encounter", True, "S27.00"),
+    ("S27.002A", "Unspecified injury of left lung, initial encounter", True, "S27.00"),
+    # Abdominal organ trauma (abdominal CT)
+    ("S36.113A", "Laceration of liver, unspecified degree, initial encounter", True, "S36.11"),
+    ("S36.115A", "Moderate laceration of liver, initial encounter", True, "S36.11"),
+    ("S36.30XA", "Unspecified injury of stomach, initial encounter", True, "S36.3"),
+    ("S36.400A", "Unspecified injury of small intestine, initial encounter", True, "S36.40"),
+    ("S36.500A", "Unspecified injury of ascending [right] colon, initial encounter", True, "S36.50"),
+    # Renal / urinary trauma
+    ("S37.001A", "Unspecified injury of right kidney, initial encounter", True, "S37.00"),
+    ("S37.002A", "Unspecified injury of left kidney, initial encounter", True, "S37.00"),
+    ("S37.031A", "Laceration of right kidney, unspecified degree, initial encounter", True, "S37.03"),
+    ("S37.032A", "Laceration of left kidney, unspecified degree, initial encounter", True, "S37.03"),
+    ("S37.20XA", "Unspecified injury of bladder, initial encounter", True, "S37.2"),
+    # Knee / lower extremity contusions (knee MRI/US/XR)
+    ("S80.01XA", "Contusion of right knee, initial encounter", True, "S80.0"),
+    ("S80.02XA", "Contusion of left knee, initial encounter", True, "S80.0"),
+
+    # -----------------------------------------------------------------------
+    # R SERIES — Additional signs, symptoms & abnormal imaging findings
+    # -----------------------------------------------------------------------
+    ("R04.2",   "Haemoptysis", True, "R04"),
+    ("R17",     "Unspecified jaundice", True, ""),
+    ("R18.0",   "Malignant ascites", True, "R18"),
+    ("R16.2",   "Hepatosplenomegaly, not elsewhere classified", True, "R16"),
+    ("R19.03",  "Right lower quadrant abdominal swelling, mass and lump", True, "R19.0"),
+    ("R19.04",  "Left lower quadrant abdominal swelling, mass and lump", True, "R19.0"),
+    ("R19.09",  "Other intra-abdominal and pelvic swelling, mass and lump", True, "R19.0"),
+    ("R20.2",   "Paraesthesia of skin", True, "R20"),
+    ("R26.81",  "Unsteadiness on feet", True, "R26.8"),
+    ("R27.0",   "Ataxia, unspecified", True, "R27"),
+    ("R42",     "Dizziness and giddiness", True, ""),
+    ("R47.0",   "Dysphasia and aphasia", True, "R47"),
+    ("R47.1",   "Dysarthria and anarthria", True, "R47"),
+    ("R52",     "Pain, unspecified", True, ""),
+    ("R53.1",   "Weakness", True, "R53"),
+    ("R53.83",  "Other fatigue", True, "R53.8"),
+    ("R57.0",   "Cardiogenic shock", True, "R57"),
+    ("R58",     "Hemorrhage, not elsewhere classified", True, ""),
+    ("R60.0",   "Localized oedema", True, "R60"),
+    ("R60.9",   "Oedema, unspecified", True, "R60"),
+    ("R68.89",  "Other specified general symptoms and signs", True, "R68.8"),
+    # Abnormal diagnostic imaging findings (R93 expansion)
+    ("R93.0",   "Abnormal findings on diagnostic imaging of skull and head, not elsewhere classified", True, "R93"),
+    ("R93.2",   "Abnormal findings on diagnostic imaging of liver and biliary tract", True, "R93"),
+    ("R93.41",  "Abnormal radiologic finding on imaging of renal pelvis, ureter, and bladder", True, "R93.4"),
+    ("R93.42",  "Abnormal radiologic finding on imaging of adrenal gland", True, "R93.4"),
+    ("R93.6",   "Abnormal findings on diagnostic imaging of limbs", True, "R93"),
+    ("R93.7",   "Abnormal findings on diagnostic imaging of other parts of musculoskeletal system", True, "R93"),
+    ("R93.811", "Abnormal findings on diagnostic imaging of right testicle", True, "R93.81"),
+    ("R93.812", "Abnormal findings on diagnostic imaging of left testicle", True, "R93.81"),
+
+    # -----------------------------------------------------------------------
+    # J SERIES — Pulmonary / chest imaging indications
+    # -----------------------------------------------------------------------
+    ("J18.0",  "Bronchopneumonia, unspecified organism", True, "J18"),
+    ("J18.1",  "Lobar pneumonia, unspecified organism", True, "J18"),
+    ("J43.9",  "Emphysema, unspecified", True, "J43"),
+    ("J47.0",  "Bronchiectasis with acute lower respiratory infection", True, "J47"),
+    ("J47.1",  "Bronchiectasis with exacerbation", True, "J47"),
+    ("J47.9",  "Bronchiectasis, uncomplicated", True, "J47"),
+    ("J70.0",  "Acute pulmonary manifestations due to radiation", True, "J70"),
+    ("J70.1",  "Chronic and other pulmonary manifestations due to radiation", True, "J70"),
+    ("J81.0",  "Acute pulmonary oedema", True, "J81"),
+    ("J84.10", "Pulmonary fibrosis, unspecified", True, "J84.1"),
+    ("J84.01", "Alveolar and parietoalveolar conditions", True, "J84.0"),
+    ("J84.89", "Other specified interstitial pulmonary diseases", True, "J84.8"),
+    ("J85.1",  "Abscess of lung with pneumonia", True, "J85"),
+    ("J85.2",  "Abscess of lung without pneumonia", True, "J85"),
+    ("J86.9",  "Pyothorax without fistula", True, "J86"),
+    ("J91.0",  "Malignant pleural effusion", True, "J91"),
+    ("J93.11", "Primary spontaneous pneumothorax", True, "J93.1"),
+    ("J93.12", "Secondary spontaneous pneumothorax", True, "J93.1"),
+    ("J93.9",  "Pneumothorax, unspecified", True, "J93"),
+    ("J94.0",  "Chylous effusion", True, "J94"),
+    ("J98.19", "Other pulmonary collapse", True, "J98.1"),
+    ("J98.2",  "Interstitial emphysema", True, "J98"),
+    ("J98.3",  "Compensatory emphysema", True, "J98"),
+    ("J98.51", "Mediastinitis", True, "J98.5"),
+    ("J98.59", "Other diseases of mediastinum, not elsewhere classified", True, "J98.5"),
+    ("J98.6",  "Disorders of diaphragm", True, "J98"),
+
+    # -----------------------------------------------------------------------
+    # K SERIES — GI / abdominal imaging indications
+    # -----------------------------------------------------------------------
+    # Gallbladder / biliary (US / CT / MRCP)
+    ("K80.00", "Calculus of gallbladder with acute cholecystitis without obstruction", True, "K80.0"),
+    ("K80.10", "Calculus of gallbladder with chronic cholecystitis without obstruction", True, "K80.1"),
+    ("K80.50", "Calculus of bile duct without cholangitis or cholecystitis, without obstruction", True, "K80.5"),
+    ("K81.0",  "Acute cholecystitis", True, "K81"),
+    ("K81.1",  "Chronic cholecystitis", True, "K81"),
+    ("K81.9",  "Cholecystitis, unspecified", True, "K81"),
+    ("K82.0",  "Obstruction of gallbladder", True, "K82"),
+    ("K83.0",  "Primary sclerosing cholangitis", True, "K83"),
+    ("K83.1",  "Obstruction of bile duct", True, "K83"),
+    # Pancreas (CT / MRCP / EUS)
+    ("K85.10", "Biliary acute pancreatitis without necrosis or infection", True, "K85.1"),
+    ("K86.0",  "Alcohol-induced chronic pancreatitis", True, "K86"),
+    ("K86.1",  "Other chronic pancreatitis", True, "K86"),
+    ("K86.2",  "Cyst of pancreas", True, "K86"),
+    ("K86.3",  "Pseudocyst of pancreas", True, "K86"),
+    # Liver / portal (US / CT / MRI)
+    ("K74.60", "Unspecified cirrhosis of liver", True, "K74.6"),
+    ("K74.69", "Other cirrhosis of liver", True, "K74.6"),
+    ("K75.0",  "Abscess of liver", True, "K75"),
+    ("K76.0",  "Fatty (change of) liver, not elsewhere classified", True, "K76"),
+    ("K76.5",  "Portal hypertension", True, "K76"),
+    ("K70.30", "Alcoholic cirrhosis of liver without ascites", True, "K70.3"),
+    ("K70.31", "Alcoholic cirrhosis of liver with ascites", True, "K70.3"),
+    # Intestine / appendix / hernia (CT abdomen)
+    ("K35.20", "Acute appendicitis with generalized peritonitis, without abscess", True, "K35.2"),
+    ("K35.80", "Other and unspecified acute appendicitis without abscess", True, "K35.8"),
+    ("K37",    "Unspecified appendicitis", True, ""),
+    ("K57.32", "Diverticulitis of large intestine without perforation or abscess, without bleeding", True, "K57.3"),
+    ("K57.20", "Diverticulitis of large intestine with perforation and abscess, without bleeding", True, "K57.2"),
+    ("K63.0",  "Abscess of intestine", True, "K63"),
+    ("K66.1",  "Haemoperitoneum", True, "K66"),
+    ("K56.50", "Intestinal adhesions [bands] without obstruction", True, "K56.5"),
+    ("K56.51", "Intestinal adhesions [bands] with partial obstruction", True, "K56.5"),
+    ("K56.52", "Intestinal adhesions [bands] with complete obstruction", True, "K56.5"),
+    ("K40.90", "Unilateral inguinal hernia, without obstruction or gangrene, not specified as recurrent", True, "K40.9"),
+    ("K44.9",  "Diaphragmatic hernia without obstruction or gangrene", True, "K44"),
+    ("K92.0",  "Haematemesis", True, "K92"),
+    ("K92.1",  "Melaena", True, "K92"),
+
+    # -----------------------------------------------------------------------
+    # Z SERIES — Screening / history / status (radiology ordering context)
+    # -----------------------------------------------------------------------
+    ("Z12.39", "Encounter for other screening for malignant neoplasm of breast", True, "Z12.3"),
+    ("Z12.73", "Encounter for screening for malignant neoplasm of ovary", True, "Z12.7"),
+    ("Z13.820","Encounter for screening for osteoporosis", True, "Z13.82"),
+    ("Z15.01", "Genetic susceptibility to malignant neoplasm of breast", True, "Z15.0"),
+    ("Z15.09", "Genetic susceptibility to other malignant neoplasm", True, "Z15.0"),
+    ("Z47.1",  "Aftercare following joint replacement surgery", True, "Z47"),
+    ("Z79.01", "Long-term (current) use of anticoagulants", True, "Z79.0"),
+    ("Z79.02", "Long-term (current) use of antithrombotics/antiplatelets", True, "Z79.0"),
+    ("Z79.4",  "Long-term (current) use of insulin", True, "Z79"),
+    ("Z79.52", "Long-term (current) use of systemic steroids", True, "Z79.5"),
+    ("Z80.3",  "Family history of malignant neoplasm of breast", True, "Z80"),
+    ("Z85.3",  "Personal history of malignant neoplasm of breast", True, "Z85"),
+    ("Z85.46", "Personal history of malignant neoplasm of prostate", True, "Z85.4"),
+    ("Z85.118","Personal history of malignant neoplasm of other part of bronchus and lung", True, "Z85.11"),
+    ("Z86.711","Personal history of pulmonary embolism", True, "Z86.71"),
+    ("Z86.010","Personal history of colonic polyps", True, "Z86.01"),
+    ("Z87.01", "Personal history of pneumonia (recurrent)", True, "Z87.0"),
+    ("Z87.310","Personal history of (healed) traumatic fracture", True, "Z87.31"),
+    ("Z87.39", "Personal history of other musculoskeletal disorders", True, "Z87.3"),
+    ("Z87.891","Personal history of other specified conditions", True, "Z87.89"),
+    ("Z95.0",  "Presence of cardiac pacemaker", True, "Z95"),
+    ("Z95.1",  "Presence of aortocoronary bypass graft", True, "Z95"),
+    ("Z96.641","Presence of right artificial knee joint", True, "Z96.64"),
+    ("Z96.642","Presence of left artificial knee joint", True, "Z96.64"),
+    ("Z96.651","Presence of right artificial hip joint", True, "Z96.65"),
+    ("Z96.652","Presence of left artificial hip joint", True, "Z96.65"),
+    ("Z98.89", "Other specified postprocedural states", True, "Z98.8"),
+
+    # -----------------------------------------------------------------------
+    # G SERIES — Neurological indications (brain/spine MRI)
+    # -----------------------------------------------------------------------
+    ("G35",    "Multiple sclerosis", True, ""),
+    ("G43.909","Migraine, unspecified, not intractable, without status migrainosus", True, "G43.90"),
+    ("G44.309","Post-traumatic headache, unspecified, not intractable", True, "G44.30"),
+    ("G47.33", "Obstructive sleep apnea (adult) (pediatric)", True, "G47.3"),
+    ("G56.01", "Carpal tunnel syndrome, right upper limb", True, "G56.0"),
+    ("G56.02", "Carpal tunnel syndrome, left upper limb", True, "G56.0"),
+    ("G57.01", "Lesion of sciatic nerve, right lower limb", True, "G57.0"),
+    ("G57.02", "Lesion of sciatic nerve, left lower limb", True, "G57.0"),
+    ("G89.21", "Chronic pain due to trauma", True, "G89.2"),
+    ("G89.29", "Other chronic pain", True, "G89.2"),
+    ("G89.3",  "Neoplasm related pain (acute) (chronic)", True, "G89"),
+    ("G91.0",  "Communicating hydrocephalus", True, "G91"),
+    ("G91.1",  "Obstructive hydrocephalus", True, "G91"),
+    ("G93.1",  "Anoxic brain damage, not elsewhere classified", True, "G93"),
+    ("G93.40", "Encephalopathy, unspecified", True, "G93.4"),
+    ("G93.41", "Metabolic encephalopathy", True, "G93.4"),
+    ("G93.49", "Other encephalopathy", True, "G93.4"),
+    ("G93.5",  "Compression of brain", True, "G93"),
+    ("G93.6",  "Cerebral oedema", True, "G93"),
+    ("G93.9",  "Disorder of brain, unspecified", True, "G93"),
+    ("G95.11", "Acute infarction of spinal cord (embolic) (nonembolic)", True, "G95.1"),
+    ("G95.89", "Other specified diseases of spinal cord", True, "G95.8"),
+    ("G95.9",  "Disease of spinal cord, unspecified", True, "G95"),
+    ("G96.0",  "Cerebrospinal fluid leak, not from spinal puncture", True, "G96"),
+    ("I65.21", "Occlusion and stenosis of right carotid artery", True, "I65.2"),
+    ("I65.22", "Occlusion and stenosis of left carotid artery", True, "I65.2"),
+    ("I65.29", "Occlusion and stenosis of unspecified carotid artery", True, "I65.2"),
+    ("I61.9",  "Nontraumatic intracerebral haemorrhage, unspecified", True, "I61"),
+    ("I26.09", "Other pulmonary embolism with acute cor pulmonale", True, "I26.0"),
+    # non-billable parents for new G/I codes
+    ("G93.4",  "Other and unspecified encephalopathy", False, "G93"),
+    ("G56.0",  "Carpal tunnel syndrome", False, "G56"),
+    ("G57.0",  "Lesion of sciatic nerve", False, "G57"),
 ]
 
 # --- CPT (DEMO_PLACEHOLDER) — (code, description, modality) ---
@@ -621,6 +928,190 @@ CPT = [
     ("77061", "Diagnostic digital breast tomosynthesis, unilateral", "MG"),
     ("77062", "Diagnostic digital breast tomosynthesis, bilateral", "MG"),
     ("77063", "Screening digital breast tomosynthesis, bilateral (add-on)", "MG"),
+
+    # =======================================================================
+    # RADIOLOGY CPT EXPANSION — additional 7-series codes (70000-79999)
+    # Real CPT code numbers verified against CMS physician fee schedule and
+    # AAPC/AMA published code sets; descriptors are our own paraphrase.
+    # =======================================================================
+
+    # --- CT colonography (CT) ---
+    ("74261", "CT colonography, diagnostic; including image postprocessing", "CT"),
+    ("74262", "CT colonography, screening; including image postprocessing", "CT"),
+    # --- GI fluoroscopy / contrast studies (FL) ---
+    ("74240", "Radiological exam, upper GI tract; without KUB, single contrast", "FL"),
+    ("74246", "Radiological exam, upper GI tract; with or without KUB, double contrast", "FL"),
+    ("74247", "Radiological exam, upper GI tract, with small bowel; single or double contrast", "FL"),
+    ("74248", "Radiological exam, small intestine; serial films, with or without KUB", "FL"),
+    ("74249", "Radiological exam, upper GI tract, air contrast, KUB and/or delayed films", "FL"),
+    ("74270", "Radiological exam, colon; single contrast (barium enema)", "FL"),
+    ("74280", "Radiological exam, colon; air-contrast (double-contrast barium enema)", "FL"),
+    ("74283", "Therapeutic enema, contrast or air, for intussusception or other indication", "FL"),
+    ("74300", "Cholangiography and/or pancreatography; intraoperative, radiological supervision", "FL"),
+    ("74305", "Cholangiography and/or pancreatography; post-operative, radiological supervision", "FL"),
+    ("74320", "Cholangiography, percutaneous, transhepatic", "FL"),
+    ("74340", "Introduction of long gastrointestinal tube, fluoroscopic guidance", "FL"),
+    ("74355", "Percutaneous placement of gastrostomy or gastrojejunostomy tube", "FL"),
+    ("74360", "Intraluminal dilation of stenotic bowel via balloon catheter", "FL"),
+    ("74363", "Percutaneous transhepatic dilation of biliary duct stricture", "FL"),
+    # --- Urinary tract / genitourinary fluoroscopy (FL) ---
+    ("74400", "Urography (excretory or IV pyelography); with or without KUB", "FL"),
+    ("74410", "Urography, infusion method; drip technique", "FL"),
+    ("74415", "Urography, infusion method; with nephrotomography", "FL"),
+    ("74420", "Urography, retrograde, with or without KUB", "FL"),
+    ("74430", "Cystography; minimum 3 views, radiological supervision", "FL"),
+    ("74450", "Urethrocystography, retrograde; radiological supervision", "FL"),
+    ("74455", "Urethrocystography, voiding (VCUG); radiological supervision", "FL"),
+    ("74470", "Radiological examination, renal cyst aspiration or injection", "FL"),
+    ("74480", "Introduction of ureteral catheter or stent; radiological supervision", "FL"),
+    ("74485", "Dilation of ureter or ureteral stricture; radiological supervision", "FL"),
+    # --- Cardiac MRI (MRI) ---
+    ("75557", "Cardiac MRI for morphology and function; without contrast", "MRI"),
+    ("75559", "Cardiac MRI for morphology and function; without and with contrast", "MRI"),
+    ("75561", "Cardiac MRI for morphology and function; without contrast, with cardiovascular stress imaging", "MRI"),
+    ("75563", "Cardiac MRI for morphology and function; without and with contrast, with stress imaging", "MRI"),
+    # --- Invasive angiography / venography (radiological supervision) (IR) ---
+    ("75600", "Aortography, thoracic, by serialography; radiological supervision and interpretation", "IR"),
+    ("75625", "Aortography, abdominal; by serialography, radiological supervision", "IR"),
+    ("75630", "Aortography, abdominal plus bilateral iliofemoral runoff; radiological supervision", "IR"),
+    ("75710", "Angiography, extremity, unilateral; radiological supervision", "IR"),
+    ("75716", "Angiography, extremity, bilateral; radiological supervision", "IR"),
+    ("75726", "Angiography, visceral, selective or superselective; radiological supervision", "IR"),
+    ("75736", "Angiography, pelvic; radiological supervision", "IR"),
+    ("75743", "Angiography, pulmonary, unilateral; radiological supervision", "IR"),
+    ("75746", "Angiography, pulmonary, bilateral; radiological supervision", "IR"),
+    ("75756", "Angiography, cervicocerebral, unilateral; radiological supervision", "IR"),
+    ("75774", "Angiography, selective, each additional vessel after basic study (add-on)", "IR"),
+    ("75820", "Venography, extremity, unilateral; radiological supervision", "IR"),
+    ("75822", "Venography, extremity, bilateral; radiological supervision", "IR"),
+    ("75825", "Venography, caval; superior or inferior, radiological supervision", "IR"),
+    ("75827", "Venography, superior vena cava; radiological supervision", "IR"),
+    ("75860", "Venography, venous sinus (dural venous sinus); radiological supervision", "IR"),
+    ("75889", "Hepatic venography, wedge or free; radiological supervision", "IR"),
+    ("75891", "Hepatic venography, wedge pressure measurement only; radiological supervision", "IR"),
+    # --- Ultrasound guidance / elastography / specialized US (US) ---
+    ("76376", "3D rendering of CT, MRI, or ultrasound imaging data; not requiring concurrent supervision", "US"),
+    ("76377", "3D rendering; with postprocessing under concurrent physician supervision", "US"),
+    ("76390", "MR spectroscopy", "MRI"),
+    ("76391", "MRI, elastography", "MRI"),
+    ("76510", "Ophthalmic ultrasound, diagnostic; complete with A and B scan", "US"),
+    ("76512", "Ophthalmic ultrasound; B-scan, with or without quantitative A-scan", "US"),
+    ("76514", "Corneal pachymetry, unilateral or bilateral", "US"),
+    ("76516", "Ophthalmic biometry by ultrasound echography; A-scan only", "US"),
+    ("76519", "Ophthalmic biometry by ultrasound; A-scan with intraocular lens power calculation", "US"),
+    ("76800", "Ultrasound, spinal canal and contents", "US"),
+    ("76936", "Ultrasound guided compression repair of arterial pseudoaneurysm or AV fistula", "US"),
+    ("76937", "Ultrasound guidance for vascular access, evaluation of access sites", "US"),
+    ("76940", "Ultrasound guidance for parenchymal tissue ablation monitoring", "US"),
+    ("76942", "Ultrasonic guidance for needle placement (biopsy, aspiration, injection, or localization)", "US"),
+    ("76946", "Ultrasonic guidance for amniocentesis, imaging supervision and interpretation", "US"),
+    ("76965", "Ultrasonic guidance for interstitial radioelement application", "US"),
+    ("76977", "Ultrasound bone density measurement, peripheral site(s)", "US"),
+    ("76978", "Ultrasound, targeted dynamic microbubble sonographic contrast; first lesion", "US"),
+    ("76979", "Ultrasound, targeted dynamic microbubble sonographic contrast; each additional lesion (add-on)", "US"),
+    ("76981", "Ultrasound elastography; parenchyma (e.g., organ)", "US"),
+    ("76982", "Ultrasound elastography; first target lesion", "US"),
+    ("76983", "Ultrasound elastography; each additional target lesion (add-on)", "US"),
+    # --- Nuclear medicine (NM) ---
+    # Thyroid / parathyroid
+    ("78012", "Thyroid uptake, multiple determinations; measurement and report", "NM"),
+    ("78013", "Thyroid imaging; with or without vascular flow", "NM"),
+    ("78014", "Thyroid imaging; with vascular flow", "NM"),
+    ("78015", "Thyroid carcinoma metastases imaging; limited area", "NM"),
+    ("78018", "Thyroid carcinoma metastases imaging; whole body", "NM"),
+    ("78070", "Parathyroid planar imaging; with or without subtraction", "NM"),
+    ("78071", "Parathyroid planar imaging with SPECT", "NM"),
+    ("78072", "Parathyroid planar imaging with SPECT and concurrently acquired CT", "NM"),
+    # Hepatobiliary / GI
+    ("78215", "Liver and spleen imaging; static only", "NM"),
+    ("78216", "Liver and spleen imaging; static and vascular flow", "NM"),
+    ("78226", "Hepatobiliary system imaging (HIDA scan); including gallbladder", "NM"),
+    ("78227", "Hepatobiliary system imaging; including gallbladder, with pharmacologic intervention (CCK/morphine)", "NM"),
+    ("78278", "Acute GI blood loss imaging", "NM"),
+    ("78290", "Meckel's diverticulum and intestinal transit imaging", "NM"),
+    # Bone
+    ("78300", "Bone and/or joint imaging; limited area", "NM"),
+    ("78305", "Bone and/or joint imaging; multiple areas", "NM"),
+    ("78306", "Bone and/or joint imaging; whole body", "NM"),
+    ("78315", "Bone and/or joint imaging; 3-phase study", "NM"),
+    ("78320", "Bone and/or joint imaging; tomographic (SPECT)", "NM"),
+    ("78350", "Bone density, dual photon absorptiometry; axial skeleton (spine/hip)", "NM"),
+    ("78351", "Bone density, dual photon absorptiometry; appendicular skeleton", "NM"),
+    # Cardiac
+    ("78451", "Myocardial perfusion imaging, tomographic (SPECT); single study at rest or stress", "NM"),
+    ("78452", "Myocardial perfusion imaging, tomographic (SPECT); multiple studies at rest and/or stress", "NM"),
+    ("78459", "Myocardial imaging, PET; metabolic evaluation study with or without quantification", "NM"),
+    ("78469", "Myocardial imaging, PET; perfusion study with or without quantification", "NM"),
+    ("78472", "Cardiac blood pool imaging, gated equilibrium; planar, single study", "NM"),
+    ("78473", "Cardiac blood pool imaging, gated equilibrium; multiple studies", "NM"),
+    ("78481", "Cardiac blood pool imaging; first pass technique, single study", "NM"),
+    ("78491", "Myocardial imaging, PET, perfusion; single study at rest or stress", "NM"),
+    ("78492", "Myocardial imaging, PET, perfusion; multiple studies at rest and/or stress", "NM"),
+    ("78494", "Cardiac blood pool imaging, SPECT", "NM"),
+    # Pulmonary
+    ("78579", "Pulmonary ventilation imaging; aerosol", "NM"),
+    ("78580", "Pulmonary perfusion imaging; with or without quantification", "NM"),
+    ("78582", "Pulmonary ventilation and perfusion imaging; with or without quantification (V/Q scan)", "NM"),
+    ("78597", "Quantitative differential pulmonary perfusion; without ventilation", "NM"),
+    ("78598", "Quantitative differential pulmonary perfusion and ventilation imaging", "NM"),
+    # Brain / CNS
+    ("78600", "Brain imaging, planar; limited", "NM"),
+    ("78606", "Brain imaging, planar; with vascular flow", "NM"),
+    ("78610", "Brain imaging, vascular flow only", "NM"),
+    ("78630", "Cerebrospinal fluid flow imaging (not including cisternography)", "NM"),
+    ("78635", "Cerebrospinal fluid flow imaging, complete (including cisternography)", "NM"),
+    ("78645", "Cerebrospinal fluid shunt evaluation", "NM"),
+    # Genitourinary / renal
+    ("78700", "Kidney imaging morphology; without pharmacologic intervention", "NM"),
+    ("78707", "Kidney imaging morphology; with vascular flow and function, without pharmacologic intervention", "NM"),
+    ("78708", "Kidney imaging morphology; with vascular flow and function, with pharmacologic intervention", "NM"),
+    ("78725", "Kidney function study, non-imaging radioisotopic technique", "NM"),
+    ("78740", "Ureteral reflux study, radionuclide cystogram", "NM"),
+    ("78761", "Testicular imaging with vascular flow", "NM"),
+    # Tumor / infection localization
+    ("78800", "Radiopharmaceutical localization of tumor or distribution, planar; limited area", "NM"),
+    ("78801", "Radiopharmaceutical localization of tumor; planar, multiple areas", "NM"),
+    ("78802", "Radiopharmaceutical localization of tumor; whole body", "NM"),
+    ("78803", "Radiopharmaceutical localization of tumor; tomographic (SPECT)", "NM"),
+    ("78804", "Radiopharmaceutical localization of tumor; whole body, multiple days imaging", "NM"),
+    ("78805", "Radiopharmaceutical localization of inflammatory process; planar, limited area", "NM"),
+    ("78806", "Radiopharmaceutical localization of inflammatory process; whole body", "NM"),
+    ("78807", "Radiopharmaceutical localization of inflammatory process; tomographic (SPECT)", "NM"),
+    # PET / PET-CT (oncology)
+    ("78811", "Tumor imaging, whole body; PET only", "NM"),
+    ("78812", "Tumor imaging, whole body; PET with concurrently acquired CT (without contrast)", "NM"),
+    ("78813", "Tumor imaging, whole body; PET with concurrently acquired CT (with contrast)", "NM"),
+    ("78814", "Tumor imaging, limited area (skull base to mid-thigh); PET only", "NM"),
+    ("78815", "Tumor imaging, limited area; PET with concurrently acquired CT (without contrast)", "NM"),
+    ("78816", "Tumor imaging, limited area; PET with concurrently acquired CT (with contrast)", "NM"),
+    # SPECT/CT hybrid
+    ("78830", "SPECT with concurrently acquired CT (without contrast); for attenuation correction/localization", "NM"),
+    ("78832", "SPECT/CT; with concurrently acquired CT (with or without contrast)", "NM"),
+    ("78835", "SPECT/CT; additional study", "NM"),
+    # --- Radiation therapy planning (RT) ---
+    ("77295", "3-dimensional radiotherapy plan, including dose-volume histograms", "RT"),
+    ("77300", "Basic radiation dosimetry calculation, direct measurement", "RT"),
+    ("77301", "Intensity modulated radiotherapy (IMRT) plan, including dose-volume histograms", "RT"),
+    ("77338", "Multi-leaf collimator (MLC) device(s) for IMRT plan design and construction (add-on)", "RT"),
+    ("77370", "Special medical radiation physics consultation", "RT"),
+    ("77371", "Stereotactic radiosurgery (SRS); multi-source cobalt 60 based, first session", "RT"),
+    ("77372", "Stereotactic radiosurgery (SRS); linear accelerator based, first session", "RT"),
+    ("77373", "Stereotactic body radiation therapy (SBRT), treatment delivery, per fraction", "RT"),
+    ("77385", "Intensity modulated radiation treatment delivery (IMRT); simple", "RT"),
+    ("77386", "Intensity modulated radiation treatment delivery (IMRT); complex", "RT"),
+    ("77387", "Guidance for localization of target volume for delivery of radiation treatment", "RT"),
+    ("77402", "Radiation treatment delivery, ≥1 MeV; simple", "RT"),
+    ("77407", "Radiation treatment delivery, ≥1 MeV; intermediate", "RT"),
+    ("77412", "Radiation treatment delivery, ≥1 MeV; complex", "RT"),
+    ("77432", "Stereotactic radiation treatment management of cranial lesion(s)", "RT"),
+    ("77435", "Stereotactic body radiation therapy, treatment management, per treatment course", "RT"),
+    ("77469", "Intraoperative radiation treatment management", "RT"),
+    ("77470", "Special treatment procedure (e.g., total body irradiation, hemibody irradiation, per oral or endocavitary irradiation)", "RT"),
+    # --- Unlisted radiology procedure codes ---
+    ("76496", "Unlisted fluoroscopic procedure", "FL"),
+    ("76497", "Unlisted CT procedure", "CT"),
+    ("76498", "Unlisted MRI procedure", "MRI"),
+    ("76499", "Unlisted diagnostic radiographic procedure", "XR"),
 ]
 
 HCPCS = [
@@ -876,6 +1367,8 @@ PAYER_POLICY = [
     #   Novitas-TX   → Novitas Solutions, JH — Texas, AR, CO, LA, MS, NM, OK
     #   NGS-NY       → NGS / Wellpoint Federal, JK — New York, CT, MA, ME, NH, RI, VT
     #   FirstCoast-FL → First Coast Service Options, JN — Florida, PR, USVI
+    #   Noridian-NV  → Noridian Healthcare Solutions, JE — Nevada (same MAC as CA)
+    #   Noridian-WA  → Noridian Healthcare Solutions, JF — Washington, OR, AK, ID, MT, ND, SD, UT, WY
     #
     # All entries below are Traditional Medicare (FFS); requires_auth=False for all
     # because prior auth applies only to Medicare Advantage (Part C) plans.
@@ -1261,8 +1754,234 @@ PAYER_POLICY = [
      False, "", ["I65.21", "I65.22", "I65.29", "G45.9", "G45.3", "R09.89", "I63.9", "R55"]),
 
     # ---------------------------------------------------------------------------
+    # NEVADA — Noridian Healthcare Solutions (JE)
+    # Same MAC as California (Noridian JE); same LCD IDs apply.
+    # ---------------------------------------------------------------------------
+
+    # LCD L34220 — MRI Lumbar Spine (Noridian JE, Nevada)
+    ("Noridian-NV", "72148",
+     "LCD L34220: MRI lumbar spine (Noridian JE, Nevada). Covered for radiculopathy, "
+     "disc herniation, spinal stenosis, or spondylosis with neurologic deficit after 4-6 weeks "
+     "of conservative therapy, or immediately with red-flag findings (cauda equina, suspected "
+     "malignancy, fracture, new neurologic deficit). Documentation must include symptom duration, "
+     "prior conservative therapy, and clinical indication. (Billing & Coding Article A57206)",
+     False, "", ["M54.16", "M54.40", "M54.41", "M54.42", "M54.3", "M51.16", "M51.17",
+                 "M51.26", "M51.36", "M48.06", "M47.816", "M96.1", "G54.4", "M54.50"]),
+
+    # LCD L37373 — MRI and CT Scans of the Head and Neck (Noridian JE, Nevada)
+    ("Noridian-NV", "70551",
+     "LCD L37373: MRI brain without contrast (Noridian JE, Nevada — active LCD, supersedes L35175). "
+     "Covered for new neurologic deficit, suspected demyelinating disease (MS), seizure evaluation, "
+     "TIA/stroke work-up, suspected intracranial neoplasm, or persistent headache with red-flag features. "
+     "Headache alone (R51) without red flags is generally insufficient. (Billing & Coding Article A57204 R16)",
+     False, "", ["G35", "G43.909", "G45.9", "I63.9", "I61.9", "R55", "G40.909", "C71.9",
+                 "G44.1", "G91.9", "R51.9"]),
+
+    ("Noridian-NV", "70450",
+     "LCD L37373: CT head without contrast (Noridian JE, Nevada). Covered for acute neurologic "
+     "symptoms including headache red flags, syncope, seizure, suspected stroke/hemorrhage, or head "
+     "trauma. Must document clinical indication. (Billing & Coding Article A57204 R16)",
+     False, "", ["R51.9", "R55", "R56.9", "G45.9", "I63.9", "I61.9", "S09.90XA", "G40.909"]),
+
+    ("Noridian-NV", "72141",
+     "LCD L37373: MRI cervical spine without contrast (Noridian JE, Nevada). Covered for "
+     "cervical radiculopathy, myelopathy, or neck pain with neurologic deficit persisting after "
+     "conservative care. Cervicalgia alone (M54.2) is typically insufficient without radiculopathy "
+     "or neurologic findings. (Billing & Coding Article A57204 R16)",
+     False, "", ["M54.12", "M50.12", "M50.32", "M48.02", "M47.812", "G54.2", "M54.2"]),
+
+    # LCD L34415 — CT Abdomen and Pelvis (Noridian JE, Nevada)
+    ("Noridian-NV", "74177",
+     "LCD L34415: CT abdomen and pelvis with contrast (Noridian JE, Nevada). Covered for "
+     "abdominal pain, suspected appendicitis, renal/ureteral calculus, intra-abdominal mass, "
+     "unexplained weight loss, or staging of known malignancy. PAMA AUC/CDSM documentation "
+     "required for outpatient advanced imaging orders. (Billing & Coding Article A56421)",
+     False, "", ["R10.11", "R10.31", "R10.9", "K35.80", "N20.0", "N20.1", "R19.00",
+                 "R63.4", "C18.9", "K57.30", "K80.20"]),
+
+    # LCD L34577 — Complete Abdominal Ultrasound (Noridian JE, Nevada)
+    ("Noridian-NV", "76700",
+     "LCD L34577: Complete abdominal ultrasound (Noridian JE, Nevada). Covered when all major "
+     "abdominal organs are examined (liver, gallbladder, CBD, pancreas, spleen, kidneys, aorta, IVC). "
+     "Supported indications include abdominal pain, organomegaly, palpable mass, ascites, suspected AAA, "
+     "or known hepatic/renal pathology. Do NOT bill 76700 and 76770 together unless separate exams. "
+     "(Billing & Coding Article A55336)",
+     False, "", ["R10.11", "R10.9", "K80.20", "K85.90", "K74.60", "R16.0", "R16.2",
+                 "N20.0", "I71.4", "C22.0", "R93.2"]),
+
+    # NCD 220.4 + LCD L33950 — Screening/Diagnostic Mammography (Noridian JE, Nevada)
+    ("Noridian-NV", "77067",
+     "NCD 220.4 / LCD L33950: Screening mammography (Noridian JE, Nevada). Covered annually "
+     "for women aged 40+; one baseline allowed ages 35–39. Z12.31 is required primary ICD-10. "
+     "At least 11 full months must elapse between covered screenings. Facility must be FDA/MQSA-certified. "
+     "(Billing & Coding Article A56448)",
+     False, "", ["Z12.31", "Z15.01", "Z80.3", "Z85.3"]),
+
+    ("Noridian-NV", "77066",
+     "LCD L33950: Diagnostic mammography (Noridian JE, Nevada). Covered for breast lump, "
+     "nipple discharge, skin changes, abnormal screening finding, or personal/family history "
+     "requiring diagnostic follow-up. (Billing & Coding Article A56448)",
+     False, "", ["N63.9", "N64.4", "N64.51", "R92.8", "Z85.3", "Z80.3"]),
+
+    # LCD L37636 — Nonobstetric Pelvic Ultrasound (Noridian JE, Nevada)
+    ("Noridian-NV", "76856",
+     "LCD L37636: Pelvic ultrasound, complete non-obstetric (Noridian JE, Nevada). Covered for "
+     "pelvic pain, uterine fibroids, ovarian cysts or mass, endometriosis, abnormal uterine bleeding, "
+     "postmenopausal bleeding, infertility evaluation, or lower urinary tract symptoms. Post-void "
+     "residual (51798) must NOT be billed under 76856/76857. (Billing & Coding Article A56671)",
+     False, "", ["D25.9", "E28.2", "N80.9", "N84.0", "N85.00", "N91.0", "N91.1", "N92.0",
+                 "N93.9", "N94.4", "N95.0", "N97.9", "R10.32", "R19.09"]),
+
+    # LCD L33459 — CTA Chest / CT Thorax (Noridian JE, Nevada)
+    ("Noridian-NV", "71275",
+     "LCD L33459: CTA chest, PE protocol (Noridian JE, Nevada). Covered for documented clinical "
+     "suspicion of pulmonary embolism. IV contrast required; 3D reconstruction bundled into 71275 — "
+     "do not separately bill 76376/76377. Document pre-test probability (Wells Score or equivalent). "
+     "(Billing & Coding Article A56580)",
+     False, "", ["I26.99", "I26.09", "I26.90", "R07.1", "R09.1", "Z87.891"]),
+
+    ("Noridian-NV", "71250",
+     "LCD L33459: CT thorax without contrast (Noridian JE, Nevada). Covered for indeterminate "
+     "pulmonary nodule follow-up (Lung-RADS), abnormal chest radiograph, suspected interstitial "
+     "lung disease, mediastinal mass, or pleural pathology. (Billing & Coding Article A56580)",
+     False, "", ["R91.1", "R91.8", "J98.11", "J84.9", "J93.9", "C34.90", "D14.31", "J18.9"]),
+
+    # LCD L35753 — Non-Invasive Cerebrovascular Arterial Studies (Noridian JE, Nevada)
+    ("Noridian-NV", "93880",
+     "LCD L35753: Carotid duplex scan, complete bilateral (Noridian JE, Nevada). Covered for "
+     "TIA, recent stroke, amaurosis fugax, documented cervical bruit, or known/suspected carotid "
+     "stenosis. Annual surveillance for 20–49% stenosis; post-endarterectomy: 6-week, 6-month, "
+     "1-year follow-up. Study must include duplex scanning with color Doppler and spectral Doppler. "
+     "(Billing & Coding Article A52992)",
+     False, "", ["I65.21", "I65.22", "I65.29", "G45.3", "G45.9", "R09.89", "I63.031",
+                 "I63.9", "R55", "R22.1"]),
+
+    # LCD L33627 — Extremity Venous Duplex / DVT (Noridian JE, Nevada)
+    ("Noridian-NV", "93970",
+     "LCD L33627: Extremity venous duplex, complete bilateral (Noridian JE, Nevada). Covered for "
+     "clinically suspected DVT (edema, tenderness, erythema), work-up for suspected pulmonary "
+     "embolism source, chronic venous insufficiency, or vein mapping for CABG/dialysis access. "
+     "Clinical signs and symptoms must be documented; include compression maneuvers and waveform "
+     "analysis. (Billing & Coding Articles A52993, A56758)",
+     False, "", ["I82.401", "I82.402", "I82.4Z1", "I87.2", "I80.3", "I26.99",
+                 "Z01.810", "Z01.818"]),
+
+    # ---------------------------------------------------------------------------
+    # WASHINGTON — Noridian Healthcare Solutions (JF)
+    # MAC Jurisdiction F: Alaska, Arizona, Idaho, Montana, North Dakota, Oregon,
+    # South Dakota, Utah, Washington, Wyoming
+    # ---------------------------------------------------------------------------
+
+    # LCD L34220 — MRI Lumbar Spine (Noridian JF, Washington)
+    ("Noridian-WA", "72148",
+     "LCD L34220: MRI lumbar spine (Noridian JF, Washington). Covered for lumbar radiculopathy, "
+     "disc herniation with sciatica, spinal stenosis, spondylosis with neurologic deficit, or "
+     "post-laminectomy syndrome. Conservative therapy for 4–6 weeks generally required before MRI "
+     "absent red-flag conditions (cauda equina, suspected malignancy, fracture, new neurologic deficit). "
+     "Document symptom duration, prior treatment, and clinical indication. (Billing & Coding Article A57206)",
+     False, "", ["M54.16", "M54.40", "M54.41", "M54.42", "M54.3", "M51.16", "M51.17",
+                 "M51.26", "M51.36", "M48.06", "M47.816", "M96.1", "G54.4", "M54.50"]),
+
+    # LCD L37373 — MRI and CT Scans of the Head and Neck (Noridian JF, Washington)
+    ("Noridian-WA", "70551",
+     "LCD L37373: MRI brain without contrast (Noridian JF, Washington — active LCD). Covered for "
+     "new neurologic deficit, suspected demyelinating disease (MS), seizure evaluation, TIA/stroke "
+     "work-up, suspected intracranial neoplasm, or persistent headache with red-flag features. "
+     "Headache alone (R51) without red flags is generally insufficient. (Billing & Coding Article A57204 R16)",
+     False, "", ["G35", "G43.909", "G45.9", "I63.9", "I61.9", "R55", "G40.909", "C71.9",
+                 "G44.1", "G91.9", "R51.9"]),
+
+    ("Noridian-WA", "70450",
+     "LCD L37373: CT head without contrast (Noridian JF, Washington). Covered for acute neurologic "
+     "symptoms including headache red flags, syncope, seizure, suspected stroke/hemorrhage, or head "
+     "trauma. Must document clinical indication. (Billing & Coding Article A57204 R16)",
+     False, "", ["R51.9", "R55", "R56.9", "G45.9", "I63.9", "I61.9", "S09.90XA", "G40.909"]),
+
+    ("Noridian-WA", "72141",
+     "LCD L37373: MRI cervical spine without contrast (Noridian JF, Washington). Covered for "
+     "cervical radiculopathy, myelopathy, or neck pain with neurologic deficit after conservative "
+     "care. Cervicalgia alone (M54.2) is typically insufficient without radiculopathy or neurologic "
+     "findings. (Billing & Coding Article A57204 R16)",
+     False, "", ["M54.12", "M50.12", "M50.32", "M48.02", "M47.812", "G54.2", "M54.2"]),
+
+    # LCD L34415 — CT Abdomen and Pelvis (Noridian JF, Washington)
+    ("Noridian-WA", "74177",
+     "LCD L34415: CT abdomen and pelvis with contrast (Noridian JF, Washington). Covered for "
+     "acute abdominal pain, suspected appendicitis, renal/ureteral calculus, intra-abdominal mass, "
+     "diverticulitis, GI bleeding, unexplained weight loss, or malignancy staging. PAMA AUC/CDSM "
+     "documentation required for outpatient advanced imaging orders. (Billing & Coding Article A56421)",
+     False, "", ["R10.11", "R10.31", "R10.9", "K35.80", "N20.0", "N20.1", "R19.00",
+                 "R63.4", "C18.9", "K57.30", "K80.20"]),
+
+    # LCD L34577 — Complete Abdominal Ultrasound (Noridian JF, Washington)
+    ("Noridian-WA", "76700",
+     "LCD L34577: Complete abdominal ultrasound (Noridian JF, Washington). Covered when all major "
+     "abdominal organs are examined (liver, gallbladder, CBD, pancreas, spleen, kidneys, aorta, IVC). "
+     "Indications include abdominal pain, organomegaly, palpable mass, ascites, suspected AAA, or "
+     "known hepatic/renal/pancreatic pathology. Do NOT bill 76700 and 76770 together unless separate "
+     "exams. (Billing & Coding Article A55336)",
+     False, "", ["R10.11", "R10.9", "K80.20", "K85.90", "K74.60", "R16.0", "R16.2",
+                 "N20.0", "I71.4", "C22.0", "R93.2"]),
+
+    # NCD 220.4 + LCD L33950 — Screening/Diagnostic Mammography (Noridian JF, Washington)
+    ("Noridian-WA", "77067",
+     "NCD 220.4 / LCD L33950: Screening mammography (Noridian JF, Washington). Covered annually "
+     "for women aged 40+; one baseline allowed ages 35–39. Z12.31 is required primary ICD-10. "
+     "At least 11 full months must elapse between covered screenings. Facility must be FDA/MQSA-certified. "
+     "(Billing & Coding Article A56448)",
+     False, "", ["Z12.31", "Z15.01", "Z80.3", "Z85.3"]),
+
+    ("Noridian-WA", "77066",
+     "LCD L33950: Diagnostic mammography (Noridian JF, Washington). Covered for breast lump, "
+     "nipple discharge, skin changes, abnormal screening finding, or personal/family history "
+     "requiring diagnostic follow-up. (Billing & Coding Article A56448)",
+     False, "", ["N63.9", "N64.4", "N64.51", "R92.8", "Z85.3", "Z80.3"]),
+
+    # LCD L37636 — Nonobstetric Pelvic Ultrasound (Noridian JF, Washington)
+    ("Noridian-WA", "76856",
+     "LCD L37636: Pelvic ultrasound, complete non-obstetric (Noridian JF, Washington). Covered for "
+     "pelvic pain, uterine fibroids, ovarian cysts or mass, endometriosis, abnormal uterine bleeding, "
+     "postmenopausal bleeding, infertility evaluation, or lower urinary tract symptoms. Post-void "
+     "residual (51798) must NOT be billed under 76856/76857. (Billing & Coding Article A56671)",
+     False, "", ["D25.9", "E28.2", "N80.9", "N84.0", "N85.00", "N91.0", "N91.1", "N92.0",
+                 "N93.9", "N94.4", "N95.0", "N97.9", "R10.32", "R19.09"]),
+
+    # LCD L33459 — CTA Chest / CT Thorax (Noridian JF, Washington)
+    ("Noridian-WA", "71275",
+     "LCD L33459: CTA chest, PE protocol (Noridian JF, Washington). Covered for documented clinical "
+     "suspicion of pulmonary embolism. IV contrast required; 3D reconstruction bundled into 71275 — "
+     "do not separately bill 76376/76377. Document pre-test probability (Wells Score or equivalent). "
+     "(Billing & Coding Article A56580)",
+     False, "", ["I26.99", "I26.09", "I26.90", "R07.1", "R09.1", "Z87.891"]),
+
+    ("Noridian-WA", "71250",
+     "LCD L33459: CT thorax without contrast (Noridian JF, Washington). Covered for indeterminate "
+     "pulmonary nodule follow-up (Lung-RADS), abnormal chest radiograph, suspected interstitial "
+     "lung disease, mediastinal mass, or pleural pathology. (Billing & Coding Article A56580)",
+     False, "", ["R91.1", "R91.8", "J98.11", "J84.9", "J93.9", "C34.90", "D14.31", "J18.9"]),
+
+    # LCD L35753 — Non-Invasive Cerebrovascular Arterial Studies (Noridian JF, Washington)
+    ("Noridian-WA", "93880",
+     "LCD L35753: Carotid duplex scan, complete bilateral (Noridian JF, Washington). Covered for "
+     "TIA, recent stroke, amaurosis fugax, documented cervical bruit, or known/suspected carotid "
+     "stenosis. Annual surveillance for 20–49% stenosis; post-endarterectomy: 6-week, 6-month, "
+     "1-year follow-up. Study must include duplex scanning with color Doppler and spectral Doppler "
+     "waveform analysis. (Billing & Coding Article A52992)",
+     False, "", ["I65.21", "I65.22", "I65.29", "G45.3", "G45.9", "R09.89", "I63.031",
+                 "I63.9", "R55", "R22.1"]),
+
+    # LCD L33627 — Extremity Venous Duplex / DVT (Noridian JF, Washington)
+    ("Noridian-WA", "93970",
+     "LCD L33627: Extremity venous duplex, complete bilateral (Noridian JF, Washington). Covered for "
+     "clinically suspected DVT (edema, tenderness, erythema, warmth), work-up for suspected pulmonary "
+     "embolism source, chronic venous insufficiency, or preoperative vein mapping for CABG/dialysis "
+     "access. Clinical signs and symptoms must be documented. (Billing & Coding Articles A52993, A56758)",
+     False, "", ["I82.401", "I82.402", "I82.4Z1", "I87.2", "I80.3", "I26.99",
+                 "Z01.810", "Z01.818"]),
+
+    # ---------------------------------------------------------------------------
     # NATIONAL (NCD) — Supplemental entries referencing explicit NCD IDs
-    # These apply across all four states and fill gaps not covered by the
+    # These apply across all six states and fill gaps not covered by the
     # existing generic "Medicare" entries above.
     # ---------------------------------------------------------------------------
 
