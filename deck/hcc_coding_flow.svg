@@ -1,0 +1,87 @@
+<svg viewBox="0 0 900 1100" width="900" height="1100" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5F5E5A"/></marker>
+<marker id="arc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#D85A30"/></marker>
+</defs>
+<rect x="0" y="0" width="900" height="1100" fill="#FFFFFF"/>
+
+<rect x="80" y="16" width="460" height="58" rx="4" fill="#F1EFE8" stroke="#5F5E5A"/>
+<text x="310" y="40" text-anchor="middle" font-size="14" font-weight="600" fill="#444441">HCC chart arrives</text>
+<text x="310" y="60" text-anchor="middle" font-size="11.5" fill="#5F5E5A">Medicare Advantage wellness visit</text>
+<line x1="310" y1="74" x2="310" y2="102" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<rect x="80" y="104" width="460" height="58" rx="4" fill="#EEEDFE" stroke="#534AB7"/>
+<text x="310" y="128" text-anchor="middle" font-size="14" font-weight="600" fill="#3C3489">Shared front end</text>
+<text x="310" y="148" text-anchor="middle" font-size="11.5" fill="#534AB7">eligibility check, privacy guard</text>
+<line x1="310" y1="162" x2="310" y2="190" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<rect x="80" y="192" width="460" height="58" rx="4" fill="#EEEDFE" stroke="#534AB7"/>
+<text x="310" y="216" text-anchor="middle" font-size="14" font-weight="600" fill="#3C3489">Patient history (patient_key)</text>
+<text x="310" y="236" text-anchor="middle" font-size="11.5" fill="#534AB7">prior-year encounters fetched</text>
+<line x1="310" y1="250" x2="310" y2="278" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<rect x="80" y="280" width="460" height="58" rx="4" fill="#E1F5EE" stroke="#0F6E56"/>
+<text x="310" y="304" text-anchor="middle" font-size="14" font-weight="600" fill="#085041">MEAT capture (model)</text>
+<text x="310" y="324" text-anchor="middle" font-size="11.5" fill="#0F6E56">active chronic conditions, cited</text>
+<line x1="310" y1="338" x2="310" y2="366" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<rect x="80" y="368" width="460" height="58" rx="4" fill="#EEEDFE" stroke="#534AB7"/>
+<text x="310" y="392" text-anchor="middle" font-size="14" font-weight="600" fill="#3C3489">Citation and validation gates</text>
+<text x="310" y="412" text-anchor="middle" font-size="11.5" fill="#534AB7">uncited rejected, edits checked</text>
+<line x1="310" y1="426" x2="310" y2="454" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<rect x="80" y="456" width="460" height="58" rx="4" fill="#EEEDFE" stroke="#534AB7"/>
+<text x="310" y="480" text-anchor="middle" font-size="14" font-weight="600" fill="#3C3489">Demographic base factor</text>
+<text x="310" y="500" text-anchor="middle" font-size="11.5" fill="#534AB7">age and sex band</text>
+<line x1="310" y1="514" x2="310" y2="542" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<rect x="80" y="544" width="460" height="58" rx="4" fill="#EEEDFE" stroke="#534AB7"/>
+<text x="310" y="568" text-anchor="middle" font-size="14" font-weight="600" fill="#3C3489">Map diagnoses to HCCs</text>
+<text x="310" y="588" text-anchor="middle" font-size="11.5" fill="#534AB7">unmapped do not risk-adjust</text>
+<line x1="310" y1="602" x2="310" y2="630" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<rect x="80" y="632" width="460" height="58" rx="4" fill="#EEEDFE" stroke="#534AB7"/>
+<text x="310" y="656" text-anchor="middle" font-size="14" font-weight="600" fill="#3C3489">Resolve hierarchies</text>
+<text x="310" y="676" text-anchor="middle" font-size="11.5" fill="#534AB7">most severe in family pays</text>
+<line x1="310" y1="690" x2="310" y2="718" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<rect x="80" y="720" width="460" height="58" rx="4" fill="#F1EFE8" stroke="#5F5E5A"/>
+<text x="310" y="744" text-anchor="middle" font-size="14" font-weight="600" fill="#444441">RAF = base + coefficients</text>
+<text x="310" y="764" text-anchor="middle" font-size="11.5" fill="#5F5E5A">score scales the plan payment</text>
+
+<rect x="630" y="104" width="220" height="586" rx="4" fill="#FAECE7" stroke="#993C1D"/>
+<text x="740" y="380" text-anchor="middle" font-size="14" font-weight="600" fill="#712B13">Held for human review</text>
+<text x="740" y="402" text-anchor="middle" font-size="11.5" fill="#993C1D">never guesses a score</text>
+<line x1="540" y1="397" x2="624" y2="397" stroke="#D85A30" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arc)"/>
+<text x="582" y="389" text-anchor="middle" font-size="11.5" fill="#993C1D">gate fails</text>
+<line x1="540" y1="485" x2="624" y2="485" stroke="#D85A30" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arc)"/>
+<text x="582" y="477" text-anchor="middle" font-size="11.5" fill="#993C1D">no band</text>
+
+<line x1="195" y1="778" x2="195" y2="826" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="445" y1="778" x2="445" y2="826" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="310" y1="778" x2="695" y2="826" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<rect x="80" y="828" width="230" height="64" rx="4" fill="#EAF3DE" stroke="#3B6D11"/>
+<text x="195" y="854" text-anchor="middle" font-size="14" font-weight="600" fill="#27500A">RAF result card</text>
+<text x="195" y="874" text-anchor="middle" font-size="11.5" fill="#3B6D11">score, HCC chips, full trace</text>
+<rect x="330" y="828" width="230" height="64" rx="4" fill="#FAEEDA" stroke="#854F0B"/>
+<text x="445" y="854" text-anchor="middle" font-size="14" font-weight="600" fill="#633806">Recapture opportunity</text>
+<text x="445" y="874" text-anchor="middle" font-size="11.5" fill="#854F0B">prior HCCs missing this year</text>
+<rect x="580" y="828" width="230" height="64" rx="4" fill="#F1EFE8" stroke="#5F5E5A"/>
+<text x="695" y="854" text-anchor="middle" font-size="14" font-weight="600" fill="#444441">Eval harness</text>
+<text x="695" y="874" text-anchor="middle" font-size="11.5" fill="#5F5E5A">RAF accuracy vs golden truth</text>
+
+<rect x="80" y="928" width="730" height="92" rx="4" fill="#F1EFE8" stroke="#5F5E5A"/>
+<text x="100" y="954" font-size="13" font-weight="600" fill="#444441">Worked example — Eleanor Briggs (verified live)</text>
+<text x="100" y="976" font-size="11.5" fill="#5F5E5A">2025 wellness visit captured HCC 18 + 85 + 138 → RAF 1.097.  This year only the diabetes (HCC 18) was re-documented → RAF 0.794.</text>
+<text x="100" y="996" font-size="11.5" fill="#5F5E5A">Recapture flagged automatically: HCC 85 heart failure (+0.331) and HCC 138 kidney disease (+0.069) — 0.400 RAF at stake.</text>
+
+<rect x="80" y="1048" width="14" height="14" rx="3" fill="#E1F5EE" stroke="#0F6E56"/>
+<text x="102" y="1060" font-size="11.5" fill="#444441">AI reasoning step</text>
+<rect x="240" y="1048" width="14" height="14" rx="3" fill="#EEEDFE" stroke="#534AB7"/>
+<text x="262" y="1060" font-size="11.5" fill="#444441">deterministic rule step</text>
+<rect x="440" y="1048" width="14" height="14" rx="3" fill="#FAEEDA" stroke="#854F0B"/>
+<text x="462" y="1060" font-size="11.5" fill="#444441">recapture output</text>
+<rect x="620" y="1048" width="14" height="14" rx="3" fill="#FAECE7" stroke="#993C1D"/>
+<text x="642" y="1060" font-size="11.5" fill="#444441">human review path</text>
+</svg>

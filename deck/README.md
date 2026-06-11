@@ -10,6 +10,7 @@ Client-facing collateral for the ACE (Autonomous Coding Engine) review.
 | `ACE_demo.mp4` | ~2.4-min end-to-end demo capture (H.264, plays anywhere incl. PowerPoint) |
 | `sample_scanned_chart.pdf` | the scanned chart used for the live vision-OCR ingestion beat |
 | `cpt_decision_flow.svg` / `.png` | flow chart: how ACE decides a CPT code (AI steps vs deterministic rules vs human-review paths) |
+| `hcc_coding_flow.svg` / `.png` | flow chart: the HCC / risk-adjustment track — MEAT capture, the deterministic RAF scorer, recapture gaps, with the verified Eleanor Briggs example |
 
 ## Deck — regenerate
 
