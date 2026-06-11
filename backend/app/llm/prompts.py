@@ -99,9 +99,16 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
 }
 
 
-def build_analysis_user(numbered_chart: str, specialty: str) -> str:
+def build_analysis_user(numbered_chart: str, specialty: str, prior_context: str = "") -> str:
+    prior = (
+        f"{prior_context}\n\n"
+        "Compare the chart against these priors: flag copy_forward when current text repeats "
+        "a prior note, and contradiction when the current chart conflicts with the prior "
+        "record (e.g., stale findings, impossible timelines). Never code from the priors.\n\n"
+    ) if prior_context else ""
     return (
         f"SPECIALTY: {specialty}\n\n"
+        f"{prior}"
         "Analyze the following chart. Line numbers are prefixed as 'N|'. "
         "Cite line numbers exactly as shown. Do not code yet.\n\n"
         f"=== CHART ===\n{numbered_chart}\n=== END CHART ==="

@@ -19,11 +19,13 @@ def init_db() -> None:
     # Existing rows default to 'final'/attested, so already-coded charts behave identically.
     with engine.begin() as conn:
         for ddl in (
+            "ALTER TABLE encounters ADD COLUMN IF NOT EXISTS patient_key VARCHAR(40) DEFAULT ''",
             "ALTER TABLE encounters ADD COLUMN IF NOT EXISTS doc_status VARCHAR(16) DEFAULT 'final'",
             "ALTER TABLE encounters ADD COLUMN IF NOT EXISTS signed_by VARCHAR(120) DEFAULT ''",
             "ALTER TABLE encounters ADD COLUMN IF NOT EXISTS signed_at TIMESTAMPTZ",
             "ALTER TABLE encounters ADD COLUMN IF NOT EXISTS addendum_at TIMESTAMPTZ",
             "ALTER TABLE coding_runs ADD COLUMN IF NOT EXISTS billed_at TIMESTAMPTZ",
+            "ALTER TABLE hcc_results ADD COLUMN IF NOT EXISTS recapture_gaps JSONB DEFAULT '[]'",
         ):
             conn.execute(text(ddl))
 

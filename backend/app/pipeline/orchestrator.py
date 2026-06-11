@@ -16,7 +16,7 @@ from ..config import settings
 from ..knowledge import graph_rag
 from ..llm import prompts
 from ..llm.client import LLMUnavailable, complete_json, model_version
-from . import anes, apc, drg, hcc, pii, validation
+from . import anes, apc, drg, hcc, history, pii, validation
 
 # Confidence routing thresholds (calibrated per-specialty in production)
 STB_THRESHOLD = 0.90
@@ -206,13 +206,34 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         _audit(db, run, "1_privacy", "identifiers_masked",
                {"masked": pii_findings, "total": sum(f["count"] for f in pii_findings)})
 
+    # --- Stage 1 patient history — longitudinal checks (only when patient_key links priors) ---
+    priors = history.prior_encounters(db, enc)
+    cf_findings: list[dict] = []
+    prior_ctx = ""
+    if priors:
+        cf_findings = history.copy_forward_findings(enc.chart_text, priors)
+        prior_ctx = history.prior_context(db, priors)
+        say("Patient History",
+            f"{len(priors)} prior encounter(s) for this patient — "
+            + (f"VERBATIM carry-forward detected: {cf_findings[0]['verbatim_words']} words match "
+               f"{cf_findings[0]['prior_mrn']} ({cf_findings[0]['prior_dos']})" if cf_findings
+               else "no verbatim carry-forward (deterministic text comparison)"),
+            "warn" if cf_findings else "good")
+        log.append({"stage": "1_history", "title": "Patient History (longitudinal)",
+                    "priors": [{"mrn": p.mrn, "dos": p.dos, "specialty": p.specialty} for p in priors],
+                    "copy_forward": cf_findings,
+                    "note": "Copy-forward here is deterministic word-run comparison against the prior "
+                            "documents; the model also sees prior summaries for contradiction checks."})
+        _audit(db, run, "1_history", "priors_checked",
+               {"priors": len(priors), "copy_forward": cf_findings})
+
     # --- Stage 1+2 — analysis (conditioning + summary + extraction) ---
     step("1", "Conditioning")
     say("Conditioning + Extraction Agent", f"invoking {model_version(llmc)} — sectioning, summary, structured extraction…", "tool")
     try:
         analysis = complete_json(
             prompts.ANALYSIS_SYSTEM,
-            prompts.build_analysis_user(numbered, enc.specialty),
+            prompts.build_analysis_user(numbered, enc.specialty, prior_context=prior_ctx),
             prompts.ANALYSIS_SCHEMA, temperature=0.0, llm=llmc, usage_sink=usage,
         )[0]
     except LLMUnavailable as e:
@@ -404,6 +425,10 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
             # severity-gated: models sometimes emit an info-level 'unsigned' flag just to
             # NOTE that a signature is present — only warn/block means actually unsigned.
             bounded.append("unsigned/unattested note — cannot drive billing")
+    if ba.get("copy_forward", True) and cf_findings:
+        f0 = cf_findings[0]
+        bounded.append(f"verbatim text carried forward from {f0['prior_mrn']} ({f0['prior_dos']}) "
+                       "— review before billing")
     # Late-entered addendum: an addendum timestamped AFTER a prior billed run is a
     # compliance flag (deterministic timestamp comparison, never model judgment).
     if enc.addendum_at:
@@ -464,10 +489,29 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
             for cr in accepted
         ]
         hr = hcc.score(db, acc_codes, enc.age, enc.sex)
+        # Recapture: HCCs documented on this patient's PRIOR encounters that are not
+        # re-captured in this run. Conditions must be re-documented annually to pay.
+        recapture = []
+        if priors:
+            prior_set = history.prior_hccs(db, priors)
+            current_set = {h["hcc"] for h in hr["hccs"]}
+            recapture = [
+                {"hcc": h, "label": v["label"], "coefficient": v["coefficient"]}
+                for h, v in sorted(prior_set.items(), key=lambda kv: kv[1]["coefficient"], reverse=True)
+                if h not in current_set
+            ]
+            if recapture:
+                lost = sum(g["coefficient"] for g in recapture)
+                say("HCC RAF Scorer",
+                    f"recapture opportunity: {len(recapture)} prior-year HCC(s) not re-documented "
+                    f"this year — {lost:.3f} RAF at stake "
+                    f"({', '.join('HCC ' + g['hcc'] for g in recapture)})", "warn")
+                _audit(db, run, "6_hcc", "recapture_gaps",
+                       {"gaps": recapture, "raf_at_stake": round(lost, 3)})
         db.add(models.HccResult(
             run_id=run.id, encounter_id=enc.id, raf=hr["raf"], demographic=hr["demographic"],
             hccs=hr["hccs"], suppressed=hr["suppressed"], unmapped=hr["unmapped"],
-            trace=hr["trace"], resolved=hr["resolved"],
+            recapture_gaps=recapture, trace=hr["trace"], resolved=hr["resolved"],
         ))
         log.append({"stage": "6_hcc", "title": "HCC / RAF Scoring", "result": hr})
         _audit(db, run, "6_hcc", "raf_scored" if hr["resolved"] else "raf_unresolved",

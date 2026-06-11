@@ -31,6 +31,7 @@ def hcc_to_dict(h: models.HccResult) -> dict:
     return {
         "raf": h.raf, "demographic": h.demographic, "hccs": h.hccs,
         "suppressed": h.suppressed, "unmapped": h.unmapped,
+        "recapture_gaps": h.recapture_gaps or [],
         "trace": h.trace, "resolved": h.resolved,
     }
 

@@ -25,6 +25,7 @@ DEFAULTS: dict = {
         "block_flag": True,
         "ambiguous_or_contradiction": True,
         "unsigned_note": True,
+        "copy_forward": True,
         "critical_care": True,
         "ncci_break": True,
     },

@@ -121,6 +121,7 @@ export interface HccResult {
   hccs: { hcc: string; label: string; coefficient: number; dx: string[] }[];
   suppressed: { hcc: string; by: string }[];
   unmapped: string[];
+  recapture_gaps: { hcc: string; label: string; coefficient: number }[];
   trace: { step: string; detail: string }[];
   resolved: boolean;
 }

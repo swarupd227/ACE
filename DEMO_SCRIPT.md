@@ -48,6 +48,21 @@ Correct — and the architecture assumes that. The honest answer, in three parts
    said nothing), and any chart's **Add addendum** action after it has billed raises a
    **"late addendum after billing"** compliance flag from a plain timestamp comparison — try it live on
    an STB chart and re-code it.
+
+### Patient-level linking — longitudinal checks (the strongest Stage-1 beat)
+Encounters that share a `patient_key` get checked against the patient's own history:
+- **Deterministic copy-forward** → code **EM20005** (Marjorie Tan). Her May visit's HPI repeats a
+  40+-word block *verbatim* from her February note (EM20004) — the console shows *"Patient History —
+  VERBATIM carry-forward detected: N words match EM20004"*, found by plain word-run comparison against
+  the prior document, not model judgment; the chart is held from auto-billing with that exact reason.
+  *"The copied HPI still says 142/88 on 10 mg — the plan says controlled on 20 mg. Stale carried-forward
+  text is how documentation drifts from reality."*
+- **HCC recapture — the RevCap-adjacency beat** → code **HC10004** (Eleanor Briggs). Last year's AWV
+  (HC10003) captured diabetes + CHF + CKD; this year only the diabetes is re-documented. The RAF card
+  shows **"Recapture opportunity — documented last year, not yet this year: HCC 85 (+0.331), HCC 138
+  (+0.069) — 0.400 RAF at stake."** *"Conditions must be re-documented every year to pay. This is the
+  recapture work RevCap teams do by hand — ACE computes it from the patient's own history on every
+  chart."* (If reseeding fresh: code HC10003 before HC10004 so the prior year exists.)
 3. **The scanned-document ingest you just watched is the multi-format path working live**: PDFs, scans and
    faxes are transcribed by the same model family (vision), then enter the identical pipeline. The demo
    charts are synthetic single-text because they are PHI-free seed data — not because the engine expects

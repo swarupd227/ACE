@@ -911,6 +911,89 @@ CHARTS = [
             "Electronically signed by Dr. R. Kim, MD."
         ),
     ),
+    # ── Patient-level linking pair 1: DETERMINISTIC copy-forward ──────────────────────
+    # Same patient_key; the current visit's HPI repeats a 40+ word block verbatim from the
+    # prior visit (and is stale vs the current plan) → the word-run comparison catches it.
+    dict(
+        mrn="EM20004", patient_name="Marjorie Tan", age=67, sex="F", specialty="E&M",
+        modality="", encounter_type="established", payer="Medicare", pos="11", dos="2026-02-12",
+        client="Lakeside Medical Group", source_system="eClinicalWorks", report_type="progress_note",
+        patient_key="PT-TAN-MARJORIE-1959",
+        scenario="E&M — prior visit (linking pair: hypertension follow-up)",
+        chart_text=(
+            "PROGRESS NOTE — OFFICE FOLLOW-UP\n"
+            "CHIEF COMPLAINT: Hypertension follow-up.\n"
+            "HPI: Patient returns for follow-up of hypertension. She reports occasional morning "
+            "headaches but no chest pain, palpitations, or shortness of breath. Home blood pressure "
+            "readings average 142 over 88. She continues lisinopril 10 mg daily with good adherence "
+            "and no side effects.\n"
+            "EXAM: BP 144/90 in office. Heart regular, no murmur. Lungs clear.\n"
+            "ASSESSMENT / PLAN:\n"
+            "1. Essential hypertension — suboptimal control; increase lisinopril to 20 mg daily; "
+            "recheck in three months with home log.\n"
+            "Electronically signed by Dr. S. Whitfield, MD, Internal Medicine."
+        ),
+    ),
+    dict(
+        mrn="EM20005", patient_name="Marjorie Tan", age=67, sex="F", specialty="E&M",
+        modality="", encounter_type="established", payer="Medicare", pos="11", dos="2026-05-20",
+        client="Lakeside Medical Group", source_system="eClinicalWorks", report_type="progress_note",
+        patient_key="PT-TAN-MARJORIE-1959",
+        scenario="E&M — current visit with HPI carried forward verbatim from February",
+        chart_text=(
+            "PROGRESS NOTE — OFFICE FOLLOW-UP\n"
+            "CHIEF COMPLAINT: Hypertension follow-up.\n"
+            "HPI: Patient returns for follow-up of hypertension. She reports occasional morning "
+            "headaches but no chest pain, palpitations, or shortness of breath. Home blood pressure "
+            "readings average 142 over 88. She continues lisinopril 10 mg daily with good adherence "
+            "and no side effects.\n"
+            "EXAM: BP 126/78 in office. Heart regular, no murmur. Lungs clear.\n"
+            "ASSESSMENT / PLAN:\n"
+            "1. Essential hypertension — well controlled on lisinopril 20 mg daily since the February "
+            "dose increase; home readings now average 124 over 76. Continue current dose; recheck in "
+            "six months.\n"
+            "Electronically signed by Dr. S. Whitfield, MD, Internal Medicine."
+        ),
+    ),
+    # ── Patient-level linking pair 2: HCC RECAPTURE ────────────────────────────────────
+    # Prior-year AWV captured HCC 18 + 85 + 138; this year only the diabetes is addressed →
+    # the scorer reports CHF and CKD as prior-year HCCs not yet re-documented (RAF at stake).
+    # Wording differs deliberately so the copy-forward run-check does not fire.
+    dict(
+        mrn="HC10003", patient_name="Eleanor Briggs", age=74, sex="F", specialty="HCC / Risk Adjustment",
+        modality="", encounter_type="established", payer="Medicare Advantage", pos="11", dos="2025-11-18",
+        client="Lakeside Medical Group", source_system="eClinicalWorks", report_type="awv_note",
+        patient_key="PT-BRIGGS-ELEANOR-1951",
+        scenario="HCC — prior-year AWV (linking pair: diabetes + CHF + CKD captured)",
+        chart_text=(
+            "ANNUAL WELLNESS VISIT — SUBSEQUENT\n"
+            "SUBJECTIVE: 74-year-old woman for her annual wellness visit; prevention plan reviewed.\n"
+            "ASSESSMENT / PLAN:\n"
+            "1. Type 2 diabetes mellitus with diabetic polyneuropathy — monofilament testing shows "
+            "reduced sensation bilaterally; A1C 7.3 reviewed; metformin continued.\n"
+            "2. Congestive heart failure — no orthopnea or edema on examination; lisinopril and "
+            "carvedilol continued; daily-weight protocol reinforced.\n"
+            "3. Chronic kidney disease, stage 3 — eGFR 47 this week, stable; nephrotoxics avoided; "
+            "metabolic panel again in six months.\n"
+            "Electronically signed by Dr. S. Whitfield, MD, Internal Medicine."
+        ),
+    ),
+    dict(
+        mrn="HC10004", patient_name="Eleanor Briggs", age=75, sex="F", specialty="HCC / Risk Adjustment",
+        modality="", encounter_type="established", payer="Medicare Advantage", pos="11", dos="2026-05-20",
+        client="Lakeside Medical Group", source_system="eClinicalWorks", report_type="awv_note",
+        patient_key="PT-BRIGGS-ELEANOR-1951",
+        scenario="HCC — this year's AWV: only diabetes re-documented (recapture gap)",
+        chart_text=(
+            "ANNUAL WELLNESS VISIT — SUBSEQUENT\n"
+            "SUBJECTIVE: 75-year-old woman here for this year's wellness visit; screenings updated.\n"
+            "ASSESSMENT / PLAN:\n"
+            "1. Type 2 diabetes with polyneuropathy — foot examination performed; sensory deficit "
+            "unchanged from last year; A1C 7.1; continue metformin at current dose.\n"
+            "2. Health maintenance — vaccinations current; fall-risk screening negative.\n"
+            "Electronically signed by Dr. S. Whitfield, MD, Internal Medicine."
+        ),
+    ),
 ]
 
 

@@ -53,6 +53,10 @@ class Encounter(Base):
     # demo authoring metadata: what this synthetic chart is designed to exercise
     scenario: Mapped[str] = mapped_column(String(80), default="")
     status: Mapped[str] = mapped_column(String(24), default="NEW")  # NEW|CODED|...
+    # Patient identity across encounters (longitudinal checks: deterministic copy-forward,
+    # current-vs-prior contradiction, HCC recapture). Empty = standalone encounter; in
+    # production this is the EMPI/master-patient-index identifier.
+    patient_key: Mapped[str] = mapped_column(String(40), default="", index=True)
     # Attestation metadata (deterministic Stage-1 checks — not model judgment).
     # In production these come from the EHR feed (FHIR DocumentReference docStatus/attester).
     doc_status: Mapped[str] = mapped_column(String(16), default="final")  # final | preliminary | amended
@@ -389,6 +393,9 @@ class HccResult(Base):
     hccs: Mapped[list] = mapped_column(JSONB, default=list)          # [{hcc,label,coefficient,dx:[codes]}]
     suppressed: Mapped[list] = mapped_column(JSONB, default=list)    # [{hcc,by}] hierarchy suppressions
     unmapped: Mapped[list] = mapped_column(JSONB, default=list)      # dx that do not risk-adjust
+    # HCCs documented in a PRIOR year for this patient but not re-captured in this run —
+    # the recapture opportunity (conditions must be re-documented annually to risk-adjust).
+    recapture_gaps: Mapped[list] = mapped_column(JSONB, default=list)  # [{hcc,label,coefficient}]
     trace: Mapped[list] = mapped_column(JSONB, default=list)         # ordered scorer steps
     resolved: Mapped[bool] = mapped_column(Boolean, default=False)
 
