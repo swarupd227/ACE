@@ -868,6 +868,457 @@ PAYER_POLICY = [
      "or other breast sign/symptom.", False, "", ["N63", "R92", "N64"]),
     ("Medicare", "77080", "DXA bone density covered every 24 months for osteoporosis screening/monitoring "
      "in qualifying beneficiaries (more often if medically necessary).", False, "", ["M81", "M80", "Z13.820"]),
+
+    # ===========================================================================
+    # STATE-SPECIFIC LCD / NCD RADIOLOGY POLICIES
+    # MAC jurisdiction map:
+    #   Noridian-CA  → Noridian Healthcare Solutions, JE — California, Hawaii, Nevada
+    #   Novitas-TX   → Novitas Solutions, JH — Texas, AR, CO, LA, MS, NM, OK
+    #   NGS-NY       → NGS / Wellpoint Federal, JK — New York, CT, MA, ME, NH, RI, VT
+    #   FirstCoast-FL → First Coast Service Options, JN — Florida, PR, USVI
+    #
+    # All entries below are Traditional Medicare (FFS); requires_auth=False for all
+    # because prior auth applies only to Medicare Advantage (Part C) plans.
+    # ICD-10 code lists sourced from CMS Billing & Coding Articles (companion to LCDs).
+    # LCD IDs verified against CMS Medicare Coverage Database (cms.gov/medicare-coverage-database).
+    # ===========================================================================
+
+    # ---------------------------------------------------------------------------
+    # CALIFORNIA — Noridian Healthcare Solutions (JE)
+    # ---------------------------------------------------------------------------
+
+    # LCD L34220 — MRI Lumbar Spine (multi-MAC; Noridian JE active)
+    # Billing & Coding Article A57206; conservative-therapy prerequisite (4–6 wks)
+    # unless red-flag: cauda equina, suspected malignancy, fracture, or new neurologic deficit.
+    ("Noridian-CA", "72148",
+     "LCD L34220: MRI lumbar spine (Noridian JE, California). Covered for radiculopathy, "
+     "disc herniation, spinal stenosis, or spondylosis with neurologic deficit after 4-6 weeks "
+     "of conservative therapy or immediately with red-flag findings (cauda equina, malignancy, "
+     "fracture). Documentation must include duration of symptoms, conservative-therapy history, "
+     "and neurological exam. (Billing & Coding Article A57206)",
+     False, "", ["M54.16", "M54.40", "M54.41", "M54.42", "M54.3", "M51.16", "M51.17",
+                 "M51.26", "M51.36", "M48.06", "M47.816", "M96.1", "G54.4", "M54.50"]),
+
+    # LCD L37373 — MRI and CT Scans of the Head and Neck (Noridian JE active; replaces L35175 for CA)
+    # Billing & Coding Article A57204 R16, effective 2026-01-01
+    ("Noridian-CA", "70551",
+     "LCD L37373: MRI brain without contrast (Noridian JE, California — active LCD, supersedes L35175). "
+     "Covered for new neurologic deficit, suspected demyelinating disease (MS), seizure evaluation, "
+     "TIA/stroke work-up, suspected intracranial neoplasm, or persistent headache with red-flag features. "
+     "Headache alone (R51) without red flags is generally insufficient. (Billing & Coding Article A57204 R16)",
+     False, "", ["G35", "G43.909", "G45.9", "I63.9", "I61.9", "R55", "G40.909", "C71.9",
+                 "G44.1", "G91.9", "R51.9"]),
+
+    ("Noridian-CA", "70450",
+     "LCD L37373: CT head without contrast (Noridian JE, California). Covered for acute neurologic "
+     "symptoms including headache red flags, syncope, seizure, suspected stroke/hemorrhage, or head "
+     "trauma. Must document clinical indication and support CT over alternative imaging. "
+     "(Billing & Coding Article A57204 R16)",
+     False, "", ["R51.9", "R55", "R56.9", "G45.9", "I63.9", "I61.9", "S09.90XA", "G40.909"]),
+
+    ("Noridian-CA", "72141",
+     "LCD L37373: MRI cervical spine without contrast (Noridian JE, California). Covered for "
+     "cervical radiculopathy, myelopathy, or neck pain with neurologic deficit persisting after "
+     "conservative care. Cervicalgia alone (M54.2) is typically insufficient without radiculopathy "
+     "or neurologic findings. (Billing & Coding Article A57204 R16)",
+     False, "", ["M54.12", "M50.12", "M50.32", "M48.02", "M47.812", "G54.2", "M54.2"]),
+
+    # LCD L34415 — CT Abdomen and Pelvis (multi-MAC; Noridian JE active)
+    # Billing & Coding Article A56421; AUC/CDSM documentation required under PAMA
+    ("Noridian-CA", "74177",
+     "LCD L34415: CT abdomen and pelvis with contrast (Noridian JE, California). Covered for "
+     "abdominal pain, suspected appendicitis, renal/ureteral calculus, intra-abdominal mass, "
+     "unexplained weight loss, or staging of known malignancy. PAMA/AUC: ordering physician must "
+     "document consultation of a qualified Clinical Decision Support Mechanism (CDSM). "
+     "(Billing & Coding Article A56421)",
+     False, "", ["R10.11", "R10.31", "R10.9", "K35.80", "N20.0", "N20.1", "R19.00",
+                 "R63.4", "C18.9", "K57.30", "K80.20"]),
+
+    # LCD L34577 — Retroperitoneal/Abdominal Ultrasound (multi-MAC; Noridian JE active)
+    # Billing & Coding Article A55336
+    ("Noridian-CA", "76700",
+     "LCD L34577: Complete abdominal ultrasound (Noridian JE, California). Covered when all major "
+     "abdominal organs are examined (liver, gallbladder, CBD, pancreas, spleen, kidneys, aorta, IVC). "
+     "Supported indications include abdominal pain, organomegaly, palpable mass, ascites, suspected AAA, "
+     "or known hepatic/renal pathology. Do NOT bill 76700 and 76770 together unless separate exams on "
+     "distinct anatomic regions are documented. (Billing & Coding Article A55336)",
+     False, "", ["R10.11", "R10.9", "K80.20", "K85.90", "K74.60", "R16.0", "R16.2",
+                 "N20.0", "I71.4", "C22.0", "R93.2"]),
+
+    # NCD 220.4 + LCD L33950 — Screening/Diagnostic Mammography (Noridian JE)
+    # Billing & Coding Article A56448; facility must be MQSA-certified
+    ("Noridian-CA", "77067",
+     "NCD 220.4 / LCD L33950: Screening mammography (Noridian JE, California). Covered annually "
+     "for women aged 40+; one baseline allowed ages 35–39. Z12.31 is required primary ICD-10 for "
+     "asymptomatic screening. Women with BRCA mutation or strong family history may qualify for "
+     "supplemental breast MRI. Facility must be FDA/MQSA-certified. At least 11 full months must "
+     "elapse between covered screening exams. (Billing & Coding Article A56448)",
+     False, "", ["Z12.31", "Z15.01", "Z80.3", "Z85.3"]),
+
+    ("Noridian-CA", "77066",
+     "LCD L33950: Diagnostic mammography (Noridian JE, California). Covered for a breast lump, "
+     "nipple discharge, skin changes, abnormal screening finding, or personal/family history requiring "
+     "diagnostic follow-up. Switch from screening (77067) to diagnostic (77065/77066) when patient "
+     "is symptomatic. (Billing & Coding Article A56448)",
+     False, "", ["N63.9", "N64.4", "N64.51", "R92.8", "Z85.3", "Z80.3"]),
+
+    # LCD L35753 / L35397 — Non-Invasive Cerebrovascular Arterial Studies (carotid duplex)
+    ("Noridian-CA", "93880",
+     "LCD L35753: Carotid duplex scan, complete bilateral (Noridian JE, California). Covered for "
+     "TIA, recent stroke, amaurosis fugax, documented cervical bruit, or known/suspected carotid "
+     "stenosis. Headache alone (R51) or neck pain alone (M54.2) results in denial. Study must include "
+     "duplex scanning: color Doppler, spectral Doppler with waveform analysis, and peak systolic "
+     "velocity documentation. Annual studies allowed for known 20-49% stenosis. "
+     "(Billing & Coding Article A52992)",
+     False, "", ["I65.21", "I65.22", "I65.29", "G45.9", "G45.3", "R09.89", "I63.9", "R55"]),
+
+    # ---------------------------------------------------------------------------
+    # TEXAS — Novitas Solutions (JH)
+    # ---------------------------------------------------------------------------
+
+    # LCD L34220 — MRI Lumbar Spine (Novitas JH)
+    ("Novitas-TX", "72148",
+     "LCD L34220: MRI lumbar spine (Novitas JH, Texas). Covered for lumbar radiculopathy, disc "
+     "herniation with sciatica, spinal stenosis, or post-laminectomy syndrome with recurrent "
+     "symptoms. Conservative therapy (physiotherapy, NSAIDs) for 4–6 weeks required before MRI "
+     "unless red-flag conditions present. Document specific clinical question MRI is expected to "
+     "answer. (Billing & Coding Article A57206)",
+     False, "", ["M54.16", "M54.40", "M54.41", "M54.42", "M54.3", "M51.16", "M51.17",
+                 "M51.26", "M51.36", "M48.06", "M47.816", "M96.1", "G54.4", "M54.50"]),
+
+    # LCD L35397 — Non-Invasive Cerebrovascular Arterial Studies (Novitas JH — TX-specific LCD)
+    # Billing & Coding Articles A52992, A57592, A57670
+    # This is the TX-jurisdiction-specific LCD for carotid duplex
+    ("Novitas-TX", "93880",
+     "LCD L35397: Carotid duplex, complete bilateral (Novitas JH, Texas — TX-specific LCD). "
+     "Covered for TIA, ischemic stroke, amaurosis fugax, cervical bruit on exam, known carotid "
+     "stenosis follow-up (annual for 20-49%; per symptoms for ≥50%), and pre/post-carotid "
+     "endarterectomy surveillance. Asymptomatic screening without vascular risk factors is denied. "
+     "Duplex study must document real-time B-mode imaging plus pulsed Doppler waveform analysis. "
+     "(Billing & Coding Articles A52992, A57592)",
+     False, "", ["I65.21", "I65.22", "I65.29", "G45.3", "G45.9", "R09.89", "I63.031",
+                 "I63.9", "R55", "R22.1"]),
+
+    # LCD L35175 — MRI and CT Head and Neck (Novitas JH)
+    ("Novitas-TX", "70551",
+     "LCD L35175: MRI brain without contrast (Novitas JH, Texas). Covered for suspected "
+     "demyelinating disease (MS), new focal neurologic deficit, seizure, TIA/stroke work-up, "
+     "suspected intracranial mass, or headache with red-flag features (sudden onset, worst ever, "
+     "progressive, or associated neurologic signs). (Billing & Coding Article A57215)",
+     False, "", ["G35", "G43.909", "G45.9", "I63.9", "I61.9", "R55", "G40.909", "C71.9",
+                 "G44.1", "G91.9", "R51.9"]),
+
+    ("Novitas-TX", "70450",
+     "LCD L35175: CT head without contrast (Novitas JH, Texas). Covered for acute head trauma, "
+     "sudden severe headache, first seizure, syncope with suspected neurologic cause, suspected "
+     "intracranial hemorrhage, or acute stroke symptoms. (Billing & Coding Article A57215)",
+     False, "", ["R51.9", "R55", "R56.9", "G45.9", "I63.9", "I61.9", "G40.909", "S09.90XA"]),
+
+    ("Novitas-TX", "72141",
+     "LCD L35175: MRI cervical spine without contrast (Novitas JH, Texas). Covered for cervical "
+     "radiculopathy or myelopathy, neck pain with upper-extremity neurologic deficit, or cervical "
+     "disc disease with persistent symptoms after conservative care. (Billing & Coding Article A57215)",
+     False, "", ["M54.12", "M50.12", "M50.32", "M48.02", "M47.812", "G54.2"]),
+
+    # LCD L34415 — CT Abdomen and Pelvis (Novitas JH)
+    ("Novitas-TX", "74177",
+     "LCD L34415: CT abdomen and pelvis with contrast (Novitas JH, Texas). Covered for acute "
+     "abdominal pain, suspected appendicitis, renal colic, intra-abdominal mass, GI hemorrhage, "
+     "diverticulitis, or malignancy staging. PAMA AUC/CDSM documentation required for outpatient "
+     "advanced imaging orders. (Billing & Coding Article A56421)",
+     False, "", ["R10.11", "R10.31", "R10.9", "K35.80", "N20.0", "N20.1", "R19.00",
+                 "K57.30", "K92.1", "C18.9", "R63.4"]),
+
+    # LCD L33459 — CT Thorax / CTA Chest PE Protocol (Novitas JH)
+    # Billing & Coding Article A56580
+    ("Novitas-TX", "71275",
+     "LCD L33459: CTA chest, PE protocol (Novitas JH, Texas). Covered for suspected pulmonary "
+     "embolism with documented clinical pre-test probability. IV contrast is mandatory; do NOT "
+     "separately bill 76376/76377 for 3D reconstruction as it is included in 71275. "
+     "Document Wells Score or equivalent pre-test probability assessment. "
+     "(Billing & Coding Article A56580)",
+     False, "", ["I26.99", "I26.09", "I26.90", "R07.1", "R09.1", "Z87.891"]),
+
+    ("Novitas-TX", "71250",
+     "LCD L33459: CT thorax without contrast (Novitas JH, Texas). Covered for indeterminate "
+     "pulmonary nodule follow-up (Lung-RADS), abnormal chest radiograph, suspected thoracic "
+     "pathology, evaluation of mediastinal mass, or interstitial lung disease. "
+     "(Billing & Coding Article A56580)",
+     False, "", ["R91.1", "R91.8", "J98.11", "J84.9", "J93.9", "C34.90", "D14.31", "J18.9"]),
+
+    # LCD L33627 — Non-Invasive Vascular Studies / Peripheral Venous (Novitas JH)
+    # Billing & Coding Articles A52993, A56758
+    ("Novitas-TX", "93970",
+     "LCD L33627: Extremity venous duplex, complete bilateral (Novitas JH, Texas). Covered for "
+     "clinically suspected DVT (edema, tenderness, erythema), work-up for suspected pulmonary "
+     "embolism source, chronic venous insufficiency, or vein mapping for CABG/dialysis access. "
+     "Clinical signs and symptoms must be documented; study must include compression maneuvers, "
+     "color Doppler, and spectral analysis. Cannot bill 93970/93971 with 93922–93931 on same day "
+     "for same extremity. (Billing & Coding Articles A52993, A56758)",
+     False, "", ["I82.401", "I82.402", "I82.4Z1", "I82.413", "I87.2", "I80.3", "I26.99",
+                 "Z01.810", "Z01.818"]),
+
+    # ---------------------------------------------------------------------------
+    # NEW YORK — NGS / Wellpoint Federal (JK)
+    # ---------------------------------------------------------------------------
+
+    # LCD L34220 — MRI Lumbar Spine (NGS JK)
+    ("NGS-NY", "72148",
+     "LCD L34220: MRI lumbar spine (NGS/Wellpoint Federal JK, New York). Covered for radiculopathy, "
+     "disc herniation, spinal stenosis, spondylosis with neurologic deficit, or post-laminectomy "
+     "syndrome. Conservative therapy for 4–6 weeks generally required before MRI absent red-flag "
+     "findings. Documentation must include clinical signs, duration, and prior treatment response. "
+     "(Billing & Coding Article A57206)",
+     False, "", ["M54.16", "M54.40", "M54.41", "M54.42", "M51.16", "M51.17", "M51.26",
+                 "M51.36", "M48.06", "M47.816", "M96.1", "G54.4", "M54.50"]),
+
+    # LCD L35175 — MRI and CT Head and Neck (NGS JK)
+    ("NGS-NY", "70551",
+     "LCD L35175: MRI brain without contrast (NGS/Wellpoint Federal JK, New York). Covered for "
+     "suspected MS or demyelinating disease, seizure evaluation, TIA/stroke work-up, new neurologic "
+     "deficit, suspected intracranial mass, or persistent headache with red-flag features. "
+     "(Billing & Coding Article A57215)",
+     False, "", ["G35", "G43.909", "G45.9", "I63.9", "I61.9", "R55", "G40.909", "C71.9",
+                 "G44.1", "G91.9"]),
+
+    ("NGS-NY", "70450",
+     "LCD L35175: CT head without contrast (NGS/Wellpoint Federal JK, New York). Covered for "
+     "acute head trauma, sudden severe headache, first seizure, syncope, suspected stroke or "
+     "intracranial hemorrhage. (Billing & Coding Article A57215)",
+     False, "", ["R51.9", "R55", "R56.9", "G45.9", "I63.9", "I61.9", "G40.909"]),
+
+    ("NGS-NY", "72141",
+     "LCD L35175: MRI cervical spine without contrast (NGS/Wellpoint Federal JK, New York). "
+     "Covered for cervical radiculopathy, myelopathy, or neck pain with neurologic deficit after "
+     "conservative treatment. (Billing & Coding Article A57215)",
+     False, "", ["M54.12", "M50.12", "M50.32", "M48.02", "M47.812", "G54.2"]),
+
+    # LCD L33459 — CTA Chest PE Protocol (NGS JK)
+    ("NGS-NY", "71275",
+     "LCD L33459: CTA chest, PE protocol (NGS/Wellpoint Federal JK, New York). Covered for "
+     "documented clinical suspicion of pulmonary embolism. IV contrast required; 3D reconstruction "
+     "is bundled — do not bill 76376/76377 separately. Document pre-test probability (Wells Score "
+     "or equivalent). (Billing & Coding Article A56580)",
+     False, "", ["I26.99", "I26.09", "I26.90", "R07.1", "R09.1", "Z87.891"]),
+
+    ("NGS-NY", "71250",
+     "LCD L33459: CT thorax without contrast (NGS/Wellpoint Federal JK, New York). Covered for "
+     "indeterminate pulmonary nodule, abnormal chest radiograph requiring further evaluation, "
+     "suspected interstitial lung disease, mediastinal mass, or pleural pathology. "
+     "(Billing & Coding Article A56580)",
+     False, "", ["R91.1", "R91.8", "J98.11", "J84.9", "J93.9", "C34.90", "J90", "J18.9"]),
+
+    # LCD L37636 — Nonobstetric Pelvic Ultrasound (NGS JK)
+    # Billing & Coding Article A56671
+    ("NGS-NY", "76856",
+     "LCD L37636: Pelvic ultrasound, complete non-obstetric (NGS/Wellpoint Federal JK, New York). "
+     "Covered for pelvic pain, evaluation of uterine fibroids, ovarian cysts or mass, endometriosis, "
+     "abnormal uterine bleeding, postmenopausal bleeding, infertility evaluation, or lower urinary "
+     "tract symptoms. Post-void residual volume measurement (51798) must NOT be billed under "
+     "76856/76857. (Billing & Coding Article A56671)",
+     False, "", ["D25.9", "E28.2", "N80.9", "N84.0", "N85.00", "N91.0", "N91.1", "N92.0",
+                 "N93.9", "N94.4", "N95.0", "N97.9", "R10.32", "R19.09"]),
+
+    # LCD L33627 — Extremity Venous Duplex / DVT (NGS JK)
+    ("NGS-NY", "93970",
+     "LCD L33627: Extremity venous duplex, complete bilateral (NGS/Wellpoint Federal JK, New York). "
+     "Covered for suspected DVT with clinical signs (edema, tenderness, erythema, warmth), "
+     "suspected PE source evaluation, chronic venous insufficiency, or preoperative vein mapping. "
+     "(Billing & Coding Articles A52993, A56758)",
+     False, "", ["I82.401", "I82.402", "I82.4Z1", "I87.2", "I80.3", "I26.99",
+                 "Z01.810", "Z01.818"]),
+
+    # LCD L34577 — Abdominal Ultrasound (NGS JK)
+    ("NGS-NY", "76700",
+     "LCD L34577: Complete abdominal ultrasound (NGS/Wellpoint Federal JK, New York). Covered for "
+     "abdominal pain, hepatomegaly, splenomegaly, suspected AAA, cholelithiasis follow-up, or "
+     "known hepatic/pancreatic/renal pathology requiring surveillance. All major abdominal organs "
+     "must be evaluated and documented to bill 76700 rather than limited 76705. "
+     "(Billing & Coding Article A55336)",
+     False, "", ["R10.9", "R10.11", "K80.20", "K85.90", "K74.60", "R16.0", "R16.2",
+                 "I71.4", "N20.0", "R93.2"]),
+
+    # LCD L35753 — Non-Invasive Cerebrovascular Arterial Studies (NGS JK)
+    ("NGS-NY", "93880",
+     "LCD L35753: Carotid duplex, complete bilateral (NGS/Wellpoint Federal JK, New York). "
+     "Covered for TIA, ischemic stroke, amaurosis fugax, or documented cervical bruit. Annual "
+     "surveillance permitted for known stenosis 20–49%. Post-endarterectomy: 6-week, 6-month, "
+     "and 1-year ipsilateral follow-up studies are covered. Study must document duplex scanning "
+     "with color Doppler and spectral Doppler waveform analysis. "
+     "(Billing & Coding Article A52992)",
+     False, "", ["I65.21", "I65.22", "I65.29", "G45.9", "G45.3", "R09.89", "I63.9", "R55"]),
+
+    # ---------------------------------------------------------------------------
+    # FLORIDA — First Coast Service Options (JN)
+    # ---------------------------------------------------------------------------
+
+    # LCD L34220 — MRI Lumbar Spine (First Coast JN)
+    ("FirstCoast-FL", "72148",
+     "LCD L34220: MRI lumbar spine (First Coast Service Options JN, Florida). Covered for lumbar "
+     "radiculopathy, disc herniation with sciatica, spinal stenosis, degenerative disc disease with "
+     "neurologic deficit, spondylosis with radiculopathy, or post-laminectomy syndrome. Conservative "
+     "therapy prerequisite (4–6 weeks) unless red flags present. (Billing & Coding Article A57206)",
+     False, "", ["M54.16", "M54.40", "M54.41", "M54.42", "M54.3", "M51.16", "M51.17",
+                 "M51.26", "M51.36", "M48.06", "M47.816", "M96.1", "G54.4", "M54.50"]),
+
+    # LCD L35175 — MRI and CT Head and Neck (First Coast JN)
+    ("FirstCoast-FL", "70551",
+     "LCD L35175: MRI brain without contrast (First Coast JN, Florida). Covered for suspected "
+     "demyelinating disease, new focal neurologic deficit, seizure evaluation, TIA/stroke work-up, "
+     "suspected intracranial neoplasm, hydrocephalus, or persistent headache with documented red-flag "
+     "features. Routine headache without red flags is denied. (Billing & Coding Article A57215)",
+     False, "", ["G35", "G43.909", "G45.9", "I63.9", "I61.9", "R55", "G40.909", "C71.9",
+                 "G44.1", "G91.9"]),
+
+    ("FirstCoast-FL", "70450",
+     "LCD L35175: CT head without contrast (First Coast JN, Florida). Covered for head trauma, "
+     "sudden severe headache (thunderclap), first seizure, syncope with suspected neurologic etiology, "
+     "or acute stroke/hemorrhage evaluation. (Billing & Coding Article A57215)",
+     False, "", ["R51.9", "R55", "R56.9", "G45.9", "I63.9", "I61.9", "G40.909", "S09.90XA"]),
+
+    ("FirstCoast-FL", "72141",
+     "LCD L35175: MRI cervical spine without contrast (First Coast JN, Florida). Covered for "
+     "cervical radiculopathy or myelopathy, upper-extremity neurologic deficit, or cervical disc "
+     "disease with symptoms persisting beyond conservative care. (Billing & Coding Article A57215)",
+     False, "", ["M54.12", "M50.12", "M50.32", "M48.02", "M47.812", "G54.2"]),
+
+    # LCD L34415 — CT Abdomen and Pelvis (First Coast JN)
+    ("FirstCoast-FL", "74177",
+     "LCD L34415: CT abdomen and pelvis with contrast (First Coast JN, Florida). Covered for "
+     "acute abdominal pain, suspected appendicitis, renal colic, intra-abdominal mass, diverticulitis, "
+     "GI bleeding, or malignancy staging. PAMA AUC/CDSM documentation required. "
+     "(Billing & Coding Article A56421)",
+     False, "", ["R10.11", "R10.31", "R10.9", "K35.80", "N20.0", "N20.1", "R19.00",
+                 "K57.30", "K92.1", "C18.9", "R63.4"]),
+
+    # LCD L37636 — Nonobstetric Pelvic Ultrasound (First Coast JN — FCSO source LCD)
+    # Billing & Coding Article A56671; First Coast is primary source for this LCD
+    ("FirstCoast-FL", "76856",
+     "LCD L37636: Pelvic ultrasound, complete non-obstetric (First Coast JN, Florida). "
+     "Covered for uterine fibroids (leiomyoma), PCOS, endometriosis, endometrial polyp or hyperplasia, "
+     "abnormal uterine/vaginal bleeding, postmenopausal bleeding, primary/secondary amenorrhea, "
+     "excessive menstruation, pelvic pain, infertility, or pelvic mass. Post-void residual (51798) "
+     "must NOT be billed under 76856/76857. (Billing & Coding Article A56671)",
+     False, "", ["D25.9", "E28.2", "N80.9", "N84.0", "N85.00", "N85.2", "N91.0", "N91.1",
+                 "N92.0", "N92.4", "N93.9", "N94.4", "N94.5", "N95.0", "N97.9",
+                 "R10.32", "R19.03", "R19.09"]),
+
+    # LCD L34577 — Abdominal Ultrasound (First Coast JN)
+    ("FirstCoast-FL", "76700",
+     "LCD L34577: Complete abdominal ultrasound (First Coast JN, Florida). Covered for abdominal "
+     "pain, hepatomegaly, splenomegaly, cholelithiasis, suspected AAA, pancreatitis evaluation, "
+     "cirrhosis monitoring, or renal calculus. All major abdominal organs must be examined to bill "
+     "76700; if exam limited to retroperitoneum only, bill 76770. (Billing & Coding Article A55336)",
+     False, "", ["R10.9", "R10.11", "K80.20", "K85.90", "K74.60", "K76.0", "R16.0", "R16.2",
+                 "N20.0", "I71.4", "C22.0", "R93.2"]),
+
+    # NCD 220.4 + LCD L33950 — Mammography (First Coast JN)
+    ("FirstCoast-FL", "77067",
+     "NCD 220.4 / LCD L33950: Screening mammography (First Coast JN, Florida). Covered annually "
+     "for women aged 40+; one baseline exam at age 35–39. Z12.31 required as primary diagnosis. "
+     "At least 11 full months must elapse between covered screenings. Facility must be FDA/MQSA-certified. "
+     "Symptomatic patients should be coded to diagnostic mammography (77065/77066), not screening. "
+     "(Billing & Coding Article A56448)",
+     False, "", ["Z12.31", "Z15.01", "Z80.3", "Z85.3"]),
+
+    ("FirstCoast-FL", "77066",
+     "LCD L33950: Diagnostic mammography bilateral (First Coast JN, Florida). Covered for breast "
+     "lump, nipple discharge, skin thickening, abnormal screening finding, or personal/family history "
+     "requiring diagnostic follow-up. (Billing & Coding Article A56448)",
+     False, "", ["N63.9", "N64.4", "N64.51", "R92.8", "Z85.3", "Z80.3"]),
+
+    # LCD L33459 — CTA Chest / CT Thorax (First Coast JN)
+    ("FirstCoast-FL", "71275",
+     "LCD L33459: CTA chest, PE protocol (First Coast JN, Florida). Covered for documented clinical "
+     "suspicion of pulmonary embolism. IV contrast required; 3D reconstruction bundled into 71275 — "
+     "do not separately bill 76376/76377. Pre-test probability must be documented. "
+     "(Billing & Coding Article A56580)",
+     False, "", ["I26.99", "I26.09", "I26.90", "R07.1", "R09.1", "Z87.891"]),
+
+    ("FirstCoast-FL", "71250",
+     "LCD L33459: CT thorax without contrast (First Coast JN, Florida). Covered for indeterminate "
+     "pulmonary nodule (Lung-RADS follow-up), abnormal chest radiograph, interstitial lung disease, "
+     "mediastinal mass, or pleural pathology. (Billing & Coding Article A56580)",
+     False, "", ["R91.1", "R91.8", "J98.11", "J84.9", "J93.9", "C34.90", "J90"]),
+
+    # LCD L33627 / L33693 — Extremity Venous Duplex (First Coast JN)
+    ("FirstCoast-FL", "93970",
+     "LCD L33627: Extremity venous duplex, complete bilateral (First Coast JN, Florida). Covered "
+     "for suspected DVT with clinical signs, PE source evaluation, chronic venous insufficiency, or "
+     "preoperative vein mapping (CABG, dialysis access). Clinical documentation of signs/symptoms "
+     "required; cannot bill 93970/93971 with 93922–93931 same day same extremity. "
+     "(Billing & Coding Articles A52993, A56758)",
+     False, "", ["I82.401", "I82.402", "I82.4Z1", "I87.2", "I80.3", "I26.99",
+                 "Z01.810", "Z01.818"]),
+
+    # LCD L35753 — Carotid Duplex (First Coast JN)
+    ("FirstCoast-FL", "93880",
+     "LCD L35753: Carotid duplex, complete bilateral (First Coast JN, Florida). Covered for TIA, "
+     "ischemic stroke, amaurosis fugax, documented cervical bruit, or known carotid stenosis "
+     "surveillance. Annual studies for 20–49% stenosis; post-endarterectomy protocol: 6-week, "
+     "6-month, 1-year. Study must document duplex scan components (B-mode, color Doppler, spectral "
+     "Doppler with peak systolic velocity). (Billing & Coding Article A52992)",
+     False, "", ["I65.21", "I65.22", "I65.29", "G45.9", "G45.3", "R09.89", "I63.9", "R55"]),
+
+    # ---------------------------------------------------------------------------
+    # NATIONAL (NCD) — Supplemental entries referencing explicit NCD IDs
+    # These apply across all four states and fill gaps not covered by the
+    # existing generic "Medicare" entries above.
+    # ---------------------------------------------------------------------------
+
+    # NCD 220.2 — MRI (explicit NCD coverage for cardiac device patients)
+    ("Medicare", "70553",
+     "NCD 220.2 / LCD L37373+L35175: MRI brain without then with contrast. Covered for intracranial "
+     "mass characterization, metastatic disease work-up, or post-treatment follow-up. Also covered "
+     "for patients with FDA-labeled MRI-conditional implanted cardiac devices (pacemakers, ICDs, "
+     "CRT-D/CRT-P) under NCD 220.2 update. Contrast administration must be documented with "
+     "indication. (NCD 220.2; CMS coverage database)",
+     False, "", ["C71.9", "C79.31", "G35", "G45.9", "I63.9", "Z95.0"]),
+
+    # LCD L33459 — CT Thorax (explicit LCD entry with L33459 ID for national Medicare)
+    ("Medicare", "71250",
+     "LCD L33459: CT thorax without contrast. Covered for indeterminate pulmonary nodule "
+     "(Fleischner Society Lung-RADS follow-up), abnormal chest radiograph requiring further "
+     "evaluation, suspected interstitial lung disease, mediastinal mass, or pleural pathology. "
+     "NCD 220.1 frequency limit: no more than 6 studies of the same CPT per calendar year. "
+     "(LCD L33459; Billing & Coding Article A56580)",
+     False, "", ["R91.1", "R91.8", "J98.11", "J84.9", "J93.9", "C34.90", "J90", "D14.31"]),
+
+    # LCD L34415 — CT Abdomen+Pelvis: appendicitis / diverticulitis expansion
+    ("Medicare", "74176",
+     "LCD L34415: CT abdomen and pelvis without contrast (Medicare, national). Covered when "
+     "contrast is contraindicated (renal insufficiency, contrast allergy) with documented indication. "
+     "Supported diagnoses include abdominal pain, calculus evaluation, diverticulosis, or mass. "
+     "PAMA AUC/CDSM documentation required for outpatient advanced imaging orders. "
+     "(LCD L34415; Billing & Coding Article A56421)",
+     False, "", ["R10.9", "R10.11", "R10.31", "N20.0", "K57.30", "R19.00", "C18.9"]),
+
+    # LCD L37636 — Pelvic Ultrasound: expanded ICD set for national Medicare
+    ("Medicare", "76856",
+     "LCD L37636: Pelvic ultrasound, complete non-obstetric (Medicare, national — updated policy). "
+     "Covered for pelvic pain, abnormal uterine bleeding, postmenopausal bleeding, fibroids, PCOS, "
+     "endometriosis, ovarian cyst or mass, endometrial polyp/hyperplasia, dysmenorrhea, amenorrhea, "
+     "or pelvic mass. Post-void residual measurement (51798) is NOT separately billable under "
+     "76856/76857. (LCD L37636; Billing & Coding Article A56671)",
+     False, "", ["R10.2", "N93.9", "N83.20", "N80.9", "D25.9", "E28.2", "N84.0",
+                 "N85.00", "N95.0", "N94.4", "N92.0", "R19.09"]),
+
+    # LCD L33627 — DVT venous duplex: expanded ICD set for national Medicare
+    ("Medicare", "93971",
+     "LCD L33627: Extremity venous duplex, unilateral or limited (Medicare, national). Covered for "
+     "unilateral DVT symptoms, follow-up after positive bilateral study, or one-extremity vein mapping. "
+     "Cannot bill 93971 with 93970 on the same day for the same extremity. "
+     "(LCD L33627; Billing & Coding Articles A52993, A56758)",
+     False, "", ["I82.401", "I82.402", "I82.4Z1", "I87.2", "I80.3", "I26.99"]),
+
+    # NCD 220.4 + LCD L33950 — Screening mammography: BRCA/hereditary risk expansion
+    ("Medicare", "77067",
+     "NCD 220.4 / LCD L33950: Screening mammography, bilateral (Medicare, national — expanded). "
+     "Covered annually for women aged 40+; one baseline at 35–39. BRCA mutation carriers (Z15.01) "
+     "and women with strong family history (Z80.3) qualify; code primary as Z12.31 for asymptomatic "
+     "screening. 11 full months must elapse between covered screenings. Facility must be "
+     "FDA/MQSA-certified. (NCD 220.4; LCD L33950; Billing & Coding Article A56448)",
+     False, "", ["Z12.31", "Z15.01", "Z80.3", "Z85.3"]),
 ]
 
 # --- Medical ontology (concept graph for Graph-RAG) ---
