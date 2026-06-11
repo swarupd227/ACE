@@ -12,7 +12,7 @@ from .config import settings
 from .db import engine
 from .llm.client import LLMUnavailable
 from .routes import admin, cdi, coding, encounters, insights, meta, ops
-from .seed.seeder import seed_all
+from .seed.seeder import seed_missing
 
 
 def _wait_for_db(retries: int = 30, delay: float = 2.0) -> None:
@@ -47,7 +47,7 @@ def create_app() -> FastAPI:
     def _startup() -> None:
         _wait_for_db()
         if settings.ace_auto_seed:
-            result = seed_all()
+            result = seed_missing()
             print(f"[seed] {result}", flush=True)
 
     return app
