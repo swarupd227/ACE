@@ -661,6 +661,47 @@ CHARTS = [
             "Electronically signed by Dr. S. Whitfield, MD, Internal Medicine."
         ),
     ),
+    # 42 — Stage-1 conditioning beat: COPY-FORWARD. The HPI carries an EHR carry-forward
+    # annotation and is temporally stale vs the A/P ("started this week" vs "three months").
+    dict(
+        mrn="EM20003", patient_name="Russell Ohlsson", age=59, sex="M", specialty="E&M",
+        modality="", encounter_type="established", payer="Cigna", pos="11", dos="2026-05-18",
+        client="Lakeside Medical Group", source_system="eClinicalWorks", report_type="progress_note",
+        scenario="E&M — copy-forward HPI (stale text from a prior visit)",
+        chart_text=(
+            "PROGRESS NOTE — OFFICE FOLLOW-UP\n"
+            "CHIEF COMPLAINT: Follow-up of type 2 diabetes.\n"
+            "HPI: [carried forward from encounter dated 02/16/2026] Patient returns for evaluation of "
+            "newly diagnosed type 2 diabetes, started on metformin this week. Reports mild GI upset "
+            "since starting the medication. Denies polyuria or polydipsia at this time.\n"
+            "EXAM: Vitals stable. No acute distress. Foot exam without lesions.\n"
+            "DATA: A1C today 6.8 (down from 8.1 at diagnosis).\n"
+            "ASSESSMENT / PLAN:\n"
+            "1. Type 2 diabetes mellitus without complications — well controlled on metformin for three "
+            "months now; A1C 6.8 today. Continue current dose; recheck A1C in 6 months.\n"
+            "Electronically signed by Dr. S. Whitfield, MD, Internal Medicine."
+        ),
+    ),
+    # 43 — Stage-1 conditioning beat: UNSIGNED. Preliminary dictation, signature pending —
+    # the conditioning flag (not Stage-0) should catch it and keep it off straight-through billing.
+    dict(
+        mrn="RAD10014", patient_name="Beatrice Falk", age=63, sex="F", specialty="Radiology",
+        modality="XR", encounter_type="", payer="Medicare", pos="22", dos="2026-05-18",
+        client="Mercy General Hospital", source_system="Cerner", report_type="report",
+        scenario="Radiology — unsigned preliminary dictation (attestation pending)",
+        chart_text=(
+            "RADIOLOGY REPORT — PRELIMINARY\n"
+            "EXAM: Chest X-ray, PA and lateral (2 views).\n"
+            "HISTORY: 63-year-old woman with productive cough for one week.\n"
+            "TECHNIQUE: PA and lateral radiographs of the chest.\n"
+            "FINDINGS: Patchy opacity in the left lower lobe. No effusion or pneumothorax. "
+            "Heart size within normal limits.\n"
+            "IMPRESSION: Left lower lobe airspace opacity, compatible with pneumonia in the "
+            "appropriate clinical setting.\n"
+            "STATUS: PRELIMINARY — dictated by Dr. F. Okonkwo, MD; electronic signature PENDING. "
+            "Not yet attested.\n"
+        ),
+    ),
     # 39 — Radiology MRI brain → expect 70551-26 + R51.9
     dict(
         mrn="RAD10011", patient_name="Celeste Marchetti", age=44, sex="F", specialty="Radiology",

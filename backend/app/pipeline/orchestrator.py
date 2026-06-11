@@ -393,6 +393,8 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         bounded.append("blocking conditioning flag")
     if ba.get("ambiguous_or_contradiction", True) and is_ambiguous:
         bounded.append("ambiguous/contradictory documentation")
+    if ba.get("unsigned_note", True) and any(f.get("type") == "unsigned" for f in flags):
+        bounded.append("unsigned/unattested note — cannot drive billing")
     if ba.get("critical_care", True) and any("critical care" in (c.get("description", "").lower()) for c in agg_codes):
         bounded.append("critical-care code present")
     ncci_break = any(
