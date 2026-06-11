@@ -20,6 +20,36 @@ def _seeded(db) -> bool:
     return db.scalar(select(models.ReferenceCode).limit(1)) is not None
 
 
+def _clear_all_seed_data(db) -> None:
+    """Delete all seed-managed rows so seed_all(force=True) is fully idempotent.
+    Encounters cascade to coding_runs → code_results / DRG/HCC/anes/APC results."""
+    for cls in (
+        models.Encounter,
+        models.GoldenCase,
+        models.ApcEntry,
+        models.QualCircumstance,
+        models.AnesBaseUnit,
+        models.DemographicFactor,
+        models.HccHierarchy,
+        models.DxHccMap,
+        models.HccCategory,
+        models.OrProcedure,
+        models.MdcAssignment,
+        models.CcMcc,
+        models.DrgDefinition,
+        models.GuidelineChunk,
+        models.OntologyEdge,
+        models.OntologyConcept,
+        models.PayerPolicy,
+        models.MueLimit,
+        models.NcciEdit,
+        models.ModifierRule,
+        models.ReferenceCode,
+    ):
+        db.query(cls).delete(synchronize_session=False)
+    db.flush()
+
+
 def seed_all(force: bool = False) -> dict:
     init_db()
     db = SessionLocal()
@@ -27,6 +57,9 @@ def seed_all(force: bool = False) -> dict:
         config_store.seed_defaults(db)  # idempotent — ensures admin config exists
         if _seeded(db) and not force:
             return {"status": "already_seeded"}
+
+        if force:
+            _clear_all_seed_data(db)
 
         # reference codes
         for code, desc, billable, parent in rd.ICD10CM:
