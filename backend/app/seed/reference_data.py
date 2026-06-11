@@ -206,6 +206,91 @@ ICD10CM = [
     ("R10.3", "Pain localized to other parts of lower abdomen", False, "R10"),
     ("M54.1", "Radiculopathy", False, "M54"),
     ("E04", "Other nontoxic goiter", False, "E04"),
+
+    # =======================================================================
+    # TRAUMA / INJURY EXPANSION — Chapter 19 fractures/dislocations/sprains ('S')
+    # + Chapter 20 external-cause transport accidents ('V'). REAL public-domain
+    # ICD-10-CM (CMS/NCHS), verified against the NLM Clinical Tables ICD-10-CM API
+    # (clinicaltables.nlm.nih.gov). These are the bread-and-butter of trauma imaging
+    # (XR/CT/MRI) and also feed ED and Orthopedics.
+    #
+    # 7th character 'A' = INITIAL ENCOUNTER for CLOSED fracture — the dominant
+    # scenario in diagnostic imaging. 'X' is the required placeholder so the 7th
+    # character lands in the 7th position. Laterality (right/left/unspecified) is
+    # coded where documented. V (external-cause) codes describe the MECHANISM of
+    # injury and are ALWAYS SECONDARY — never first-listed/principal.
+    # =======================================================================
+    # --- Skull / facial fractures (head CT / facial XR) ---
+    ("S02.0XXA", "Fracture of vault of skull, initial encounter for closed fracture", True, "S02.0"),
+    ("S02.109A", "Fracture of base of skull, unspecified side, initial encounter for closed fracture", True, "S02.10"),
+    ("S02.2XXA", "Fracture of nasal bones, initial encounter for closed fracture", True, "S02.2"),
+    # --- Spine fractures (CT/MRI spine; osteoporotic compression common in elderly) ---
+    ("S22.009A", "Unspecified fracture of unspecified thoracic vertebra, initial encounter for closed fracture", True, "S22.00"),
+    ("S32.009A", "Unspecified fracture of unspecified lumbar vertebra, initial encounter for closed fracture", True, "S32.00"),
+    ("S32.010A", "Wedge compression fracture of first lumbar vertebra, initial encounter for closed fracture", True, "S32.01"),
+    # --- Rib fracture (chest XR/CT) ---
+    ("S22.39XA", "Fracture of one rib, unspecified side, initial encounter for closed fracture", True, "S22.39"),
+    # --- Clavicle / shoulder / humerus (shoulder XR 73030) ---
+    ("S42.001A", "Fracture of unspecified part of right clavicle, initial encounter for closed fracture", True, "S42.00"),
+    ("S42.002A", "Fracture of unspecified part of left clavicle, initial encounter for closed fracture", True, "S42.00"),
+    ("S42.009A", "Fracture of unspecified part of unspecified clavicle, initial encounter for closed fracture", True, "S42.00"),
+    ("S42.201A", "Unspecified fracture of upper end of right humerus, initial encounter for closed fracture", True, "S42.20"),
+    ("S42.202A", "Unspecified fracture of upper end of left humerus, initial encounter for closed fracture", True, "S42.20"),
+    ("S42.301A", "Unspecified fracture of shaft of humerus, right arm, initial encounter for closed fracture", True, "S42.30"),
+    ("S42.302A", "Unspecified fracture of shaft of humerus, left arm, initial encounter for closed fracture", True, "S42.30"),
+    # --- Forearm / wrist (wrist XR 73110); S52.501A right radius already defined above ---
+    ("S52.502A", "Unspecified fracture of the lower end of left radius, initial encounter for closed fracture", True, "S52.50"),
+    ("S52.509A", "Unspecified fracture of the lower end of unspecified radius, initial encounter for closed fracture", True, "S52.50"),
+    ("S52.531A", "Colles' fracture of right radius, initial encounter for closed fracture", True, "S52.53"),
+    ("S52.532A", "Colles' fracture of left radius, initial encounter for closed fracture", True, "S52.53"),
+    ("S52.601A", "Unspecified fracture of lower end of right ulna, initial encounter for closed fracture", True, "S52.60"),
+    ("S52.602A", "Unspecified fracture of lower end of left ulna, initial encounter for closed fracture", True, "S52.60"),
+    ("S62.001A", "Unspecified fracture of navicular [scaphoid] bone of right wrist, initial encounter for closed fracture", True, "S62.00"),
+    ("S62.002A", "Unspecified fracture of navicular [scaphoid] bone of left wrist, initial encounter for closed fracture", True, "S62.00"),
+    ("S62.300A", "Unspecified fracture of second metacarpal bone, right hand, initial encounter for closed fracture", True, "S62.30"),
+    ("S62.301A", "Unspecified fracture of second metacarpal bone, left hand, initial encounter for closed fracture", True, "S62.30"),
+    # --- Hip / femur (hip XR / pelvis CT; fragility fracture in elderly) ---
+    ("S72.001A", "Fracture of unspecified part of neck of right femur, initial encounter for closed fracture", True, "S72.00"),
+    ("S72.002A", "Fracture of unspecified part of neck of left femur, initial encounter for closed fracture", True, "S72.00"),
+    ("S72.009A", "Fracture of unspecified part of neck of unspecified femur, initial encounter for closed fracture", True, "S72.00"),
+    ("S72.301A", "Unspecified fracture of shaft of right femur, initial encounter for closed fracture", True, "S72.30"),
+    ("S72.302A", "Unspecified fracture of shaft of left femur, initial encounter for closed fracture", True, "S72.30"),
+    # --- Knee / lower leg (knee XR 73562) ---
+    ("S82.101A", "Unspecified fracture of upper end of right tibia, initial encounter for closed fracture", True, "S82.10"),
+    ("S82.102A", "Unspecified fracture of upper end of left tibia, initial encounter for closed fracture", True, "S82.10"),
+    ("S82.201A", "Unspecified fracture of shaft of right tibia, initial encounter for closed fracture", True, "S82.20"),
+    ("S82.202A", "Unspecified fracture of shaft of left tibia, initial encounter for closed fracture", True, "S82.20"),
+    ("S82.401A", "Unspecified fracture of shaft of right fibula, initial encounter for closed fracture", True, "S82.40"),
+    ("S82.402A", "Unspecified fracture of shaft of left fibula, initial encounter for closed fracture", True, "S82.40"),
+    # --- Ankle malleolus (ankle XR) ---
+    ("S82.61XA", "Displaced fracture of lateral malleolus of right fibula, initial encounter for closed fracture", True, "S82.6"),
+    ("S82.62XA", "Displaced fracture of lateral malleolus of left fibula, initial encounter for closed fracture", True, "S82.6"),
+    ("S82.51XA", "Displaced fracture of medial malleolus of right tibia, initial encounter for closed fracture", True, "S82.5"),
+    ("S82.52XA", "Displaced fracture of medial malleolus of left tibia, initial encounter for closed fracture", True, "S82.5"),
+    # --- Foot (foot XR) ---
+    ("S92.001A", "Unspecified fracture of right calcaneus, initial encounter for closed fracture", True, "S92.00"),
+    ("S92.002A", "Unspecified fracture of left calcaneus, initial encounter for closed fracture", True, "S92.00"),
+    ("S92.301A", "Fracture of unspecified metatarsal bone(s), right foot, initial encounter for closed fracture", True, "S92.30"),
+    ("S92.302A", "Fracture of unspecified metatarsal bone(s), left foot, initial encounter for closed fracture", True, "S92.30"),
+    # --- Dislocations / sprains (MRI/US joints; 7th char 'A' = initial encounter) ---
+    ("S43.004A", "Unspecified dislocation of right shoulder joint, initial encounter", True, "S43.00"),
+    ("S83.511A", "Sprain of anterior cruciate ligament of right knee, initial encounter", True, "S83.51"),
+    ("S83.512A", "Sprain of anterior cruciate ligament of left knee, initial encounter", True, "S83.51"),
+    ("S83.241A", "Other tear of medial meniscus, current injury, right knee, initial encounter", True, "S83.24"),
+    ("S83.242A", "Other tear of medial meniscus, current injury, left knee, initial encounter", True, "S83.24"),
+    ("S93.401A", "Sprain of unspecified ligament of right ankle, initial encounter", True, "S93.40"),
+    ("S93.402A", "Sprain of unspecified ligament of left ankle, initial encounter", True, "S93.40"),
+    # --- External cause: transport accidents (Chapter 20 'V') — ALWAYS SECONDARY ---
+    ("V03.10XA", "Pedestrian on foot injured in collision with car, pick-up truck or van in traffic accident, initial encounter", True, "V03.1"),
+    ("V13.4XXA", "Pedal cycle driver injured in collision with car, pick-up truck or van in traffic accident, initial encounter", True, "V13.4"),
+    ("V27.49XA", "Other motorcycle driver injured in collision with fixed or stationary object in traffic accident, initial encounter", True, "V27.49"),
+    ("V43.52XA", "Car driver injured in collision with other type car in traffic accident, initial encounter", True, "V43.52"),
+    ("V43.62XA", "Car passenger injured in collision with other type car in traffic accident, initial encounter", True, "V43.62"),
+    ("V47.5XXA", "Car driver injured in collision with fixed or stationary object in traffic accident, initial encounter", True, "V47.5"),
+    ("V89.2XXA", "Person injured in unspecified motor-vehicle accident, traffic, initial encounter", True, "V89.2"),
+    # non-billable parents (specificity gate should reject these in favor of the laterality codes)
+    ("S42.00", "Fracture of unspecified part of clavicle", False, "S42.0"),
+    ("S72.00", "Fracture of unspecified part of neck of femur", False, "S72.0"),
 ]
 
 # --- CPT (DEMO_PLACEHOLDER) — (code, description, modality) ---
@@ -560,12 +645,20 @@ MODIFIERS = [
     ("TC", "Technical component", "CPT", "Equipment/technical only"),
     ("59", "Distinct procedural service", "CPT", "Unbundles an NCCI pair when clinically distinct"),
     ("XU", "Unusual non-overlapping service", "CPT", "NCCI-associated X-modifier"),
+    # X{EPSU} — selective, more-specific subsets of modifier 59 (CMS MLN MM8863). Use the
+    # specific X-modifier instead of 59 whenever possible. The NCCI gate accepts any of
+    # 59/XE/XS/XP/XU to unbundle a PTP pair.
+    ("XE", "Separate encounter", "CPT", "X{EPSU} subset of 59: distinct because it occurred during a separate encounter"),
+    ("XS", "Separate structure", "CPT", "X{EPSU} subset of 59: distinct because performed on a separate organ/structure (e.g., imaging of a different anatomic site)"),
+    ("XP", "Separate practitioner", "CPT", "X{EPSU} subset of 59: distinct because performed by a different practitioner"),
     ("51", "Multiple procedures", "CPT", ""),
     ("50", "Bilateral procedure", "CPT", ""),
     ("RT", "Right side", "CPT", ""),
     ("LT", "Left side", "CPT", ""),
     ("25", "Significant, separately identifiable E&M", "CPT", "Same-day E&M with a procedure"),
     ("76", "Repeat procedure by same physician", "CPT", ""),
+    ("77", "Repeat procedure by another physician or other qualified health care professional", "CPT",
+     "Same procedure repeated by a DIFFERENT provider on the same day (e.g., a second radiologist repeats/re-reads a study); not for E&M"),
     ("58", "Staged/related procedure during postoperative period", "CPT", ""),
     ("78", "Unplanned return to OR for related procedure", "CPT", ""),
     ("79", "Unrelated procedure during postoperative period", "CPT", ""),
@@ -843,6 +936,53 @@ ONTOLOGY_CONCEPTS = [
     ("C0032227", "Pleural effusion", "Disease", [{"system": "ICD10CM", "code": "J90"}]),
     ("C0022646", "Kidney structure", "Body Part", []),
     ("C0023884", "Liver structure", "Body Part", []),
+    # =======================================================================
+    # TRAUMA / MUSCULOSKELETAL KNOWLEDGE GRAPH for the Chapter 19 'S' injury
+    # codes. Real UMLS CUIs verified via the Wikidata UMLS-CUI cross-reference
+    # (property P2892). Bone/joint structures are finding_site targets; the
+    # fracture/dislocation concepts map to a representative billable injury code
+    # and are linked is_a 'Bone fracture'. Knee joint (C0022742) and shoulder
+    # joint (C0037004) already exist above and are reused. This enriches
+    # Graph-RAG retrieval + explainability for radiology/ED/ortho trauma reports.
+    # =======================================================================
+    # Skeletal / joint structures (Body Part; maps_to empty — finding_site targets)
+    ("C0037303", "Skull structure", "Body Part", []),
+    ("C0027422", "Nasal bone structure", "Body Part", []),
+    ("C0037949", "Vertebral column structure", "Body Part", []),
+    ("C0039987", "Thoracic vertebra structure", "Body Part", []),
+    ("C0024091", "Lumbar vertebrae structure", "Body Part", []),
+    ("C0035561", "Rib structure", "Body Part", []),
+    ("C0008913", "Clavicle structure", "Body Part", []),
+    ("C0020164", "Humerus structure", "Body Part", []),
+    ("C0034627", "Radius bone structure", "Body Part", []),
+    ("C0041600", "Ulna structure", "Body Part", []),
+    ("C0223724", "Scaphoid bone structure", "Body Part", []),
+    ("C0025526", "Metacarpal bone structure", "Body Part", []),
+    ("C0015811", "Femur structure", "Body Part", []),
+    ("C0040184", "Tibia structure", "Body Part", []),
+    ("C0016068", "Fibula structure", "Body Part", []),
+    ("C0030647", "Patella structure", "Body Part", []),
+    ("C0730182", "Ankle joint structure", "Body Part", []),
+    ("C0006655", "Calcaneus structure", "Body Part", []),
+    ("C0025584", "Metatarsal bone structure", "Body Part", []),
+    ("C0224498", "Meniscus structure", "Body Part", []),
+    # Fracture / dislocation / sprain concepts (Injury or Poisoning) → representative billable code
+    ("C0016658", "Bone fracture", "Injury or Poisoning", []),
+    ("C0035522", "Rib fracture", "Injury or Poisoning", [{"system": "ICD10CM", "code": "S22.39XA"}]),
+    ("C0521169", "Vertebral compression fracture", "Injury or Poisoning", [{"system": "ICD10CM", "code": "S32.010A"}]),
+    ("C0020162", "Humerus fracture", "Injury or Poisoning", [{"system": "ICD10CM", "code": "S42.201A"}]),
+    ("C0435585", "Distal radius fracture", "Injury or Poisoning", [{"system": "ICD10CM", "code": "S52.501A"}]),
+    ("C0009353", "Colles' fracture", "Injury or Poisoning", [{"system": "ICD10CM", "code": "S52.531A"}]),
+    ("C0041601", "Ulna fracture", "Injury or Poisoning", [{"system": "ICD10CM", "code": "S52.601A"}]),
+    ("C0015806", "Femoral neck fracture", "Injury or Poisoning", [{"system": "ICD10CM", "code": "S72.001A"}]),
+    ("C0015802", "Femoral fracture", "Injury or Poisoning", [{"system": "ICD10CM", "code": "S72.301A"}]),
+    ("C0262489", "Tibial plateau fracture", "Injury or Poisoning", [{"system": "ICD10CM", "code": "S82.101A"}]),
+    ("C0040185", "Tibia fracture", "Injury or Poisoning", [{"system": "ICD10CM", "code": "S82.201A"}]),
+    ("C0037005", "Shoulder dislocation", "Injury or Poisoning", [{"system": "ICD10CM", "code": "S43.004A"}]),
+    ("C0409312", "Anterior cruciate ligament injury", "Injury or Poisoning", [{"system": "ICD10CM", "code": "S83.511A"}]),
+    # External cause — transport accident (mechanism of injury → Chapter 20 'V' codes)
+    ("C0000932", "Motor vehicle traffic accident", "Injury or Poisoning",
+     [{"system": "ICD10CM", "code": "V89.2XXA"}, {"system": "ICD10CM", "code": "V03.10XA"}]),
 ]
 # (src_cui, rel, dst_cui)
 ONTOLOGY_EDGES = [
@@ -877,6 +1017,32 @@ ONTOLOGY_EDGES = [
     ("C0034065", "finding_site", "C0024109"),    # pulmonary embolism -> lung
     ("C0032227", "finding_site", "C0024109"),    # pleural effusion -> lung
     ("C0022650", "finding_site", "C0022646"),    # calculus of kidney -> kidney
+    # --- Trauma / musculoskeletal: fracture/injury -> finding_site (bone/joint) ---
+    ("C0035522", "finding_site", "C0035561"),    # rib fracture -> rib
+    ("C0521169", "finding_site", "C0024091"),    # vertebral compression fracture -> lumbar vertebrae
+    ("C0020162", "finding_site", "C0020164"),    # humerus fracture -> humerus
+    ("C0435585", "finding_site", "C0034627"),    # distal radius fracture -> radius
+    ("C0009353", "finding_site", "C0034627"),    # Colles' fracture -> radius
+    ("C0041601", "finding_site", "C0041600"),    # ulna fracture -> ulna
+    ("C0015806", "finding_site", "C0015811"),    # femoral neck fracture -> femur
+    ("C0015802", "finding_site", "C0015811"),    # femoral fracture -> femur
+    ("C0262489", "finding_site", "C0040184"),    # tibial plateau fracture -> tibia
+    ("C0040185", "finding_site", "C0040184"),    # tibia fracture -> tibia
+    ("C0037005", "finding_site", "C0037004"),    # shoulder dislocation -> shoulder joint
+    ("C0409312", "finding_site", "C0022742"),    # ACL injury -> knee joint
+    # --- Fracture hierarchy (is_a) ---
+    ("C0035522", "is_a", "C0016658"),            # rib fracture is_a bone fracture
+    ("C0521169", "is_a", "C0016658"),            # compression fracture is_a bone fracture
+    ("C0020162", "is_a", "C0016658"),            # humerus fracture is_a bone fracture
+    ("C0435585", "is_a", "C0016658"),            # distal radius fracture is_a bone fracture
+    ("C0009353", "is_a", "C0016658"),            # Colles' fracture is_a bone fracture
+    ("C0041601", "is_a", "C0016658"),            # ulna fracture is_a bone fracture
+    ("C0015806", "is_a", "C0016658"),            # femoral neck fracture is_a bone fracture
+    ("C0015802", "is_a", "C0016658"),            # femoral fracture is_a bone fracture
+    ("C0262489", "is_a", "C0016658"),            # tibial plateau fracture is_a bone fracture
+    ("C0040185", "is_a", "C0016658"),            # tibia fracture is_a bone fracture
+    # --- Mechanism: transport accident associated_with the resulting injury ---
+    ("C0262489", "associated_with", "C0000932"), # tibial plateau fracture <-> MV traffic accident
 ]
 
 # --- Guideline chunks (ICD-10-CM Official Guidelines are public domain; paraphrased) ---
@@ -910,6 +1076,13 @@ GUIDELINES = [
     ("Radiology Coding Guidance", "Laterality",
      "For unilateral extremity imaging, append RT (right) or LT (left) to identify the side imaged when "
      "the documentation specifies laterality.", "Radiology"),
+    ("ICD-10-CM Official Guidelines", "I.B.13",
+     "Laterality: Some ICD-10-CM codes indicate laterality (right, left, or bilateral), specified by the "
+     "final character of the code. If no bilateral code is provided and the condition is bilateral, "
+     "assign separate codes for both the left and right side. If the side is not identified in the medical "
+     "record, assign the code for the unspecified side. In imaging, code the side the report documents "
+     "(e.g., right vs left vs unspecified distal radius fracture); use the unspecified-side code only when "
+     "the report does not state the side.", "Radiology"),
     ("Radiology Coding Guidance", "Views",
      "Select the CPT that matches the documented number of views (e.g., single vs 2-view chest; 3-view "
      "vs 4+-view knee). Do not bill a higher view-count code than documented.", "Radiology"),
