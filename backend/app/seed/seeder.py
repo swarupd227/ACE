@@ -22,8 +22,17 @@ def _seeded(db) -> bool:
 
 def _clear_all_seed_data(db) -> None:
     """Delete all seed-managed rows so seed_all(force=True) is fully idempotent.
-    Encounters cascade to coding_runs → code_results / DRG/HCC/anes/APC results."""
+    Bulk DELETE bypasses ORM cascade, so FK children must come before parents."""
     for cls in (
+        # coding_run children first (FK → coding_runs)
+        models.CodeResult,
+        models.DrgResult,
+        models.HccResult,
+        models.AnesResult,
+        models.ApcResult,
+        # then coding_runs (FK → encounters)
+        models.CodingRun,
+        # then encounters and the rest of the seed tables
         models.Encounter,
         models.GoldenCase,
         models.ApcEntry,
