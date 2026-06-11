@@ -830,6 +830,45 @@ CHARTS = [
             "Electronically signed by Dr. R. Kim, MD."
         ),
     ),
+    # Wrist XR after a fall → Colles' fracture (S52.531A) + 73110-26-RT. Simple fall is
+    # NOT a transport accident, so NO external-cause V code (honest — don't force one).
+    dict(
+        mrn="RAD20006", patient_name="Morgan Ellison", age=68, sex="F", specialty="Radiology",
+        modality="XR", payer="Medicare", pos="22", dos="2026-05-18", client="Riverbend Health",
+        source_system="PracticeAdmin", report_type="radiology_report",
+        scenario="Trauma XR — distal radius (Colles') fracture; 7th-character injury code, no V code",
+        chart_text=(
+            "RADIOLOGY REPORT\n"
+            "EXAM: X-ray of the right wrist, 3 views\n"
+            "HISTORY: 68-year-old woman who fell onto an outstretched right hand at home this morning; "
+            "now with wrist pain and deformity.\n"
+            "TECHNIQUE: Three views of the right wrist were obtained. No contrast.\n"
+            "FINDINGS: There is a transverse fracture through the distal radial metaphysis with dorsal "
+            "angulation of the distal fragment. No intra-articular extension. The ulnar styloid is intact.\n"
+            "IMPRESSION: Acute Colles' fracture of the right distal radius.\n"
+            "Electronically signed by Dr. P. Nair, MD."
+        ),
+    ),
+    # Knee XR after a pedestrian-vs-car collision → tibial plateau fracture (S82.101A) +
+    # external-cause V03.10XA (mechanism, SECONDARY) + 73562-26-RT. Demonstrates the S+V pairing.
+    dict(
+        mrn="RAD20007", patient_name="Devin Marsh", age=41, sex="M", specialty="Radiology",
+        modality="XR", payer="Medicare", pos="23", dos="2026-05-18", client="Lakeshore Clinics",
+        source_system="eClinicalWorks", report_type="radiology_report",
+        scenario="Trauma XR — tibial plateau fracture + transport-accident external cause (S + V pairing)",
+        chart_text=(
+            "RADIOLOGY REPORT\n"
+            "EXAM: X-ray of the right knee, 3 views\n"
+            "HISTORY: 41-year-old man, a pedestrian on foot struck by a passing car in the street earlier "
+            "today; presents with right knee pain and inability to bear weight.\n"
+            "TECHNIQUE: Three views of the right knee were obtained. No contrast.\n"
+            "FINDINGS: There is a fracture involving the lateral aspect of the upper end (proximal) of the "
+            "right tibia with a small joint effusion. No patellar fracture. Distal femur intact.\n"
+            "IMPRESSION: Acute fracture of the upper end of the right tibia (tibial plateau). "
+            "Mechanism: pedestrian struck by a car.\n"
+            "Electronically signed by Dr. R. Kim, MD."
+        ),
+    ),
 ]
 
 
