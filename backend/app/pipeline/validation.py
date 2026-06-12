@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import models
+from ..knowledge import graph_rag
 
 
 def _ref(db: Session, system: str, code: str) -> models.ReferenceCode | None:
@@ -21,12 +22,61 @@ def _ref(db: Session, system: str, code: str) -> models.ReferenceCode | None:
     ).first()
 
 
+def _desc_tokens(text: str) -> set[str]:
+    return graph_rag._tokens(text)
+
+
+def _code_matches_region(code_description: str, chart_region: str | None) -> bool | None:
+    if not chart_region:
+        return None
+    desc_region = graph_rag._body_region_hint(_desc_tokens(code_description))
+    if not desc_region:
+        return None
+    return desc_region == chart_region
+
+
+_FRACTURE_DETAIL_HINTS = (
+    "comminuted",
+    "intra-articular",
+    "impaction",
+    "impacted",
+    "angulation",
+    "displaced",
+    "styloid",
+    "colles",
+    "smith",
+    "barton",
+    "salter",
+    "physeal",
+)
+
+_NAMED_FRACTURE_PATTERNS = ("colles", "smith", "barton", "salter-harris", "salter harris")
+
+
+def _unspecified_fracture_needs_review(code: dict[str, Any]) -> bool:
+    desc = (code.get("description", "") or "").lower()
+    if "unspecified fracture" not in desc:
+        return False
+    cited_text = " ".join((c.get("text", "") or "").lower() for c in (code.get("chart_citations") or []))
+    return any(term in cited_text for term in _FRACTURE_DETAIL_HINTS)
+
+
+def _named_fracture_pattern_inferred(code: dict[str, Any]) -> bool:
+    desc = (code.get("description", "") or "").lower()
+    matched_terms = [term for term in _NAMED_FRACTURE_PATTERNS if term in desc]
+    if not matched_terms:
+        return False
+    cited_text = " ".join((c.get("text", "") or "").lower() for c in (code.get("chart_citations") or []))
+    return not any(term in cited_text for term in matched_terms)
+
+
 def run_gates(
     db: Session,
     code: dict[str, Any],
     encounter: models.Encounter,
     all_codes: list[dict[str, Any]],
     rag_payer: list[dict[str, Any]],
+    chart_region: str | None = None,
 ) -> list[dict[str, Any]]:
     system = code["code_system"]
     cval = code["code"]
@@ -61,6 +111,20 @@ def run_gates(
             add("specificity", False, f"{cval} is a non-billable category code")
         else:
             add("specificity", True, "most-specific billable code")
+        if _unspecified_fracture_needs_review(code):
+            add("fracture_specificity_review", False,
+                "chart documents richer fracture detail than the selected unspecified fracture code captures")
+        if _named_fracture_pattern_inferred(code):
+            add("fracture_pattern_inference_review", False,
+                "named fracture pattern was inferred from descriptive findings rather than explicitly documented")
+
+        region_match = _code_matches_region(ref.description, chart_region)
+        if region_match is False:
+            add("anatomy_relevance", False, f"{cval} does not align with chart body region ({chart_region})")
+        elif region_match is True:
+            add("anatomy_relevance", True, f"{cval} aligns with chart body region ({chart_region})")
+        else:
+            add("anatomy_relevance", True, "insufficient anatomy signal to dispute code")
 
     # 3) Sex / age edits
     if ref.sex_restriction and ref.sex_restriction != encounter.sex:

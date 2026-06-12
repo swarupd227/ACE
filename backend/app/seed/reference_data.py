@@ -1911,7 +1911,7 @@ PAYER_POLICY = [
     ("Cigna", "70460", "CT head with contrast requires clinical indication beyond routine headache.",
      False, "", ["R51", "S06", "C71", "I63"]),
     ("Medicare", "71046", "Chest 2-view covered for respiratory symptoms / abnormal findings.",
-     False, "", ["R05", "R07", "J18", "R91"]),
+     False, "", ["R05", "R07", "J18", "R91", "J90", "J98"]),
     ("Medicare", "47562", "Laparoscopic cholecystectomy covered for symptomatic cholelithiasis / "
      "cholecystitis with documented stones.", False, "", ["K80", "K81", "K82"]),
     ("Anthem", "47562", "Prior authorization required for elective laparoscopic cholecystectomy.",
