@@ -261,12 +261,27 @@ def seed_missing() -> dict:
                 mue.add(code); bump("mue")
 
         # payer policy — key (payer, code)
-        pp = {(p.payer, p.code) for p in db.scalars(select(models.PayerPolicy)).all()}
+        pp_rows = {(p.payer, p.code): p for p in db.scalars(select(models.PayerPolicy)).all()}
         for payer, code, mn, auth, modpref, dx in rd.PAYER_POLICY:
-            if (payer, code) not in pp:
+            row = pp_rows.get((payer, code))
+            if row is None:
                 db.add(models.PayerPolicy(payer=payer, code=code, medical_necessity=mn,
                                           requires_auth=auth, modifier_pref=modpref, covered_dx=dx))
-                pp.add((payer, code)); bump("payer_policy")
+                pp_rows[(payer, code)] = True
+                bump("payer_policy")
+            else:
+                changed = (
+                    row.medical_necessity != mn
+                    or row.requires_auth != auth
+                    or row.modifier_pref != modpref
+                    or list(row.covered_dx or []) != list(dx or [])
+                )
+                if changed:
+                    row.medical_necessity = mn
+                    row.requires_auth = auth
+                    row.modifier_pref = modpref
+                    row.covered_dx = dx
+                    bump("payer_policy")
 
         # ontology concepts — key cui (unique)
         cuis = {c.cui for c in db.scalars(select(models.OntologyConcept)).all()}

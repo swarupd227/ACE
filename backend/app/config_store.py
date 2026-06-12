@@ -13,6 +13,13 @@ from . import models
 DEFAULTS: dict = {
     "routing": {"stb_threshold": 0.90, "qa_threshold": 0.75},
     "confidence_weights": {"model": 0.40, "doc_match": 0.25, "rule": 0.25, "historical": 0.10},
+    "confidence_penalties": {
+        "needs_review_code_multiplier": 0.70,
+        "qa_review_multiplier": 0.75,
+        "manual_lane_multiplier": 0.40,
+        "manual_without_accepted_confidence": 0.0,
+        "rejected_code_confidence": 0.0,
+    },
     "self_consistency": {"hard_samples": 3},
     "sla_targets_min": {"STB": 180, "QA": 480, "MANUAL": 1440, "ESCALATED": 240, "CDI": 2880},
     "eligibility": {
@@ -28,6 +35,7 @@ DEFAULTS: dict = {
         "copy_forward": True,
         "critical_care": True,
         "ncci_break": True,
+        "metadata_modality_mismatch": True,
     },
     "specialties": [
         {"name": "Radiology", "enabled": True, "hard": False, "required_code_families_for_stb": ["CPT_HCPCS"]},
@@ -90,10 +98,21 @@ DEFAULTS: dict = {
     },
 }
 
+
+def _merge_dict_defaults(defaults: dict, overrides: dict) -> dict:
+    merged = copy.deepcopy(defaults)
+    for k, v in overrides.items():
+        if isinstance(v, dict) and isinstance(merged.get(k), dict):
+            merged[k] = _merge_dict_defaults(merged[k], v)
+        else:
+            merged[k] = v
+    return merged
+
 # Human-friendly metadata for the Admin UI (label + type hints).
 META: dict = {
     "routing": "Confidence thresholds for STB / QA routing",
     "confidence_weights": "Weights of the 4 accuracy-source factors (should sum to 1.0)",
+    "confidence_penalties": "Penalties that reduce displayed confidence for review/manual outcomes",
     "self_consistency": "Samples for self-consistency on hard encounters",
     "sla_targets_min": "SLA targets per queue (minutes)",
     "eligibility": "Stage-0 auto-coding eligibility rules",
@@ -110,7 +129,10 @@ META: dict = {
 def all_config(db: Session) -> dict:
     cfg = copy.deepcopy(DEFAULTS)
     for r in db.scalars(select(models.AppConfig)).all():
-        cfg[r.key] = r.value
+        if isinstance(r.value, dict) and isinstance(cfg.get(r.key), dict):
+            cfg[r.key] = _merge_dict_defaults(cfg[r.key], r.value)
+        else:
+            cfg[r.key] = r.value
     return cfg
 
 
