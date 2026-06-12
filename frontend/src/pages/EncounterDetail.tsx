@@ -641,24 +641,147 @@ export default function EncounterDetail() {
   );
 }
 
+const STAGE_JSON_KEY = "pipelineTrace.showJson";
+
+const STATUS_STYLES: Record<string, { icon: any; cls: string }> = {
+  pass: { icon: CheckCircle2, cls: "text-emerald-500" },
+  fail: { icon: X, cls: "text-rose-500" },
+  warn: { icon: AlertTriangle, cls: "text-amber-500" },
+  info: { icon: Check, cls: "text-slate-300" },
+};
+
+function stageStatus(s: any): { status: string; line: string } {
+  const rest = stripBig(s);
+  const title: string = s.title ?? s.stage ?? "";
+
+  if (title.includes("Eligibility")) {
+    const passed = rest.passed ?? rest.eligible;
+    const checks: any[] = Array.isArray(rest.checks) ? rest.checks : [];
+    const failed = checks.filter((c: any) => c.passed === false);
+    return {
+      status: passed === false ? "fail" : "pass",
+      line: passed === false
+        ? `Ineligible: ${failed.map((c: any) => c.reason || c.name).join(", ") || "see details"}`
+        : "Encounter meets auto-coding requirements",
+    };
+  }
+  if (title.includes("PII")) {
+    const count = rest.masked ?? (Array.isArray(rest.entities) ? rest.entities.length : null);
+    return { status: "pass", line: count != null ? `${count} identifier${count !== 1 ? "s" : ""} masked` : "PII masking complete" };
+  }
+  if (title.includes("History")) {
+    return { status: "info", line: rest.prior_encounters != null ? "Prior encounter data linked" : "No prior encounter history found" };
+  }
+  if (title.includes("Conditioning")) {
+    const flags: any[] = Array.isArray(rest.flags) ? rest.flags : [];
+    const n = flags.length;
+    return { status: n > 0 ? "warn" : "pass", line: n > 0 ? `${n} flag${n !== 1 ? "s" : ""} detected` : "Document conditioned, no flags" };
+  }
+  if (title.includes("Entity Extraction")) {
+    const dx: any[] = rest.diagnoses ?? rest.dx ?? [];
+    const px: any[] = rest.procedures ?? rest.px ?? [];
+    return { status: "pass", line: `Extracted ${dx.length} diagnoses, ${px.length} procedures` };
+  }
+  if (s.stage === "rag" || title.includes("RAG")) {
+    const icd: any[] = rest.icd_candidates ?? [];
+    const proc: any[] = rest.proc_candidates ?? [];
+    return { status: "pass", line: `Retrieved ${icd.length + proc.length} code candidates from knowledge graph` };
+  }
+  if (title.includes("Candidate Generation")) {
+    const codes: any[] = rest.codes ?? rest.candidates ?? [];
+    return { status: "pass", line: `Generated ${codes.length} code candidate${codes.length !== 1 ? "s" : ""}` };
+  }
+  if (title.includes("Citation")) {
+    const ok = rest.verified ?? rest.passed;
+    return { status: ok === false ? "warn" : "pass", line: ok === false ? "Some citations failed verification" : "Citations verified" };
+  }
+  if (title.includes("Validation") || title.includes("Gates")) {
+    const failures: any[] = rest.failures ?? rest.failed ?? [];
+    const n = failures.length;
+    return { status: n > 0 ? "fail" : "pass", line: n > 0 ? `${n} compliance gate${n !== 1 ? "s" : ""} failed` : "All compliance gates passed" };
+  }
+  if (title.includes("Calibration") || title.includes("routing")) {
+    const lane = rest.lane ?? rest.routing_lane;
+    const conf: number | undefined = rest.confidence ?? rest.overall_confidence;
+    const confStr = conf != null ? ` · ${Math.round(conf * 100)}% confidence` : "";
+    return { status: "info", line: lane ? `Routed to ${lane} lane${confStr}` : `Calibration complete${confStr}` };
+  }
+  if (title.includes("DRG")) {
+    const drg = rest.drg ?? rest.drg_code;
+    return { status: "pass", line: drg ? `DRG ${drg} assigned` : "DRG assignment complete" };
+  }
+  if (title.includes("HCC")) {
+    const hccs: any[] = rest.hccs ?? rest.captured ?? [];
+    const raf: number | undefined = rest.raf ?? rest.raf_score;
+    return { status: "pass", line: `${hccs.length} HCC${hccs.length !== 1 ? "s" : ""} captured${raf != null ? ` · RAF ${raf.toFixed(3)}` : ""}` };
+  }
+  if (title.includes("Anesthesia")) {
+    const units = rest.total_units ?? rest.units;
+    return { status: "pass", line: units != null ? `${units} anesthesia units` : "Anesthesia units calculated" };
+  }
+  const passed = rest.passed ?? rest.ok;
+  const status = passed === false ? "fail" : passed === true ? "pass" : "info";
+  const arrays = Object.entries(rest).filter(([, v]) => Array.isArray(v));
+  const summary = arrays.map(([k, v]) => `${(v as any[]).length} ${k}`).slice(0, 2).join(", ");
+  return { status, line: summary || "Stage complete" };
+}
+
 function PipelineTrace({ stageLog, eligibility }: { stageLog: any[]; eligibility: any }) {
   const [open, setOpen] = useState(false);
+  const [showJson, setShowJson] = useState<boolean>(() => {
+    try { return localStorage.getItem(STAGE_JSON_KEY) === "1"; } catch { return false; }
+  });
+
+  function toggleJson() {
+    setShowJson((v) => {
+      const next = !v;
+      try { localStorage.setItem(STAGE_JSON_KEY, next ? "1" : "0"); } catch {}
+      return next;
+    });
+  }
+
   return (
     <div className="card p-4">
-      <button className="flex items-center justify-between w-full" onClick={() => setOpen((o) => !o)}>
-        <span className="font-semibold text-slate-700 text-sm">Pipeline trace · Stage 0–5</span>
-        <ChevronRight size={16} className={clsx("transition-transform text-slate-400", open && "rotate-90")} />
-      </button>
+      <div className="flex items-center justify-between">
+        <button className="flex items-center gap-2 flex-1 text-left" onClick={() => setOpen((o) => !o)}>
+          <span className="font-semibold text-slate-700 text-sm">Pipeline trace · Stage 0–5</span>
+          <ChevronRight size={16} className={clsx("transition-transform text-slate-400", open && "rotate-90")} />
+        </button>
+        <button
+          onClick={toggleJson}
+          className={clsx(
+            "flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border transition-colors select-none",
+            showJson
+              ? "border-ace-300 bg-ace-50 text-ace-700"
+              : "border-slate-200 bg-white text-slate-400 hover:text-slate-600"
+          )}
+          title={showJson ? "Hide raw JSON" : "Show raw JSON"}
+        >
+          <Cpu size={11} />
+          <span>JSON</span>
+        </button>
+      </div>
       {open && (
         <ol className="mt-3 space-y-2">
-          {(stageLog ?? []).map((s, i) => (
-            <li key={i} className="rounded-lg border border-slate-150 bg-slate-50 p-3">
-              <div className="text-xs font-semibold text-ace-700">{s.title || s.stage}</div>
-              <pre className="mt-1 text-[11px] text-slate-500 whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
-                {JSON.stringify(stripBig(s), null, 1)}
-              </pre>
-            </li>
-          ))}
+          {(stageLog ?? []).map((s, i) => {
+            const { status, line } = stageStatus(s);
+            const { icon: StatusIcon, cls } = STATUS_STYLES[status] ?? STATUS_STYLES.info;
+            return (
+              <li key={i} className="rounded-lg border border-slate-150 bg-slate-50 p-3">
+                <div className="flex items-center gap-2">
+                  <StatusIcon size={13} className={cls} />
+                  <span className="text-xs font-semibold text-ace-700">{s.title || s.stage}</span>
+                </div>
+                {showJson ? (
+                  <pre className="mt-1 text-[11px] text-slate-500 whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+                    {JSON.stringify(stripBig(s), null, 1)}
+                  </pre>
+                ) : (
+                  <p className="mt-1 text-[11px] text-slate-500">{line}</p>
+                )}
+              </li>
+            );
+          })}
         </ol>
       )}
     </div>
