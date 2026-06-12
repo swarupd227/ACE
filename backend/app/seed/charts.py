@@ -878,7 +878,7 @@ CHARTS = [
         mrn="RAD20006", patient_name="Morgan Ellison", age=68, sex="F", specialty="Radiology",
         modality="XR", payer="Medicare", pos="22", dos="2026-05-18", client="Riverbend Health",
         source_system="PracticeAdmin", report_type="radiology_report",
-        scenario="Trauma XR — distal radius (Colles') fracture; 7th-character injury code, no V code",
+        scenario="Trauma XR — Colles' fracture right distal radius (no V code)",
         chart_text=(
             "RADIOLOGY REPORT\n"
             "EXAM: X-ray of the right wrist, 3 views\n"
@@ -897,7 +897,7 @@ CHARTS = [
         mrn="RAD20007", patient_name="Devin Marsh", age=41, sex="M", specialty="Radiology",
         modality="XR", payer="Medicare", pos="23", dos="2026-05-18", client="Lakeshore Clinics",
         source_system="eClinicalWorks", report_type="radiology_report",
-        scenario="Trauma XR — tibial plateau fracture + transport-accident external cause (S + V pairing)",
+        scenario="Trauma XR — tibial plateau fracture + pedestrian MVA (S+V)",
         chart_text=(
             "RADIOLOGY REPORT\n"
             "EXAM: X-ray of the right knee, 3 views\n"
