@@ -602,6 +602,32 @@ class ConfigAudit(Base):
     detail: Mapped[dict] = mapped_column(JSONB, default=dict)
 
 
+class EvalOutcome(Base):
+    """One labeled outcome from the evaluation harness: the run's RAW blended
+    confidence vs adjudicated correctness. The training data for calibration."""
+    __tablename__ = "eval_outcomes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    specialty: Mapped[str] = mapped_column(String(40))
+    confidence: Mapped[float] = mapped_column(Float)
+    correct: Mapped[bool] = mapped_column(Boolean)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class CalibrationCurve(Base):
+    """Fitted isotonic calibration per specialty ('__all__' = global fallback).
+    Applied with sample-size shrinkage toward the raw blend, so sparse data
+    barely moves scores and rich data converges to the measured curve."""
+    __tablename__ = "calibration_curves"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    specialty: Mapped[str] = mapped_column(String(40), unique=True)
+    points: Mapped[list] = mapped_column(JSONB, default=list)  # PAV blocks [{x_min,x_max,y,n}]
+    samples: Mapped[int] = mapped_column(Integer, default=0)
+    positives: Mapped[int] = mapped_column(Integer, default=0)
+    fitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class GoldenCase(Base):
     """Frozen golden-set case for the evaluation harness."""
     __tablename__ = "golden_cases"

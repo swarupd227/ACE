@@ -8,7 +8,7 @@ import re
 import time
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import config_store, models
@@ -16,7 +16,7 @@ from ..config import settings
 from ..knowledge import graph_rag
 from ..llm import prompts
 from ..llm.client import LLMUnavailable, complete_json, model_version
-from . import anes, apc, drg, hcc, history, pii, validation
+from . import anes, apc, calibration, drg, hcc, history, pii, validation
 
 # Confidence routing thresholds (calibrated per-specialty in production)
 STB_THRESHOLD = 0.90
@@ -197,6 +197,26 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         run.llm_calls = len(usage)
         run.finished_at = _now()
         enc.status = "CODED"
+        # Specialty-matched routing: below-threshold work goes to a coder/auditor who
+        # covers this specialty (least-loaded) — never to a generic queue. Roster
+        # entries without a specialties list match everything (backward compatible).
+        if lane in ("QA", "MANUAL") and not run.assigned_to:
+            role_needed = "QA Auditor" if lane == "QA" else "Coder"
+            pool = [m for m in (cfg.get("roster") or [])
+                    if m.get("role") == role_needed
+                    and (not m.get("specialties") or enc.specialty in m["specialties"])]
+            if pool:
+                loads = dict(db.execute(
+                    select(models.CodingRun.assigned_to, func.count())
+                    .where(models.CodingRun.assigned_to != "")
+                    .group_by(models.CodingRun.assigned_to)
+                ).all())
+                pick = min(pool, key=lambda m: loads.get(m["name"], 0))
+                run.assigned_to = pick["name"]
+                say("Calibration & Routing",
+                    f"auto-assigned to {pick['name']} ({role_needed}, covers {enc.specialty})", "info")
+                _audit(db, run, "routing", "auto_assigned",
+                       {"to": pick["name"], "role": role_needed, "specialty": enc.specialty})
         say("Calibration & Routing",
             f"routed → {lane} · {reason}",
             {"STB": "good", "QA": "warn", "MANUAL": "bad"}.get(lane, "info"))
@@ -457,9 +477,24 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     rejected = [cr for cr in persisted if cr.status == "rejected"]
     needs_review = [cr for cr in persisted if cr.status == "needs_review"]
     missing_required = _missing_required_code_families_for_stb(cfg, enc, accepted)
-    overall = round(min((cr.confidence for cr in accepted), default=0.0), 3) if accepted else 0.0
+    raw_overall = round(min((cr.confidence for cr in accepted), default=0.0), 3) if accepted else 0.0
+    # Fitted calibration: raw blend is a feature, the routed value is calibrated
+    # against real outcomes (eval harness + coder feedback). Identity until fitted.
+    overall, cal_info = calibration.apply(db, enc.specialty, raw_overall)
+    if cal_info.get("fitted"):
+        say("Calibration & Routing",
+            f"fitted calibration ({cal_info['source']}, n={cal_info['samples']}): "
+            f"raw {raw_overall:.3f} → calibrated {overall:.3f} "
+            f"(isotonic {cal_info['isotonic']:.3f}, shrinkage {cal_info['shrinkage_weight']})", "info")
     run.overall_confidence = overall
     run.accuracy_estimate = overall  # calibrated estimate; true accuracy comes from the eval harness
+
+    # Per-specialty routing thresholds override the global pair when configured.
+    thresholds_source = "global"
+    if spec_cfg.get("stb_threshold") is not None or spec_cfg.get("qa_threshold") is not None:
+        stb_t = float(spec_cfg.get("stb_threshold", stb_t))
+        qa_t = float(spec_cfg.get("qa_threshold", qa_t))
+        thresholds_source = f"specialty ({enc.specialty})"
 
     # bounded-autonomy hard rules → never STB (each toggleable by admin config)
     bounded = []
@@ -635,11 +670,14 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
             "good" if pr["resolved"] else "warn")
 
     log.append({"stage": "5_calibration", "title": "Confidence Calibration & Routing",
-                "overall_confidence": overall, "accepted": len(accepted),
+                "overall_confidence": overall, "raw_confidence": raw_overall,
+                "calibration": cal_info, "accepted": len(accepted),
                 "needs_review": len(needs_review), "rejected": len(rejected),
                 "bounded_autonomy": bounded, "missing_required_code_families_for_stb": missing_required,
-                "thresholds": {"STB": stb_t, "QA": qa_t}})
-    _audit(db, run, "5_calibration", "calibrated", {"overall": overall, "bounded": bounded})
+                "thresholds": {"STB": stb_t, "QA": qa_t, "source": thresholds_source}})
+    _audit(db, run, "5_calibration", "calibrated",
+           {"overall": overall, "raw": raw_overall, "calibration": cal_info,
+            "thresholds_source": thresholds_source, "bounded": bounded})
 
     if not accepted or rejected:
         return finish("MANUAL", "Rejected/uncitable candidates present — human coding required"
