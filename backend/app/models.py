@@ -201,6 +201,31 @@ class ModifierRule(Base):
     notes: Mapped[str] = mapped_column(Text, default="")
 
 
+class PosRule(Base):
+    """Place-of-service validity for a code (CMS POS / inpatient-only style).
+    Rows exist only where a restriction applies — codes without a row pass
+    (curated subset, honestly labeled in the gate detail)."""
+    __tablename__ = "pos_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(8), unique=True)
+    allowed_pos: Mapped[list] = mapped_column(JSONB, default=list)  # e.g. ["23"]
+    rationale: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(40), default="CMS-POS/DEMO")
+
+
+class ModifierPairRule(Base):
+    """Per-CPT modifier pairing restrictions (MPFS PC/TC-indicator style):
+    explicit (code, modifier) pairs that are INVALID, with the why."""
+    __tablename__ = "modifier_pair_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(8), index=True)
+    modifier: Mapped[str] = mapped_column(String(4))
+    rationale: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(40), default="MPFS/DEMO")
+
+
 class GuidelineChunk(Base):
     """Indexed coding-guideline text for citation verification + retrieval.
     Public sources only (ICD-10-CM Official Guidelines, NCCI policy manual)."""

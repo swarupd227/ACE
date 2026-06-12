@@ -398,7 +398,8 @@ def _eval_core(db: Session, emit) -> dict:
             encounter_type="established" if g.specialty == "E&M" else "",
             payer="Medicare Advantage" if is_hcc else "Medicare",
             pos=("11" if g.specialty == "E&M" or is_hcc
-                 else "21" if g.specialty == "Inpatient (DRG)" else "22"),
+                 else "21" if g.specialty == "Inpatient (DRG)"
+                 else "23" if g.specialty == "ED" else "22"),
             dos="2026-04-15", client=HIDDEN, source_system="eval", chart_text=g.chart_text,
             scenario="golden", status="NEW",
         )

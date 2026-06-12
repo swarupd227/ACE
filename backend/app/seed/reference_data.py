@@ -3323,3 +3323,62 @@ APC_ADDENDUM_B = [
     ("73725", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
     ("74185", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
 ]
+
+
+# ===========================================================================
+# Stage-4 table-driven gates (closing the two spec gaps).
+# POS_RULES — place-of-service validity (rows only where a restriction exists;
+# unlisted codes pass with an honest "no restriction on file" detail).
+# MODIFIER_PAIR_RULES — per-CPT modifier pairings that are INVALID (MPFS
+# PC/TC-indicator style), e.g. modifier 50 on inherently-bilateral codes.
+# ===========================================================================
+
+# (code, allowed_pos, rationale)
+POS_RULES = [
+    ("99281", ["23"], "ED visit codes are valid only in the emergency department"),
+    ("99282", ["23"], "ED visit codes are valid only in the emergency department"),
+    ("99283", ["23"], "ED visit codes are valid only in the emergency department"),
+    ("99284", ["23"], "ED visit codes are valid only in the emergency department"),
+    ("99285", ["23"], "ED visit codes are valid only in the emergency department"),
+    ("99291", ["23", "21"], "critical care delivered in the ED or inpatient setting"),
+    ("99292", ["23", "21"], "critical care add-on follows 99291"),
+    ("99203", ["11", "19", "22"], "office/outpatient visit"),
+    ("99204", ["11", "19", "22"], "office/outpatient visit"),
+    ("99213", ["11", "19", "22"], "office/outpatient visit"),
+    ("99214", ["11", "19", "22"], "office/outpatient visit"),
+    ("99215", ["11", "19", "22"], "office/outpatient visit"),
+    ("G0438", ["11", "19", "22"], "annual wellness visit — office/outpatient"),
+    ("G0439", ["11", "19", "22"], "annual wellness visit — office/outpatient"),
+    ("47562", ["21", "22", "24"], "laparoscopic cholecystectomy requires a facility setting"),
+    ("45378", ["22", "24"], "endoscopy suite — hospital outpatient or ASC"),
+    ("45380", ["22", "24"], "endoscopy suite — hospital outpatient or ASC"),
+    ("45385", ["22", "24"], "endoscopy suite — hospital outpatient or ASC"),
+    ("43235", ["22", "24"], "endoscopy suite — hospital outpatient or ASC"),
+    ("43239", ["22", "24"], "endoscopy suite — hospital outpatient or ASC"),
+    ("27447", ["21", "22", "24"], "total knee arthroplasty requires a facility setting"),
+    ("29881", ["21", "22", "24"], "surgical arthroscopy requires a facility setting"),
+    ("29826", ["21", "22", "24"], "surgical arthroscopy requires a facility setting"),
+    ("66984", ["22", "24"], "cataract surgery — hospital outpatient or ASC"),
+    ("65855", ["11", "22", "24"], "laser trabeculoplasty — office laser suite or facility"),
+    ("50590", ["21", "22", "24"], "lithotripsy requires a facility setting"),
+    ("52234", ["21", "22", "24"], "operative cystoscopy requires a facility setting"),
+    ("42820", ["21", "22", "24"], "tonsillectomy requires a facility setting"),
+    ("69436", ["21", "22", "24"], "tympanostomy under general anesthesia requires a facility"),
+]
+
+# (code, modifier, rationale)
+MODIFIER_PAIR_RULES = [
+    ("77067", "50", "descriptor is already bilateral — modifier 50 is invalid"),
+    ("77066", "50", "descriptor is already bilateral — modifier 50 is invalid"),
+    ("66984", "50", "bilateral cataract is staged — report per eye with RT/LT, not 50"),
+    ("99213", "26", "E/M services have no professional/technical split"),
+    ("99214", "26", "E/M services have no professional/technical split"),
+    ("99215", "26", "E/M services have no professional/technical split"),
+    ("99283", "26", "E/M services have no professional/technical split"),
+    ("99284", "26", "E/M services have no professional/technical split"),
+    ("99285", "26", "E/M services have no professional/technical split"),
+    ("99291", "26", "E/M services have no professional/technical split"),
+    ("47562", "26", "surgical procedure — no professional/technical split"),
+    ("45385", "26", "surgical procedure — no professional/technical split"),
+    ("43239", "26", "surgical procedure — no professional/technical split"),
+]
