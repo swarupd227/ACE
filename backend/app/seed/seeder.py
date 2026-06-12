@@ -32,6 +32,16 @@ def _seeded(db) -> bool:
     return db.scalar(select(models.ReferenceCode).limit(1)) is not None
 
 
+def _merge_specialty_defaults(stored: list[dict], defaults: list[dict]) -> list[dict]:
+    """Merge newly-added specialty fields into an existing runtime config.
+
+    Existing stored values win over defaults so admins keep their edits, but new
+    default fields appear automatically on older databases.
+    """
+    by_name = {s["name"]: dict(s) for s in stored}
+    return [{**d, **by_name.get(d["name"], {})} for d in defaults]
+
+
 def _clear_all_seed_data(db) -> None:
     """Delete all seed-managed rows so seed_all(force=True) is fully idempotent.
     Bulk DELETE bypasses ORM cascade, so FK children must come before parents."""
@@ -191,11 +201,12 @@ def seed_missing() -> dict:
         # Reconcile the specialties config so a newly-added specialty surfaces in the
         # UI/meta without a reseed (all_config overlays the stored value over DEFAULTS).
         stored = config_store.get(db, "specialties")
-        names = {s["name"] for s in stored}
-        new_specs = [s for s in config_store.DEFAULTS["specialties"] if s["name"] not in names]
-        if new_specs:
-            config_store.set_key(db, "specialties", stored + new_specs)
-            bump("specialties", len(new_specs))
+        merged_specs = _merge_specialty_defaults(stored, config_store.DEFAULTS["specialties"])
+        if merged_specs != stored:
+            prev_names = {s["name"] for s in stored}
+            new_count = sum(1 for s in merged_specs if s["name"] not in prev_names)
+            config_store.set_key(db, "specialties", merged_specs)
+            bump("specialties", max(new_count, 1))
 
         # reference codes — key (code_system, code)
         ref = {(c.code_system, c.code) for c in db.scalars(select(models.ReferenceCode)).all()}
