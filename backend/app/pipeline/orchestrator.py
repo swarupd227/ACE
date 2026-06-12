@@ -50,6 +50,40 @@ def _audit(db, run, stage, event, detail, actor="system"):
     ))
 
 
+def _specialty_cfg(cfg: dict, specialty: str) -> dict:
+    return next((s for s in cfg.get("specialties", []) if s.get("name") == specialty), {})
+
+
+def _code_family(code_system: str) -> str:
+    if code_system in ("CPT", "HCPCS"):
+        return "CPT_HCPCS"
+    return code_system
+
+
+def _family_label(family: str) -> str:
+    return {"CPT_HCPCS": "CPT/HCPCS"}.get(family, family)
+
+
+def _present_code_families(codes: list[models.CodeResult]) -> set[str]:
+    return {_code_family(c.code_system) for c in codes}
+
+
+def _missing_required_code_families_for_stb(
+    cfg: dict, encounter: models.Encounter, accepted: list[models.CodeResult]
+) -> list[str]:
+    required = _specialty_cfg(cfg, encounter.specialty).get("required_code_families_for_stb", []) or []
+    present = _present_code_families(accepted)
+    return [family for family in required if family not in present]
+
+
+def _retrieved_proc_code_set(retr: graph_rag.Retrieval) -> set[str]:
+    return {row["code"] for row in (retr.proc_candidates or []) if row.get("code")}
+
+
+def _is_proc_code(code: dict) -> bool:
+    return code.get("code_system") in ("CPT", "HCPCS")
+
+
 # ---------------------------------------------------------------------------
 # Stage 0 — eligibility (deterministic)
 # ---------------------------------------------------------------------------
@@ -269,10 +303,11 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
                 "icd_candidates": retr.icd_candidates, "proc_candidates": retr.proc_candidates,
                 "ontology_paths": retr.ontology_paths, "payer_policies": retr.payer_policies,
                 "guideline_excerpts": retr.guideline_excerpts, "learned": retr.learned})
+    retrieved_proc_codes = _retrieved_proc_code_set(retr)
 
-    # --- Stage 3 — coding (self-consistency on hard encounters) ---
+    # --- Stage 3 – coding (self-consistency on hard encounters) ---
     n_proc = len(analysis.get("procedures", []))
-    spec_cfg = next((s for s in cfg.get("specialties", []) if s["name"] == enc.specialty), {})
+    spec_cfg = _specialty_cfg(cfg, enc.specialty)
     hard = bool(spec_cfg.get("hard")) or is_ambiguous or n_proc > 1
     samples = cfg["self_consistency"]["hard_samples"] if hard else 1
     temp = 0.4 if samples > 1 else 0.0
@@ -353,7 +388,20 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
                                            " [auto: modifier 26 professional component for facility read]").strip()
 
         cit_ok, cit_score = verify_citations(c, lookup)
-        gates = validation.run_gates(db, c, enc, code_dicts, retr.payer_policies)
+        ungrounded_proc = _is_proc_code(c) and c["code"] not in retrieved_proc_codes
+        gates = []
+        if ungrounded_proc:
+            gates.append({
+                "gate": "retrieval_grounding",
+                "passed": False,
+                "detail": f"{c['code_system']} {c['code']} not present in retrieved candidate procedure context",
+            })
+            _audit(db, run, "4_validation", "ungrounded_procedure_code", {
+                "code_system": c["code_system"],
+                "code": c["code"],
+                "retrieved_proc_codes": sorted(retrieved_proc_codes),
+            })
+        gates.extend(validation.run_gates(db, c, enc, code_dicts, retr.payer_policies))
         gate_pass_ratio = sum(1 for g in gates if g["passed"]) / len(gates) if gates else 0.0
         existence_ok = next((g["passed"] for g in gates if g["gate"] == "code_existence"), False)
         _np = sum(1 for g in gates if g["passed"])
@@ -375,7 +423,7 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         )
 
         status = "accepted"
-        if not existence_ok or not cit_ok:
+        if ungrounded_proc or not existence_ok or not cit_ok:
             status = "rejected"
         elif not validation.gates_passed(gates):
             status = "needs_review"
@@ -394,7 +442,8 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         db.add(cr)
         persisted.append(cr)
         gate_log.append({"code": c["code"], "status": status, "citation_verified": cit_ok,
-                         "citation_score": cit_score, "gates": gates})
+                         "citation_score": cit_score, "gates": gates,
+                         "retrieval_grounded": not ungrounded_proc})
 
     log.append({"stage": "3b_citation", "title": "Citation Verification",
                 "verified": [{"code": g["code"], "ok": g["citation_verified"], "score": g["citation_score"]} for g in gate_log]})
@@ -406,6 +455,7 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     accepted = [cr for cr in persisted if cr.status == "accepted"]
     rejected = [cr for cr in persisted if cr.status == "rejected"]
     needs_review = [cr for cr in persisted if cr.status == "needs_review"]
+    missing_required = _missing_required_code_families_for_stb(cfg, enc, accepted)
     overall = round(min((cr.confidence for cr in accepted), default=0.0), 3) if accepted else 0.0
     run.overall_confidence = overall
     run.accuracy_estimate = overall  # calibrated estimate; true accuracy comes from the eval harness
@@ -586,12 +636,18 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     log.append({"stage": "5_calibration", "title": "Confidence Calibration & Routing",
                 "overall_confidence": overall, "accepted": len(accepted),
                 "needs_review": len(needs_review), "rejected": len(rejected),
-                "bounded_autonomy": bounded, "thresholds": {"STB": stb_t, "QA": qa_t}})
+                "bounded_autonomy": bounded, "missing_required_code_families_for_stb": missing_required,
+                "thresholds": {"STB": stb_t, "QA": qa_t}})
     _audit(db, run, "5_calibration", "calibrated", {"overall": overall, "bounded": bounded})
 
     if not accepted or rejected:
         return finish("MANUAL", "Rejected/uncitable candidates present — human coding required"
                       if rejected else "No defensible codes — human coding required")
+    if missing_required:
+        labels = ", ".join(_family_label(family) for family in missing_required)
+        _audit(db, run, "5_calibration", "missing_required_code_families",
+               {"specialty": enc.specialty, "missing": missing_required})
+        return finish("MANUAL", f"Missing required billing code family for STB: {labels}")
     if bounded or needs_review:
         return finish("QA", "; ".join(bounded) or "gate(s) need review")
     if overall >= stb_t:
