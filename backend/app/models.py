@@ -201,6 +201,31 @@ class ModifierRule(Base):
     notes: Mapped[str] = mapped_column(Text, default="")
 
 
+class PosRule(Base):
+    """Place-of-service validity for a code (CMS POS / inpatient-only style).
+    Rows exist only where a restriction applies — codes without a row pass
+    (curated subset, honestly labeled in the gate detail)."""
+    __tablename__ = "pos_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(8), unique=True)
+    allowed_pos: Mapped[list] = mapped_column(JSONB, default=list)  # e.g. ["23"]
+    rationale: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(40), default="CMS-POS/DEMO")
+
+
+class ModifierPairRule(Base):
+    """Per-CPT modifier pairing restrictions (MPFS PC/TC-indicator style):
+    explicit (code, modifier) pairs that are INVALID, with the why."""
+    __tablename__ = "modifier_pair_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(8), index=True)
+    modifier: Mapped[str] = mapped_column(String(4))
+    rationale: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(40), default="MPFS/DEMO")
+
+
 class GuidelineChunk(Base):
     """Indexed coding-guideline text for citation verification + retrieval.
     Public sources only (ICD-10-CM Official Guidelines, NCCI policy manual)."""
@@ -575,6 +600,32 @@ class ConfigAudit(Base):
     action: Mapped[str] = mapped_column(String(16))   # create|update|delete|reset
     target: Mapped[str] = mapped_column(String(160), default="")
     detail: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+class EvalOutcome(Base):
+    """One labeled outcome from the evaluation harness: the run's RAW blended
+    confidence vs adjudicated correctness. The training data for calibration."""
+    __tablename__ = "eval_outcomes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    specialty: Mapped[str] = mapped_column(String(40))
+    confidence: Mapped[float] = mapped_column(Float)
+    correct: Mapped[bool] = mapped_column(Boolean)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class CalibrationCurve(Base):
+    """Fitted isotonic calibration per specialty ('__all__' = global fallback).
+    Applied with sample-size shrinkage toward the raw blend, so sparse data
+    barely moves scores and rich data converges to the measured curve."""
+    __tablename__ = "calibration_curves"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    specialty: Mapped[str] = mapped_column(String(40), unique=True)
+    points: Mapped[list] = mapped_column(JSONB, default=list)  # PAV blocks [{x_min,x_max,y,n}]
+    samples: Mapped[int] = mapped_column(Integer, default=0)
+    positives: Mapped[int] = mapped_column(Integer, default=0)
+    fitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class GoldenCase(Base):

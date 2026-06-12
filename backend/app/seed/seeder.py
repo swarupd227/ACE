@@ -155,6 +155,12 @@ def seed_all(force: bool = False) -> dict:
             db.add(models.ApcEntry(code=code, status_indicator=si, apc=apc,
                                    apc_title=title, national_rate=rate))
 
+        # Stage-4 table-driven gates: POS validity + modifier pairings
+        for code, allowed, rationale in rd.POS_RULES:
+            db.add(models.PosRule(code=code, allowed_pos=allowed, rationale=rationale))
+        for code, mod, rationale in rd.MODIFIER_PAIR_RULES:
+            db.add(models.ModifierPairRule(code=code, modifier=mod, rationale=rationale))
+
         # golden set
         for g in charts.GOLDEN_CASES:
             db.add(models.GoldenCase(specialty=g["specialty"], chart_text=g["chart_text"],
@@ -360,6 +366,18 @@ def seed_missing() -> dict:
                 db.add(models.ApcEntry(code=code, status_indicator=si, apc=apc,
                                        apc_title=title, national_rate=rate))
                 apcs.add(code); bump("apc_entries")
+
+        # Stage-4 gates — POS rules by code; modifier pairings by (code, modifier)
+        posr = {p.code for p in db.scalars(select(models.PosRule)).all()}
+        for code, allowed, rationale in rd.POS_RULES:
+            if code not in posr:
+                db.add(models.PosRule(code=code, allowed_pos=allowed, rationale=rationale))
+                posr.add(code); bump("pos_rules")
+        mpr = {(m.code, m.modifier) for m in db.scalars(select(models.ModifierPairRule)).all()}
+        for code, mod, rationale in rd.MODIFIER_PAIR_RULES:
+            if (code, mod) not in mpr:
+                db.add(models.ModifierPairRule(code=code, modifier=mod, rationale=rationale))
+                mpr.add((code, mod)); bump("modifier_pair_rules")
 
         # golden set — key (specialty, chart_text)
         gold = {(g.specialty, g.chart_text) for g in db.scalars(select(models.GoldenCase)).all()}

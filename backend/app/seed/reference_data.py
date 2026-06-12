@@ -131,6 +131,15 @@ ICD10CM = [
     ("N18.3", "Chronic kidney disease, stage 3 (moderate)", True, "N18"),
     ("C18.9", "Malignant neoplasm of colon, unspecified", True, "C18"),
     ("K56.609", "Unspecified intestinal obstruction", True, "K56.60"),
+    # Episode-of-care triad (ICD-10 7th character: A initial / D subsequent / S sequela);
+    # the initial-encounter 'A' code is seeded near the top with the radiology set.
+    ("S52.501D", "Unspecified fracture of lower end of right radius, subsequent enc, routine healing", True, "S52.50"),
+    ("S52.501S", "Unspecified fracture of lower end of right radius, sequela", True, "S52.50"),
+    # History-of codes (temporal slot: 'history of' is not an active condition)
+    ("Z87.891", "Personal history of nicotine dependence", True, "Z87.89"),
+    ("Z86.73", "Personal history of TIA and cerebral infarction without residual deficits", True, "Z86.7"),
+    # Contraceptive management (device beat)
+    ("Z30.430", "Encounter for insertion of intrauterine contraceptive device", True, "Z30.43"),
     # non-billable parents (specificity gate should reject these)
     ("E11.4", "Type 2 diabetes mellitus with neurological complications", False, "E11"),
     ("M25.56", "Pain in knee", False, "M25.5"),
@@ -1128,6 +1137,9 @@ HCPCS = [
     ("A9585", "Gadobutrol, per 0.1 ml", "MRI"),
     ("A9500", "Technetium Tc-99m sestamibi, diagnostic, per study dose", "NM"),
     ("A9503", "Technetium Tc-99m medronate (MDP), diagnostic, per study dose, up to 30 millicuries", "NM"),
+    # Drugs and devices (real public HCPCS Level II — medication/device extraction slots)
+    ("J0178", "Injection, aflibercept, 1 mg", "OPHTH"),
+    ("J7298", "Levonorgestrel-releasing intrauterine contraceptive system, 52 mg, 5-year duration", "OBGYN"),
 ]
 
 # --- Modifiers ---
@@ -1858,6 +1870,8 @@ MUE = [
     ("52234", 1, "Cystoscopy with bladder tumor resection, one per day"),
     ("66984", 1, "Cataract extraction with IOL, one per eye per day"),
     ("67028", 1, "Intravitreal injection, one per eye per day"),
+    ("J7298", 1, "One IUD device per insertion"),
+    ("58300", 1, "IUD insertion, one per day"),
     ("42820", 1, "Tonsillectomy and adenoidectomy, one per day"),
     ("69436", 1, "Tympanostomy tube insertion, reported once (bilateral via modifier 50)"),
     ("30520", 1, "Septoplasty, one per day"),
@@ -3308,4 +3322,63 @@ APC_ADDENDUM_B = [
     ("73225", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
     ("73725", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
     ("74185", "Q1", "5573", "Level 3 Imaging with Contrast", 506.00),
+]
+
+
+# ===========================================================================
+# Stage-4 table-driven gates (closing the two spec gaps).
+# POS_RULES — place-of-service validity (rows only where a restriction exists;
+# unlisted codes pass with an honest "no restriction on file" detail).
+# MODIFIER_PAIR_RULES — per-CPT modifier pairings that are INVALID (MPFS
+# PC/TC-indicator style), e.g. modifier 50 on inherently-bilateral codes.
+# ===========================================================================
+
+# (code, allowed_pos, rationale)
+POS_RULES = [
+    ("99281", ["23"], "ED visit codes are valid only in the emergency department"),
+    ("99282", ["23"], "ED visit codes are valid only in the emergency department"),
+    ("99283", ["23"], "ED visit codes are valid only in the emergency department"),
+    ("99284", ["23"], "ED visit codes are valid only in the emergency department"),
+    ("99285", ["23"], "ED visit codes are valid only in the emergency department"),
+    ("99291", ["23", "21"], "critical care delivered in the ED or inpatient setting"),
+    ("99292", ["23", "21"], "critical care add-on follows 99291"),
+    ("99203", ["11", "19", "22"], "office/outpatient visit"),
+    ("99204", ["11", "19", "22"], "office/outpatient visit"),
+    ("99213", ["11", "19", "22"], "office/outpatient visit"),
+    ("99214", ["11", "19", "22"], "office/outpatient visit"),
+    ("99215", ["11", "19", "22"], "office/outpatient visit"),
+    ("G0438", ["11", "19", "22"], "annual wellness visit — office/outpatient"),
+    ("G0439", ["11", "19", "22"], "annual wellness visit — office/outpatient"),
+    ("47562", ["21", "22", "24"], "laparoscopic cholecystectomy requires a facility setting"),
+    ("45378", ["22", "24"], "endoscopy suite — hospital outpatient or ASC"),
+    ("45380", ["22", "24"], "endoscopy suite — hospital outpatient or ASC"),
+    ("45385", ["22", "24"], "endoscopy suite — hospital outpatient or ASC"),
+    ("43235", ["22", "24"], "endoscopy suite — hospital outpatient or ASC"),
+    ("43239", ["22", "24"], "endoscopy suite — hospital outpatient or ASC"),
+    ("27447", ["21", "22", "24"], "total knee arthroplasty requires a facility setting"),
+    ("29881", ["21", "22", "24"], "surgical arthroscopy requires a facility setting"),
+    ("29826", ["21", "22", "24"], "surgical arthroscopy requires a facility setting"),
+    ("66984", ["22", "24"], "cataract surgery — hospital outpatient or ASC"),
+    ("65855", ["11", "22", "24"], "laser trabeculoplasty — office laser suite or facility"),
+    ("50590", ["21", "22", "24"], "lithotripsy requires a facility setting"),
+    ("52234", ["21", "22", "24"], "operative cystoscopy requires a facility setting"),
+    ("42820", ["21", "22", "24"], "tonsillectomy requires a facility setting"),
+    ("69436", ["21", "22", "24"], "tympanostomy under general anesthesia requires a facility"),
+]
+
+# (code, modifier, rationale)
+MODIFIER_PAIR_RULES = [
+    ("77067", "50", "descriptor is already bilateral — modifier 50 is invalid"),
+    ("77066", "50", "descriptor is already bilateral — modifier 50 is invalid"),
+    ("66984", "50", "bilateral cataract is staged — report per eye with RT/LT, not 50"),
+    ("99213", "26", "E/M services have no professional/technical split"),
+    ("99214", "26", "E/M services have no professional/technical split"),
+    ("99215", "26", "E/M services have no professional/technical split"),
+    ("99283", "26", "E/M services have no professional/technical split"),
+    ("99284", "26", "E/M services have no professional/technical split"),
+    ("99285", "26", "E/M services have no professional/technical split"),
+    ("99291", "26", "E/M services have no professional/technical split"),
+    ("47562", "26", "surgical procedure — no professional/technical split"),
+    ("45385", "26", "surgical procedure — no professional/technical split"),
+    ("43239", "26", "surgical procedure — no professional/technical split"),
 ]

@@ -171,8 +171,36 @@ def run_gates(
         else:
             add("mue", True, f"within MUE limit ({mue.max_units if mue else 'n/a'})")
 
-        # 8) POS alignment
-        add("pos_alignment", True, f"POS {encounter.pos} acceptable")
+        # 8) POS alignment — table-driven place-of-service validity (CMS POS /
+        # inpatient-only style). Rows exist only where a restriction applies.
+        pos_rule = db.scalars(select(models.PosRule).where(models.PosRule.code == cval)).first()
+        if pos_rule is None:
+            add("pos_alignment", True, f"POS {encounter.pos} — no restriction on file (curated subset)")
+        elif encounter.pos in (pos_rule.allowed_pos or []):
+            add("pos_alignment", True, f"POS {encounter.pos} allowed for {cval}")
+        else:
+            add("pos_alignment", False,
+                f"{cval} not valid at POS {encounter.pos} (allowed: {', '.join(pos_rule.allowed_pos)}) — "
+                f"{pos_rule.rationale}")
+
+        # 8b) Modifier pairing — per-CPT restrictions (MPFS PC/TC-indicator style)
+        # plus the generic contradiction: 50 (bilateral) with RT/LT (unilateral).
+        mods_on_code = list(code.get("modifiers", []))
+        pair_fails = []
+        if mods_on_code:
+            bad_pairs = db.scalars(
+                select(models.ModifierPairRule).where(
+                    models.ModifierPairRule.code == cval,
+                    models.ModifierPairRule.modifier.in_(mods_on_code),
+                )
+            ).all()
+            pair_fails += [f"{cval}-{r.modifier}: {r.rationale}" for r in bad_pairs]
+            if "50" in mods_on_code and ({"RT", "LT"} & set(mods_on_code)):
+                pair_fails.append("50 with RT/LT is contradictory (bilateral vs unilateral)")
+        if pair_fails:
+            add("modifier_pairing", False, "; ".join(pair_fails))
+        else:
+            add("modifier_pairing", True, "no invalid modifier pairings")
 
         # 9) Professional/technical component — facility radiology (7xxxx) and surgical pathology
         # (88xxx) interpretations need modifier 26 (or TC)

@@ -15,7 +15,7 @@ from .. import models
 from ..config import settings
 from ..db import SessionLocal, get_db
 from ..llm.client import LLMUnavailable
-from ..pipeline import orchestrator
+from ..pipeline import calibration, orchestrator
 from ._admin_audit import Actor, get_actor, log_change
 from ._sse import sse_response
 
@@ -364,6 +364,8 @@ def _eval_core(db: Session, emit) -> dict:
         raise LLMUnavailable("LLM not configured — eval requires the reasoning model")
 
     golden = db.scalars(select(models.GoldenCase)).all()
+    # Fresh calibration training data per eval run (live coder feedback is added at fit time).
+    db.execute(delete(models.EvalOutcome))
     # clean previous hidden eval encounters
     old = db.scalars(select(models.Encounter).where(models.Encounter.client == HIDDEN)).all()
     for e in old:
@@ -398,7 +400,8 @@ def _eval_core(db: Session, emit) -> dict:
             encounter_type="established" if g.specialty == "E&M" else "",
             payer="Medicare Advantage" if is_hcc else "Medicare",
             pos=("11" if g.specialty == "E&M" or is_hcc
-                 else "21" if g.specialty == "Inpatient (DRG)" else "22"),
+                 else "21" if g.specialty == "Inpatient (DRG)"
+                 else "23" if g.specialty == "ED" else "22"),
             dos="2026-04-15", client=HIDDEN, source_system="eval", chart_text=g.chart_text,
             scenario="golden", status="NEW",
         )
@@ -459,6 +462,12 @@ def _eval_core(db: Session, emit) -> dict:
             "predicted_units": pred_units, "units_ok": units_ok,
             "icd_ok": icd_ok, "cpt_ok": cpt_ok, "chart_ok": chart_ok, "lane": run.routing_lane,
         })
+        # Persist the labeled outcome (RAW pre-calibration confidence vs adjudicated
+        # correctness) — the training sample for fitted calibration.
+        cal_entry = next((s for s in (run.stage_log or []) if s.get("stage") == "5_calibration"), {})
+        raw_conf = cal_entry.get("raw_confidence", run.overall_confidence)
+        db.add(models.EvalOutcome(specialty=g.specialty, confidence=float(raw_conf or 0.0),
+                                  correct=bool(chart_ok)))
         pred = (sorted(pred_cpt) + sorted(pred_pcs) + sorted(pred_icd)
                 + ([f"DRG {pred_drg}"] if pred_drg else [])
                 + ([f"RAF {pred_raf}"] if pred_raf is not None else [])
@@ -490,9 +499,17 @@ def _eval_core(db: Session, emit) -> dict:
             row["facility_accuracy"] = round(a["fac"] / a["fac_n"], 3)
         by_spec.append(row)
     db.commit()
+    # The eval set doubles as the calibration training set (the spec's "fitted on a
+    # held-out evaluation set per specialty"): isotonic fit + shrinkage at apply time.
+    fitted = calibration.fit_all(db)
+    if fitted:
+        say("Evaluation Harness",
+            "calibration fitted from this run's outcomes + coder feedback: "
+            + ", ".join(f"{k} (n={v['samples']})" for k, v in fitted.items()), "good")
     overall_chart = round(sum(r["chart_ok"] for r in results) / len(results), 3) if results else 0.0
     say("Evaluation Harness", f"done · overall chart accuracy {round(overall_chart * 100)}% on {len(results)} case(s)", "good")
-    return {"overall_chart_accuracy": overall_chart, "by_specialty": by_spec, "cases": results}
+    return {"overall_chart_accuracy": overall_chart, "by_specialty": by_spec, "cases": results,
+            "calibration_fitted": fitted}
 
 
 @router.post("/eval/run")

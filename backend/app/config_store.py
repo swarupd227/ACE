@@ -56,10 +56,20 @@ DEFAULTS: dict = {
         {"name": "HCC / Risk Adjustment", "enabled": True, "hard": True, "required_code_families_for_stb": []},
     ],
     "roster": [
-        {"name": "Priya N.", "role": "Coder"},
-        {"name": "Marcus L.", "role": "Coder"},
-        {"name": "Aisha K.", "role": "QA Auditor"},
-        {"name": "David R.", "role": "QA Auditor"},
+        # specialties = what this person is credentialed to work; below-threshold charts
+        # auto-route to a least-loaded specialty MATCH, never a generic queue. An entry
+        # without a list matches every specialty (backward compatible).
+        {"name": "Priya N.", "role": "Coder",
+         "specialties": ["Radiology", "E&M", "ED", "Cardiology", "Orthopedics", "ENT", "Ophthalmology"]},
+        {"name": "Marcus L.", "role": "Coder",
+         "specialties": ["Surgical", "Pathology", "GI / Endoscopy", "OB/GYN", "Dermatology", "Urology",
+                          "Anesthesia", "Inpatient (DRG)", "HCC / Risk Adjustment"]},
+        {"name": "Aisha K.", "role": "QA Auditor",
+         "specialties": ["Radiology", "E&M", "ED", "Pathology", "Cardiology", "Orthopedics", "ENT",
+                          "Ophthalmology"]},
+        {"name": "David R.", "role": "QA Auditor",
+         "specialties": ["Surgical", "GI / Endoscopy", "OB/GYN", "Dermatology", "Urology", "Anesthesia",
+                          "Inpatient (DRG)", "HCC / Risk Adjustment"]},
         {"name": "CDI Team", "role": "CDI Specialist"},
     ],
     "connectors": [
