@@ -307,6 +307,82 @@ def _missing_required_code_family_reason(
     return "; ".join(messages)
 
 
+_ANCILLARY_HCPCS_TERMS = (
+    "contrast",
+    "agent",
+    "material",
+    "supply",
+    "device",
+    "implant",
+    "drug",
+    "tray",
+    "kit",
+    "per ml",
+    "per mg",
+    "per unit",
+    "per dose",
+)
+
+
+def _analysis_supply_tokens(analysis: dict) -> set[str]:
+    parts: list[str] = []
+    for med in analysis.get("medications") or []:
+        if not isinstance(med, dict):
+            continue
+        parts.extend([med.get("name", ""), med.get("dose", ""), med.get("route", ""), med.get("indication", "")])
+    for device in analysis.get("devices") or []:
+        if not isinstance(device, dict):
+            continue
+        parts.extend([device.get("name", ""), device.get("type", "")])
+    return _tok(" ".join(parts))
+
+
+def _is_ancillary_procedure_result(code: models.CodeResult, analysis: dict) -> bool:
+    if code.code_system != "HCPCS":
+        return False
+    desc = (code.description or "").lower()
+    if any(term in desc for term in _ANCILLARY_HCPCS_TERMS):
+        return True
+    supply_tokens = _analysis_supply_tokens(analysis)
+    if not supply_tokens:
+        return False
+    return bool(_tok(desc) & supply_tokens)
+
+
+def _primary_procedure_results(codes: list[models.CodeResult], analysis: dict) -> list[models.CodeResult]:
+    return [
+        cr for cr in codes
+        if cr.code_system in ("CPT", "HCPCS") and not _is_ancillary_procedure_result(cr, analysis)
+    ]
+
+
+def _missing_primary_procedure_reason(
+    cfg: dict,
+    encounter: models.Encounter,
+    persisted: list[models.CodeResult],
+    accepted: list[models.CodeResult],
+    analysis: dict,
+) -> str | None:
+    required = _specialty_cfg(cfg, encounter.specialty).get("required_code_families_for_stb", []) or []
+    if "CPT_HCPCS" not in required:
+        return None
+    if not (analysis.get("procedures") or []):
+        return None
+    proc_results = [cr for cr in persisted if cr.code_system in ("CPT", "HCPCS")]
+    if not proc_results:
+        return None
+    accepted_primary = _primary_procedure_results(accepted, analysis)
+    if accepted_primary:
+        return None
+    primary_candidates = _primary_procedure_results(proc_results, analysis)
+    if not primary_candidates:
+        return "No accepted primary procedure remained; only ancillary HCPCS supply/drug codes were available"
+    failed = _failed_gate_names(primary_candidates)
+    if failed:
+        return f"No accepted primary procedure remained after validation ({', '.join(failed)})"
+    return "No accepted primary procedure remained after validation"
+
+
 def _needs_review_reason(needs_review: list[models.CodeResult]) -> str:
     failed = _failed_gate_names(needs_review)
     if failed:
@@ -805,6 +881,7 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     rejected = [cr for cr in persisted if cr.status == "rejected"]
     needs_review = [cr for cr in persisted if cr.status == "needs_review"]
     missing_required = _missing_required_code_families_for_stb(cfg, enc, accepted)
+    missing_primary_proc_reason = _missing_primary_procedure_reason(cfg, enc, persisted, accepted, analysis)
     raw_overall = round(min((cr.confidence for cr in accepted), default=0.0), 3) if accepted else 0.0
     # Fitted calibration: raw blend is a feature, the routed value is calibrated
     # against real outcomes (eval harness + coder feedback). Identity until fitted.
@@ -1012,6 +1089,7 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         "rejected": len(rejected),
         "bounded_autonomy": bounded,
         "missing_required_code_families_for_stb": missing_required,
+        "missing_primary_procedure_reason": missing_primary_proc_reason,
         "thresholds": {"STB": stb_t, "QA": qa_t, "source": thresholds_source},
     }
     log.append(calibration_log)
@@ -1048,6 +1126,10 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         _audit(db, run, "5_calibration", "missing_required_code_families",
                {"specialty": enc.specialty, "missing": missing_required})
         return finalize_lane("MANUAL", reason)
+    if missing_primary_proc_reason:
+        _audit(db, run, "5_calibration", "missing_primary_procedure",
+               {"specialty": enc.specialty, "reason": missing_primary_proc_reason})
+        return finalize_lane("MANUAL", missing_primary_proc_reason)
     if bounded or needs_review:
         return finalize_lane("QA", "; ".join(bounded) or _needs_review_reason(needs_review))
     if routing_overall >= stb_t:
