@@ -546,6 +546,7 @@ CHARTS = [
             "on OCT.\n"
             "PROCEDURE: Intravitreal injection of an anti-VEGF pharmacologic agent, left eye, under sterile "
             "technique.\n"
+            "MEDICATION: Aflibercept 2 mg in 0.05 mL injected into the vitreous cavity of the left eye.\n"
             "FINDINGS: Injection delivered without complication; patient tolerated well.\n"
             "IMPRESSION: Macular degeneration, left eye, treated with intravitreal anti-VEGF.\n"
             "Electronically signed by Dr. N. Abara, MD, Ophthalmologist."
@@ -992,6 +993,48 @@ CHARTS = [
             "unchanged from last year; A1C 7.1; continue metformin at current dose.\n"
             "2. Health maintenance — vaccinations current; fall-risk screening negative.\n"
             "Electronically signed by Dr. S. Whitfield, MD, Internal Medicine."
+        ),
+    ),
+    # ── Stage-2 slots: EPISODE OF CARE (7th character) ────────────────────────────────
+    # Follow-up imaging of a healing fracture → the 'subsequent encounter' episode must
+    # drive S52.501D, not the initial-encounter A code.
+    dict(
+        mrn="RAD10015", patient_name="Priscilla Okafor", age=41, sex="F", specialty="Radiology",
+        modality="XR", encounter_type="", payer="Medicare", pos="22", dos="2026-05-22",
+        client="Mercy General Hospital", source_system="Cerner", report_type="report",
+        scenario="Radiology — fracture follow-up (subsequent encounter, 7th character D)",
+        chart_text=(
+            "RADIOLOGY REPORT\n"
+            "EXAM: XR right wrist, 3 views.\n"
+            "HISTORY: 41-year-old woman six weeks after closed fracture of the distal radius; routine "
+            "follow-up of healing. Subsequent encounter for fracture care.\n"
+            "TECHNIQUE: PA, lateral and oblique radiographs of the right wrist.\n"
+            "FINDINGS: Healing fracture of the distal right radius with bridging callus and near-anatomic "
+            "alignment. No hardware. No new fracture line.\n"
+            "IMPRESSION: Healing distal radius fracture with expected interval appearance — subsequent "
+            "encounter, routine healing.\n"
+            "Electronically signed by Dr. A. Reyes, MD, Radiologist."
+        ),
+    ),
+    # ── Stage-2 slots: DEVICE / HCPCS II ───────────────────────────────────────────────
+    # IUD insertion bills the procedure AND the supplied device (J7298) + encounter dx.
+    dict(
+        mrn="GY80003", patient_name="Renata Vasquez", age=29, sex="F", specialty="OB/GYN",
+        modality="", encounter_type="established", payer="Cigna", pos="11", dos="2026-05-22",
+        client="Lakeside Medical Group", source_system="eClinicalWorks", report_type="procedure_note",
+        scenario="OB/GYN — IUD insertion (procedure + supplied device J-code)",
+        chart_text=(
+            "OFFICE PROCEDURE NOTE\n"
+            "PROCEDURE: Insertion of intrauterine contraceptive device.\n"
+            "INDICATION: 29-year-old woman requesting long-acting reversible contraception after "
+            "counseling on available methods.\n"
+            "DETAILS: Informed consent obtained. Bimanual exam performed; uterus anteverted, normal size. "
+            "Speculum placed, cervix prepped. Uterus sounded to 7 cm. A levonorgestrel-releasing "
+            "intrauterine system 52 mg was inserted without difficulty; strings trimmed to 3 cm. "
+            "Patient tolerated the procedure well.\n"
+            "DEVICE SUPPLIED: Levonorgestrel-releasing intrauterine contraceptive system, 52 mg.\n"
+            "IMPRESSION: Successful IUD insertion for contraceptive management.\n"
+            "Electronically signed by Dr. K. Yuen, MD, Obstetrics & Gynecology."
         ),
     ),
 ]

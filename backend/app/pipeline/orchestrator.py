@@ -285,6 +285,7 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
                 "sections": analysis.get("sections", []), "flags": flags})
     log.append({"stage": "2_extraction", "title": "Clinical Entity Extraction",
                 "diagnoses": analysis.get("diagnoses", []), "procedures": analysis.get("procedures", []),
+                "medications": analysis.get("medications", []), "devices": analysis.get("devices", []),
                 "em_factors": analysis.get("em_factors", {})})
     _audit(db, run, "1_analysis", "analysis_done",
            {"summary": run.chart_summary, "flags": flags})

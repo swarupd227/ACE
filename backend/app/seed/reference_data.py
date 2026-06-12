@@ -131,6 +131,15 @@ ICD10CM = [
     ("N18.3", "Chronic kidney disease, stage 3 (moderate)", True, "N18"),
     ("C18.9", "Malignant neoplasm of colon, unspecified", True, "C18"),
     ("K56.609", "Unspecified intestinal obstruction", True, "K56.60"),
+    # Episode-of-care triad (ICD-10 7th character: A initial / D subsequent / S sequela);
+    # the initial-encounter 'A' code is seeded near the top with the radiology set.
+    ("S52.501D", "Unspecified fracture of lower end of right radius, subsequent enc, routine healing", True, "S52.50"),
+    ("S52.501S", "Unspecified fracture of lower end of right radius, sequela", True, "S52.50"),
+    # History-of codes (temporal slot: 'history of' is not an active condition)
+    ("Z87.891", "Personal history of nicotine dependence", True, "Z87.89"),
+    ("Z86.73", "Personal history of TIA and cerebral infarction without residual deficits", True, "Z86.7"),
+    # Contraceptive management (device beat)
+    ("Z30.430", "Encounter for insertion of intrauterine contraceptive device", True, "Z30.43"),
     # non-billable parents (specificity gate should reject these)
     ("E11.4", "Type 2 diabetes mellitus with neurological complications", False, "E11"),
     ("M25.56", "Pain in knee", False, "M25.5"),
@@ -1128,6 +1137,9 @@ HCPCS = [
     ("A9585", "Gadobutrol, per 0.1 ml", "MRI"),
     ("A9500", "Technetium Tc-99m sestamibi, diagnostic, per study dose", "NM"),
     ("A9503", "Technetium Tc-99m medronate (MDP), diagnostic, per study dose, up to 30 millicuries", "NM"),
+    # Drugs and devices (real public HCPCS Level II — medication/device extraction slots)
+    ("J0178", "Injection, aflibercept, 1 mg", "OPHTH"),
+    ("J7298", "Levonorgestrel-releasing intrauterine contraceptive system, 52 mg, 5-year duration", "OBGYN"),
 ]
 
 # --- Modifiers ---
@@ -1858,6 +1870,8 @@ MUE = [
     ("52234", 1, "Cystoscopy with bladder tumor resection, one per day"),
     ("66984", 1, "Cataract extraction with IOL, one per eye per day"),
     ("67028", 1, "Intravitreal injection, one per eye per day"),
+    ("J7298", 1, "One IUD device per insertion"),
+    ("58300", 1, "IUD insertion, one per day"),
     ("42820", 1, "Tonsillectomy and adenoidectomy, one per day"),
     ("69436", 1, "Tympanostomy tube insertion, reported once (bilateral via modifier 50)"),
     ("30520", 1, "Septoplasty, one per day"),
