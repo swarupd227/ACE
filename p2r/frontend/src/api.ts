@@ -1,5 +1,6 @@
 import type {
-  AceStatus, DocumentProvisions, DocumentRow, Meta, Recommendation, RuleLibraryEntry,
+  AceStatus, AuditEntry, DenialSignal, DocumentProvisions, DocumentRow, Lineage, Meta,
+  PolicyDelta, PolicySource, Recommendation, ReplayResult, RuleIr, RuleLibraryEntry,
 } from "./types";
 
 const BASE = (import.meta as any).env?.VITE_API_BASE ?? "/api";
@@ -65,4 +66,25 @@ export const api = {
   // Golden-set eval harness
   evalGolden: () => req<GoldenCase[]>("/eval/golden"),
   evalRun: () => req<EvalReport>("/eval/run", { method: "POST" }),
+
+  // P1 — source registry, acquisition agent, deltas, payer MDM
+  sources: () => req<PolicySource[]>("/sources"),
+  acquire: (id: string) => req<any>(`/sources/${id}/acquire`, { method: "POST" }),
+  deltas: () => req<PolicyDelta[]>("/deltas"),
+  payerMaster: () => req<{ payer_id: string; name: string; aliases: string[]; lines_of_business: string[] }[]>("/payer-master"),
+
+  // P2 — denial pattern discovery
+  denialsLoadSample: () => req<{ remittance_lines: number }>("/denials/load-sample", { method: "POST" }),
+  denialsDetect: () => req<{ signals: number; remittance_lines: number; recent_window_days: number; results: DenialSignal[] }>("/denials/detect", { method: "POST" }),
+  denialSignals: (status = "") => req<DenialSignal[]>(`/denials/signals${status ? `?status=${status}` : ""}`),
+  promoteSignal: (id: string) => req<{ signal_id: string; recommendation_id: string; recommendation: Recommendation }>(`/denials/signals/${id}/promote`, { method: "POST" }),
+
+  // P4 — rule IR / compiler, replay, rollback
+  ruleIr: (id: string) => req<RuleIr>(`/recommendations/${id}/rule-ir`),
+  replay: (id: string) => req<ReplayResult>(`/recommendations/${id}/replay`, { method: "POST" }),
+  rollback: (id: string) => req<any>(`/recommendations/${id}/rollback`, { method: "POST" }),
+
+  // UX — decision log + lineage
+  audit: (phase = "") => req<AuditEntry[]>(`/audit${phase ? `?phase=${phase}` : ""}`),
+  lineage: (id: string) => req<Lineage>(`/recommendations/${id}/lineage`),
 };

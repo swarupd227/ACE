@@ -1,14 +1,20 @@
 import { NavLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
-import { FileSearch, ClipboardCheck, Library, FlaskConical, Cpu, ShieldCheck, Workflow } from "lucide-react";
+import {
+  FileSearch, ClipboardCheck, Library, FlaskConical, Cpu, ShieldCheck, Workflow,
+  Radar, Activity, ScrollText,
+} from "lucide-react";
 import { api } from "../api";
 
 const nav = [
   { to: "/", label: "Policy Workbench", icon: FileSearch, end: true },
+  { to: "/sources", label: "Sources & Acquisition", icon: Radar },
+  { to: "/denials", label: "Denial Discovery", icon: Activity },
   { to: "/review", label: "Review Queue", icon: ClipboardCheck },
   { to: "/library", label: "Rule Library", icon: Library },
   { to: "/eval", label: "Evaluation Harness", icon: FlaskConical },
+  { to: "/audit", label: "Decision Log", icon: ScrollText },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

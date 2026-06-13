@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle, CheckCircle2, Send, Pencil, Quote, Link2, ShieldCheck, X,
+  Repeat, GitBranch, RotateCcw, Database, FileText,
 } from "lucide-react";
+import clsx from "clsx";
 import { api } from "../api";
 import {
   CodeChips, ConfidenceBar, ProvisionBadge, ReconBadge, StatusBadge, ValidationBadge, Spinner,
@@ -91,6 +93,15 @@ export default function ReviewQueue() {
   );
 }
 
+function OriginBadge({ origin }: { origin: string }) {
+  const denial = origin === "DENIAL";
+  return (
+    <span className={clsx("pill ring-1", denial ? "bg-rose-50 text-rose-700 ring-rose-200" : "bg-sky-50 text-sky-700 ring-sky-200")}>
+      {denial ? "from denials" : "from policy"}
+    </span>
+  );
+}
+
 function AcePanel({ ace }: { ace?: { reachable: boolean; ace_base_url: string; p2r_published_policies?: number } }) {
   return (
     <div className="card p-3 w-72 shrink-0">
@@ -133,12 +144,21 @@ function RecCard({ rec, onChange, onError, aceReachable }: {
     mutationFn: () => api.publishToAce(rec.id),
     onSuccess: onChange, onError: (e: any) => onError(e.message),
   });
+  const rollback = useMutation({
+    mutationFn: () => api.rollback(rec.id),
+    onSuccess: onChange, onError: (e: any) => onError(e.message),
+  });
+  const [replay, setReplay] = useState<any>(null);
+  const [lineage, setLineage] = useState<any>(null);
+  const runReplay = useMutation({ mutationFn: () => api.replay(rec.id), onSuccess: setReplay, onError: (e: any) => onError(e.message) });
+  const runLineage = useMutation({ mutationFn: () => api.lineage(rec.id), onSuccess: setLineage, onError: (e: any) => onError(e.message) });
 
   return (
     <div className={`card p-4 space-y-3 ${rec.needs_attention ? "border-rose-200" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           <ProvisionBadge type={rec.provision_type} />
+          <OriginBadge origin={rec.origin} />
           <ReconBadge verdict={rec.reconciliation_verdict} />
           <ValidationBadge verdict={rec.validation_verdict} />
           <StatusBadge status={rec.status} />
@@ -206,6 +226,39 @@ function RecCard({ rec, onChange, onError, aceReachable }: {
         </div>
       )}
 
+      {/* Replay / differential result */}
+      {replay && (
+        <div className="rounded-lg bg-slate-50 ring-1 ring-slate-200 p-3 text-xs text-slate-600">
+          <div className="flex items-center gap-1.5 font-semibold text-slate-700">
+            <Database size={13} /> Replay vs claim history
+          </div>
+          {replay.claims_matched ? (
+            <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5">
+              <div>claims matched: <b>{replay.claims_matched}</b></div>
+              <div>current denials: <b>{replay.current_denials}</b> ({Math.round((replay.current_denial_rate ?? 0) * 100)}%)</div>
+              <div>addressable: <b className="text-emerald-700">{replay.addressable_denials}</b> (CARC {replay.addresses_carc?.join(",")})</div>
+              <div>projected reduction: <b className="text-emerald-700">{Math.round((replay.projected_denial_reduction ?? 0) * 100)}%</b></div>
+              <div className="col-span-2">addressable $: <b>${(replay.addressable_amount ?? 0).toLocaleString()}</b></div>
+            </div>
+          ) : <div className="mt-1 text-slate-400">{replay.note}</div>}
+        </div>
+      )}
+
+      {/* Lineage */}
+      {lineage && (
+        <div className="rounded-lg bg-ace-50/60 ring-1 ring-ace-100 p-3 text-xs text-slate-600 space-y-1">
+          <div className="flex items-center gap-1.5 font-semibold text-slate-700"><GitBranch size={13} /> Lineage</div>
+          <div className="flex items-center gap-1.5">
+            {lineage.source?.kind === "denial"
+              ? <><Database size={12} className="text-rose-500" /> denial signal {lineage.source.signal?.procedure_code}/CARC{lineage.source.signal?.denial_carc} ({lineage.source.signal?.pattern_type}, z={lineage.source.signal?.z_score})</>
+              : <><FileText size={12} className="text-sky-500" /> policy {lineage.source?.document?.title} → {lineage.source?.provision?.provision_type}</>}
+          </div>
+          <div className="text-slate-500">
+            trail: {(lineage.decisions ?? []).map((d: any) => `${d.phase}:${d.action}`).join(" → ")}
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
         {editing ? (
@@ -219,6 +272,17 @@ function RecCard({ rec, onChange, onError, aceReachable }: {
           </>
         ) : (
           <>
+            <button className="btn-ghost" disabled={runReplay.isPending} onClick={() => runReplay.mutate()}>
+              {runReplay.isPending ? <Spinner className="h-4 w-4" /> : <Repeat size={15} />} Replay
+            </button>
+            <button className="btn-ghost" disabled={runLineage.isPending} onClick={() => runLineage.mutate()}>
+              {runLineage.isPending ? <Spinner className="h-4 w-4" /> : <GitBranch size={15} />} Lineage
+            </button>
+            {rec.status === "PUBLISHED" && (
+              <button className="btn-ghost text-rose-600" disabled={rollback.isPending} onClick={() => rollback.mutate()}>
+                {rollback.isPending ? <Spinner className="h-4 w-4" /> : <RotateCcw size={15} />} Rollback
+              </button>
+            )}
             {rec.status !== "PUBLISHED" && (
               <button className="btn-ghost" onClick={() => setEditing(true)}>
                 <Pencil size={15} /> Edit

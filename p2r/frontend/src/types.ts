@@ -136,3 +136,53 @@ export interface AceStatus {
   p2r_published_policies?: number;
   error?: string;
 }
+
+// P1 — sources / acquisition / deltas
+export interface PolicySource {
+  id: string; payer: string; name: string; source_type: string; location: string;
+  cadence: string; status: string; fetch_count: number; last_checked: string; last_document_id: string;
+}
+export interface PolicyDelta {
+  id: string; source_id: string; payer: string; document_id: string; prev_document_id: string;
+  change_type: string; added: string[]; removed: string[];
+  changed: { type: string; before: string; after: string; added_signals?: string[]; removed_signals?: string[] }[];
+  summary: string; created_at: string | null;
+}
+
+// P2 — denial signals
+export interface DenialSignal {
+  id: string; payer: string; procedure_code: string; denial_carc: string; pattern_type: string;
+  recent_denials: number; recent_total: number; recent_rate: number; baseline_rate: number;
+  lift: number; z_score: number; score: number; rank: number; status: string;
+  evidence: { aggregates?: Record<string, any>; sample_lines?: any[] };
+  proposed_rule: { provision_type: string; summary: string; code_sets: CodeSets };
+  promoted_recommendation_id: string;
+}
+
+// P4 — rule IR / replay
+export interface RuleIr {
+  ir: {
+    rule_id: string; version: number; payer: string; rule_type: string; action: string;
+    applies_to: CodeSets; statement: string; disposition: string; origin: string;
+    confidence: number; provenance: Record<string, any>;
+  };
+  artifacts: { ace: any[]; generic: Record<string, any> };
+}
+export interface ReplayResult {
+  recommendation_id: string; rule_type?: string; codes?: string[]; addresses_carc?: string[];
+  claims_matched: number; current_denials?: number; current_denial_rate?: number;
+  addressable_denials?: number; projected_denial_rate?: number; projected_denial_reduction?: number;
+  addressable_amount?: number; sample_claims?: any[]; note?: string;
+}
+
+// UX — audit + lineage
+export interface AuditEntry {
+  id: string; phase: string; action: string; actor: string; entity_type: string;
+  entity_id: string; payer: string; summary: string; lineage: Record<string, any>; created_at: string | null;
+}
+export interface Lineage {
+  recommendation: Record<string, any>;
+  source: any;
+  deployment: any;
+  decisions: AuditEntry[];
+}
