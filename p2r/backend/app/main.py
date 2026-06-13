@@ -17,7 +17,7 @@ from core import llm_client
 from core.ir import ArtifactType
 
 from . import eval as evalh
-from . import denials, ingest, models, publish, sample, validate
+from . import acquisition, denials, ingest, models, publish, sample, validate
 from .db import SessionLocal, get_db, init_db
 
 app = FastAPI(title="P2R — Policy-to-Rule Intelligence (Nous RCM Framework)", version="0.2.0")
@@ -31,7 +31,8 @@ def _startup() -> None:
     init_db()
     db = SessionLocal()
     try:
-        validate._seed_library(db)  # seed the read-only rule library if empty
+        validate._seed_library(db)       # seed the read-only rule library if empty
+        acquisition.seed_registry(db)    # seed payer master (MDM) + acquisition sources
     finally:
         db.close()
 
@@ -214,6 +215,35 @@ def publish_to_ace(rec_id: str, db: Session = Depends(get_db)) -> dict:
         raise HTTPException(400, str(exc))
     except Exception as exc:  # noqa: BLE001 — transport/HTTP failure reaching ACE
         raise HTTPException(502, f"publish to ACE failed: {exc}")
+
+
+# --- Phase 1 completion: source registry, acquisition, deltas, payer MDM -----
+@app.get("/sources")
+def list_sources(db: Session = Depends(get_db)) -> list[dict]:
+    return [acquisition.source_dict(s) for s in
+            db.scalars(select(models.PolicySource).order_by(models.PolicySource.name)).all()]
+
+
+@app.post("/sources/{source_id}/acquire")
+def acquire_source(source_id: str, db: Session = Depends(get_db)) -> dict:
+    """Run the acquisition agent against a source: fetch → change-detect → ingest delta."""
+    if not llm_client.llm_available():
+        raise HTTPException(503, "LLM not configured — set ANTHROPIC_API_KEY")
+    try:
+        return acquisition.acquire(db, source_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc))
+
+
+@app.get("/deltas")
+def list_deltas(db: Session = Depends(get_db)) -> list[dict]:
+    return [acquisition.delta_dict(d) for d in
+            db.scalars(select(models.PolicyDelta).order_by(models.PolicyDelta.created_at.desc())).all()]
+
+
+@app.get("/payer-master")
+def payer_master(db: Session = Depends(get_db)) -> list[dict]:
+    return [acquisition.master_dict(m) for m in db.scalars(select(models.PayerMaster)).all()]
 
 
 # --- Phase 2: Denial Pattern Discovery --------------------------------------

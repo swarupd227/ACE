@@ -24,6 +24,53 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class PayerMaster(Base):
+    """MDM master record for a payer — canonical identity the policies attach to."""
+    __tablename__ = "payer_master"
+
+    payer_id: Mapped[str] = mapped_column(String(40), primary_key=True)  # slug
+    name: Mapped[str] = mapped_column(String(80), default="")
+    aliases: Mapped[list] = mapped_column(JSONB, default=list)
+    lines_of_business: Mapped[list] = mapped_column(JSONB, default=list)
+    status: Mapped[str] = mapped_column(String(16), default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PolicySource(Base):
+    """A registered acquisition source for a payer's policies (registry + state)."""
+    __tablename__ = "policy_sources"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    payer: Mapped[str] = mapped_column(String(80), default="")
+    name: Mapped[str] = mapped_column(String(160), default="")
+    source_type: Mapped[str] = mapped_column(String(16), default="PORTAL")  # PORTAL|FEED|EMAIL
+    location: Mapped[str] = mapped_column(String(300), default="")  # url / mailbox (sandbox)
+    cadence: Mapped[str] = mapped_column(String(16), default="weekly")
+    status: Mapped[str] = mapped_column(String(16), default="active")
+    fetch_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_content_hash: Mapped[str] = mapped_column(String(64), default="")
+    last_checked: Mapped[str] = mapped_column(String(32), default="")
+    last_document_id: Mapped[str] = mapped_column(String(32), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PolicyDelta(Base):
+    """A detected change between two acquired versions of a source's policy."""
+    __tablename__ = "policy_deltas"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    source_id: Mapped[str] = mapped_column(String(32), default="", index=True)
+    payer: Mapped[str] = mapped_column(String(80), default="")
+    document_id: Mapped[str] = mapped_column(String(32), default="")
+    prev_document_id: Mapped[str] = mapped_column(String(32), default="")
+    change_type: Mapped[str] = mapped_column(String(16), default="")  # NEW_POLICY|REVISION
+    added: Mapped[list] = mapped_column(JSONB, default=list)      # [provision_type]
+    removed: Mapped[list] = mapped_column(JSONB, default=list)    # [provision_type]
+    changed: Mapped[list] = mapped_column(JSONB, default=list)    # [{type, before, after}]
+    summary: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class PolicyDocument(Base):
     __tablename__ = "policy_documents"
 
