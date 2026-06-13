@@ -86,6 +86,7 @@ class CodingRun(Base):
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)   # real usage from the model API
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_read_tokens: Mapped[int] = mapped_column(Integer, default=0)  # served from prompt cache (~90% cheaper)
     llm_calls: Mapped[int] = mapped_column(Integer, default=0)
     # workflow orchestration (human actions)
     escalated: Mapped[bool] = mapped_column(Boolean, default=False)

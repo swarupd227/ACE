@@ -54,7 +54,12 @@ def dashboard(db: Session = Depends(get_db)) -> dict:
     coded = 0
     eligible = 0           # charts that passed Stage-0 eligibility (auto-coding candidates)
     eligible_excluded = 0  # routed to manual purely because they were ineligible
-    tokens_in = tokens_out = llm_calls = override_charts = 0
+    tokens_in = tokens_out = cache_read = llm_calls = override_charts = 0
+    total_cost = 0.0
+    from .. import config_store as _cs0
+    from ..pipeline import governance as _gov
+    gov_cfg = _cs0.all_config(db).get("token_governance", {})
+    rates = gov_cfg.get("rates_per_million_usd", {})
     by_model: dict[str, dict] = {}
     for e in encs:
         run = db.scalars(
@@ -83,6 +88,9 @@ def dashboard(db: Session = Depends(get_db)) -> dict:
             # --- model performance (real usage captured per run) ---
             tokens_in += run.input_tokens or 0
             tokens_out += run.output_tokens or 0
+            cache_read += run.cache_read_tokens or 0
+            total_cost += _gov.cost_usd(rates, run.model_version, run.input_tokens or 0,
+                                        run.output_tokens or 0, run.cache_read_tokens or 0)
             llm_calls += run.llm_calls or 0
             overridden = any(c.is_overridden for c in run.codes)
             if overridden:
@@ -143,6 +151,13 @@ def dashboard(db: Session = Depends(get_db)) -> dict:
         "avg_confidence": avg_acc,
         "override_rate": round(override_charts / coded, 3) if coded else 0.0,
         "by_model": by_model_out,
+        # Cost & governance: real $ at configured rates, cache savings, budget burn-down.
+        "total_cost_usd": round(total_cost, 2),
+        "cost_per_chart_usd": round(total_cost / coded, 4) if coded else 0.0,
+        "cache_read_tokens": cache_read,
+        # what cache-served tokens would have cost at full input price, minus the ~10% paid
+        "cache_savings_usd": round(_gov.cost_usd(rates, "default", cache_read, 0, 0) * 0.9, 2) if cache_read else 0.0,
+        "budget": _gov.budget_status(db, gov_cfg),
     }
 
     return {

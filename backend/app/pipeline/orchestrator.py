@@ -16,7 +16,7 @@ from ..config import settings
 from ..knowledge import graph_rag
 from ..llm import prompts
 from ..llm.client import LLMUnavailable, complete_json, model_version
-from . import anes, apc, calibration, drg, hcc, history, pii, validation
+from . import anes, apc, calibration, drg, governance, hcc, history, pii, validation
 
 # Confidence routing thresholds (calibrated per-specialty in production)
 STB_THRESHOLD = 0.90
@@ -528,6 +528,10 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
 
     say("Orchestrator", f"Coding run started · {enc.patient_name} · {enc.specialty} {enc.modality}".strip(), "head")
 
+    # Token governance config (the budget ladder is applied after finish() is defined).
+    gov = cfg.get("token_governance", {})
+    cache_on = bool(gov.get("prompt_cache", True))
+
     def finish(lane: str, reason: str):
         run.routing_lane = lane
         run.routing_reason = reason
@@ -536,8 +540,10 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         if lane == "STB":
             run.billed_at = _now()  # straight-through → the claim goes out
         run.latency_ms = int((time.time() - t0) * 1000)
-        run.input_tokens = sum(u.get("in", 0) for u in usage)
+        # full-price input includes cache writes; cache reads are tracked separately (~90% cheaper)
+        run.input_tokens = sum(u.get("in", 0) + u.get("cache_write", 0) for u in usage)
         run.output_tokens = sum(u.get("out", 0) for u in usage)
+        run.cache_read_tokens = sum(u.get("cache_read", 0) for u in usage)
         run.llm_calls = len(usage)
         run.finished_at = _now()
         enc.status = "CODED"
@@ -580,6 +586,25 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         db.commit()
         db.refresh(run)
         return run
+
+    # --- Token budget ladder (warn → throttle → route-to-human) — before any model call ---
+    bstat = governance.budget_status(db, gov)
+    throttle = False
+    if bstat["enabled"] and bstat["budget"] > 0:
+        if bstat["state"] == "exhausted":
+            say("Budget Guard",
+                f"daily token budget exhausted ({bstat['spent']:,}/{bstat['budget']:,}) — "
+                "routing to a human coder, no codes fabricated", "bad")
+            log.append({"stage": "0_budget", "title": "Token Budget", "status": bstat})
+            _audit(db, run, "0_budget", "budget_exhausted", bstat)
+            return finish("MANUAL", "Daily token budget exhausted — routed to human coder")
+        if bstat["state"] == "throttle":
+            throttle = True
+            say("Budget Guard",
+                f"budget at {bstat['pct']*100:.0f}% — throttling: self-consistency disabled to conserve tokens",
+                "warn")
+        elif bstat["state"] == "warn":
+            say("Budget Guard", f"budget at {bstat['pct']*100:.0f}% of the daily limit", "warn")
 
     # --- Stage 0 ---
     step("0", "Eligibility")
@@ -632,7 +657,7 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         analysis = complete_json(
             prompts.ANALYSIS_SYSTEM,
             prompts.build_analysis_user(numbered, enc.specialty, prior_context=prior_ctx),
-            prompts.ANALYSIS_SCHEMA, temperature=0.0, llm=llmc, usage_sink=usage,
+            prompts.ANALYSIS_SCHEMA, temperature=0.0, llm=llmc, usage_sink=usage, cache=cache_on,
         )[0]
     except LLMUnavailable as e:
         log.append({"stage": "1_analysis", "title": "Clinical Analysis", "error": str(e)})
@@ -684,7 +709,7 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     n_proc = len(analysis.get("procedures", []))
     spec_cfg = _specialty_cfg(cfg, enc.specialty)
     hard = bool(spec_cfg.get("hard")) or is_ambiguous or n_proc > 1
-    samples = cfg["self_consistency"]["hard_samples"] if hard else 1
+    samples = 1 if throttle else (cfg["self_consistency"]["hard_samples"] if hard else 1)
     temp = 0.4 if samples > 1 else 0.0
     rag_ctx = retr.as_prompt_context()
     if extra_context:
@@ -696,7 +721,7 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         coding_samples = complete_json(
             prompts.CODING_SYSTEM,
             prompts.build_coding_user(numbered, enc.specialty, analysis, rag_ctx),
-            prompts.CODING_SCHEMA, hard=hard, temperature=temp, samples=samples, llm=llmc, usage_sink=usage,
+            prompts.CODING_SCHEMA, hard=hard, temperature=temp, samples=samples, llm=llmc, usage_sink=usage, cache=cache_on,
         )
     except LLMUnavailable as e:
         log.append({"stage": "3_coding", "title": "Code Generation", "error": str(e)})

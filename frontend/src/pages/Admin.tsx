@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
-import { SlidersHorizontal, ShieldAlert, FileCheck2, Timer, Layers, Users, Save, RotateCcw, Plus, Trash2, Check, History, Plug, Cpu, PlugZap } from "lucide-react";
+import { SlidersHorizontal, ShieldAlert, FileCheck2, Timer, Layers, Users, Save, RotateCcw, Plus, Trash2, Check, History, Plug, Cpu, PlugZap, Coins } from "lucide-react";
 import { api } from "../api";
 import { Spinner } from "../lib";
 
@@ -94,6 +94,51 @@ function RoutingTab({ cfg }: { cfg: any }) {
         </label>
         <p className="mt-1 text-xs text-slate-400">More samples = better catch of confident-but-wrong; higher latency/cost.</p>
         <SaveBar dirty={sc.dirty} saving={sc.save.isPending} onSave={() => sc.save.mutate()} />
+      </div>
+    </div>
+  );
+}
+
+function GovernanceTab({ cfg }: { cfg: any }) {
+  const g = useSaver("token_governance", cfg.token_governance);
+  const set = (k: string, v: any) => g.setLocal({ ...g.local, [k]: v });
+  return (
+    <div className="grid lg:grid-cols-2 gap-4 max-w-5xl">
+      <div className="card p-4">
+        <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2"><Coins size={16} className="text-ace-600" /> Token &amp; cost governance</h3>
+        <p className="text-xs text-slate-500 mb-3">Active token management. Off by default — nothing changes until you enable a budget. Applies on the next coding run.</p>
+        <Toggle label="Prompt caching" hint="cache the static prompt prefix — lower cost, identical output" value={g.local.prompt_cache} onChange={(v: boolean) => set("prompt_cache", v)} />
+        <Toggle label="Enforce daily token budget" hint="warn → throttle → route new charts to a human" value={g.local.enabled} onChange={(v: boolean) => set("enabled", v)} />
+        <label className="block text-sm text-slate-600 mt-2">Daily budget (tokens, 0 = unlimited)
+          <input type="number" min={0} step={10000} value={g.local.daily_budget_tokens} onChange={(e) => set("daily_budget_tokens", parseInt(e.target.value || "0"))} className="mt-1 w-40 rounded border border-slate-200 px-2 py-1.5 text-sm" />
+        </label>
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          <label className="block text-sm text-slate-600">Warn at (%)
+            <input type="number" min={1} max={100} value={g.local.warn_pct} onChange={(e) => set("warn_pct", parseInt(e.target.value || "70"))} className="mt-1 w-20 rounded border border-slate-200 px-2 py-1 text-sm" />
+          </label>
+          <label className="block text-sm text-slate-600">Throttle at (%)
+            <input type="number" min={1} max={100} value={g.local.throttle_pct} onChange={(e) => set("throttle_pct", parseInt(e.target.value || "85"))} className="mt-1 w-20 rounded border border-slate-200 px-2 py-1 text-sm" />
+          </label>
+        </div>
+        <SaveBar dirty={g.dirty} saving={g.save.isPending} onSave={() => g.save.mutate()} />
+      </div>
+      <div className="card p-4">
+        <h3 className="font-bold text-slate-800 mb-2">Price list ($ per 1M tokens)</h3>
+        <p className="text-xs text-slate-500 mb-3">Representative list prices, matched by model-name substring — drive the cost figures on the dashboard.</p>
+        <div className="space-y-2">
+          {Object.entries(g.local.rates_per_million_usd || {}).map(([model, r]: any) => (
+            <div key={model} className="flex items-center gap-2">
+              <span className="font-mono text-xs text-slate-600 w-32">{model}</span>
+              <label className="text-xs text-slate-500">in
+                <input type="number" min={0} step={0.1} value={r.in} onChange={(e) => set("rates_per_million_usd", { ...g.local.rates_per_million_usd, [model]: { ...r, in: parseFloat(e.target.value || "0") } })} className="ml-1 w-16 rounded border border-slate-200 px-1.5 py-1 text-sm" />
+              </label>
+              <label className="text-xs text-slate-500">out
+                <input type="number" min={0} step={0.1} value={r.out} onChange={(e) => set("rates_per_million_usd", { ...g.local.rates_per_million_usd, [model]: { ...r, out: parseFloat(e.target.value || "0") } })} className="ml-1 w-16 rounded border border-slate-200 px-1.5 py-1 text-sm" />
+              </label>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-[11px] text-slate-400">Cache-read tokens are billed at ~10% of the input rate; the dashboard shows the resulting savings.</p>
       </div>
     </div>
   );
@@ -370,6 +415,7 @@ const TABS: [string, string, any][] = [
   ["bounded", "Bounded Autonomy", ShieldAlert],
   ["eligibility", "Eligibility", FileCheck2],
   ["sla", "SLA Targets", Timer],
+  ["governance", "Cost & Budget", Coins],
   ["specialties", "Specialty Accelerator", Layers],
   ["roster", "Users & Roster", Users],
   ["connectors", "Connectors", Plug],
@@ -408,6 +454,7 @@ export default function Admin() {
       {tab === "bounded" && <BoundedTab cfg={cfg} />}
       {tab === "eligibility" && <EligibilityTab cfg={cfg} />}
       {tab === "sla" && <SlaTab cfg={cfg} />}
+      {tab === "governance" && <GovernanceTab cfg={cfg} />}
       {tab === "specialties" && <SpecialtiesTab cfg={cfg} />}
       {tab === "roster" && <RosterTab cfg={cfg} />}
       {tab === "connectors" && <ConnectorsTab cfg={cfg} />}

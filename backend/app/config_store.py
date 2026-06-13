@@ -82,6 +82,21 @@ DEFAULTS: dict = {
         # chart before ANY model call. Age/sex/DOS are kept — coding needs them.
         "mask_identifiers": True,
     },
+    "token_governance": {
+        # Active token management. OFF by default — nothing changes until an admin enables it.
+        "enabled": False,
+        "prompt_cache": True,          # cache the static prompt prefix (pure cost win, no output change)
+        "daily_budget_tokens": 0,      # 0 = unlimited
+        "warn_pct": 70,                # ≥ this % of budget → warn (no behavior change)
+        "throttle_pct": 85,            # ≥ this → throttle (disable self-consistency to conserve)
+        # representative list prices, $ per 1M tokens (matched by model-name substring)
+        "rates_per_million_usd": {
+            "claude-opus": {"in": 15.0, "out": 75.0},
+            "claude-sonnet": {"in": 3.0, "out": 15.0},
+            "claude-haiku": {"in": 0.80, "out": 4.0},
+            "default": {"in": 3.0, "out": 15.0},
+        },
+    },
     "anesthesia": {
         # Representative national CMS anesthesia conversion factor ($/unit); varies by
         # locality and payer — admin-tunable. Physical-status unit adders follow
@@ -121,6 +136,7 @@ META: dict = {
     "roster": "Coders / auditors available for assignment",
     "connectors": "Source systems (PMS/EHR) shown on the Integrations screen",
     "privacy": "Pre-model PII masking — direct identifiers are masked before any model call (age/sex/DOS kept)",
+    "token_governance": "Token & cost governance — prompt caching, a daily token budget (warn/throttle/route-to-human), and $/token rates for cost reporting",
     "anesthesia": "Anesthesia unit payment — conversion factor ($/unit) and physical-status unit adders",
     "llm": "The reasoning model — provider, default/hard models and endpoint (API keys stay in the environment)",
 }
