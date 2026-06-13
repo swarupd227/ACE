@@ -1,0 +1,4 @@
+# Runtime deps for the shared core. Consumers (p2r/, later ace/) install these.
+anthropic==0.42.0
+httpx==0.28.1
+pydantic==2.10.4

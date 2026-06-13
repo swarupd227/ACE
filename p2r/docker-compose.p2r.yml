@@ -1,0 +1,39 @@
+# ===========================================================================
+# P2R — Policy-to-Rule Intelligence  ·  ISOLATED stack (Nous RCM Framework)
+# Runs alongside ACE without touching it: own DB, own volume, own ports.
+#   docker compose -f p2r/docker-compose.p2r.yml -p p2r up --build -d
+#   → API at http://localhost:8100
+# ===========================================================================
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${P2R_DB_USER:-p2r}
+      POSTGRES_PASSWORD: ${P2R_DB_PASSWORD:-p2r_dev_pw}
+      POSTGRES_DB: ${P2R_DB_NAME:-p2r}
+    volumes:
+      - p2r_pgdata:/var/lib/postgresql/data   # distinct volume — never ACE's pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${P2R_DB_USER:-p2r} -d ${P2R_DB_NAME:-p2r}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ..                         # repo root, so core/ is in the build context
+      dockerfile: p2r/backend/Dockerfile
+    env_file: ../.env                      # same Nous env (Anthropic key); ACE vars ignored
+    environment:
+      DATABASE_URL: postgresql+psycopg://${P2R_DB_USER:-p2r}:${P2R_DB_PASSWORD:-p2r_dev_pw}@db:5432/${P2R_DB_NAME:-p2r}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8100:8000"                        # host 8100 — never ACE's 8000/8080
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  p2r_pgdata:
