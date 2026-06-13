@@ -166,6 +166,31 @@ of verdicts you just saw.
 
 ---
 
+## Appendix — Complete requirements walkthrough (P1–P4 + UX)
+
+All five platform requirements are demonstrable from the workbench. A tight click-path:
+
+1. **P1 — Sources & Acquisition.** Open **Sources & Acquisition** → **Run acquisition** once
+   (NEW_POLICY ingested) → **Run acquisition** again (REVISION) → the **change delta** shows
+   exactly what moved (e.g. added Place-of-Service; FREQUENCY 12→24 months; prior-auth +CPT). Payer
+   identity is mastered below (MDM). *"The agent polls, notices the policy changed, and tells you
+   precisely what changed."*
+2. **P2 — Denial Discovery.** Open **Denial Discovery** → **Load 835 sample** → **Detect signals**.
+   Ranked denial patterns appear with pattern type, recent vs baseline rate, lift, z-score and a
+   proposed rule. **Promote to review** on the top signal. *"This is statistics, not a guess — a
+   changepoint test over pooled remits proposes the rule."*
+3. **P3 — Review Queue.** The promoted candidate (and any policy-derived ones) carry validation +
+   reconciliation verdicts with cited rationale; note the **from denials / from policy** origin tag.
+   **Edit** to correct, **Approve** to sign off.
+4. **P4 — Replay & productionize.** On a recommendation: **Replay** → differential vs claim history
+   (addressable denials, projected reduction, $). **Approve → Publish to ACE** → then **Rollback**
+   to retract cleanly. (The canonical Rule IR + engine-agnostic artifact back this.)
+5. **UX — Lineage & Decision Log.** On a recommendation, **Lineage** traces rule → source (policy
+   provision or denial signal) → decision trail. Open **Decision Log** for the append-only,
+   phase-filtered governance ledger. *"Every action is logged, immutably, with full lineage."*
+
+See `REQUIREMENTS_TRACEABILITY.md` for the requirement-by-requirement mapping and verification.
+
 ## Troubleshooting
 
 | Symptom | Fix |
