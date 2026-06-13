@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from core import llm_client
 
-from . import models, prompts
+from . import audit, models, prompts
 
 
 def _codes(cs: dict) -> set[str]:
@@ -91,6 +91,12 @@ def judge_candidate(db: Session, *, payer: str, provision_type: str, summary: st
     db.add(row)
     db.commit()
     db.refresh(row)
+    audit.log(db, phase="P3", action="JUDGE", entity_type="recommendation", entity_id=row.id,
+              payer=payer, summary=f"{provision_type}: validation={vverdict}, reconciliation={rverdict}"
+              + (f" (vs {matched})" if matched else ""),
+              lineage={"origin": origin, "source_provision_id": source_provision_id,
+                       "source_document_id": source_document_id, "source_signal_id": source_signal_id,
+                       "confidence": conf, "model_version": row.model_version})
     return row
 
 

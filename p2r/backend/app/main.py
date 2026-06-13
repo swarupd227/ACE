@@ -17,7 +17,8 @@ from core import llm_client
 from core.ir import ArtifactType
 
 from . import eval as evalh
-from . import acquisition, denials, ingest, models, publish, replay, rule_ir, sample, validate
+from . import (acquisition, audit, denials, ingest, models, publish, replay, rule_ir,
+               sample, validate)
 from .db import SessionLocal, get_db, init_db
 
 app = FastAPI(title="P2R — Policy-to-Rule Intelligence (Nous RCM Framework)", version="0.2.0")
@@ -182,6 +183,8 @@ def edit_recommendation(rec_id: str, body: RecPatch, db: Session = Depends(get_d
     db.add(rec)
     db.commit()
     db.refresh(rec)
+    audit.log(db, phase="UX", action="EDIT", actor="reviewer", entity_type="recommendation",
+              entity_id=rec.id, payer=rec.payer, summary="reviewer edited the candidate before approval")
     return validate.rec_dict(rec)
 
 
@@ -197,6 +200,8 @@ def approve_recommendation(rec_id: str, db: Session = Depends(get_db)) -> dict:
     rec.status = "APPROVED"
     db.add(rec)
     db.commit()
+    audit.log(db, phase="UX", action="APPROVE", actor="reviewer", entity_type="recommendation",
+              entity_id=rec.id, payer=rec.payer, summary=f"{rec.provision_type} approved for publication")
     return {"recommendation_id": rec.id, "status": rec.status}
 
 
@@ -324,6 +329,22 @@ def denials_promote(signal_id: str, db: Session = Depends(get_db)) -> dict:
         return denials.promote_signal(db, signal_id)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+
+
+# --- Governance: append-only decision log + lineage -------------------------
+@app.get("/audit")
+def audit_log(phase: str = "", entity_id: str = "", db: Session = Depends(get_db)) -> list[dict]:
+    """The append-only decision log across all phases (filterable)."""
+    return audit.entries(db, phase=phase, entity_id=entity_id)
+
+
+@app.get("/recommendations/{rec_id}/lineage")
+def recommendation_lineage(rec_id: str, db: Session = Depends(get_db)) -> dict:
+    """Full lineage from a rule back to its source (policy or denial) + decision trail."""
+    try:
+        return audit.lineage_for(db, rec_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc))
 
 
 # --- Golden-set evaluation harness ------------------------------------------

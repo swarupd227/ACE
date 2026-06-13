@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from core import llm_client
 
-from . import models, sample_835, validate
+from . import audit, models, sample_835, validate
 
 RECENT_WINDOW = sample_835.RECENT_WINDOW
 
@@ -140,6 +140,11 @@ def detect_signals(db: Session) -> dict:
     db.commit()
     for s in created:
         db.refresh(s)
+    audit.log(db, phase="P2", action="DETECT", actor="denial-miner",
+              entity_type="denial_run", entity_id="",
+              summary=f"{len(created)} signals from {len(rows)} remittance lines "
+                      f"(top: {', '.join(c['code']+'/'+c['carc'] for c in candidates[:3])})",
+              lineage={"signals": len(created), "remittance_lines": len(rows)})
     return {"signals": len(created), "remittance_lines": len(rows),
             "recent_window_days": RECENT_WINDOW, "results": [signal_dict(s) for s in created]}
 
@@ -171,6 +176,11 @@ def promote_signal(db: Session, signal_id: str, llm: dict | None = None) -> dict
     sig.model_version = llm_client.model_version(llm)
     db.add(sig)
     db.commit()
+    audit.log(db, phase="P2", action="PROMOTE", entity_type="recommendation", entity_id=rec.id,
+              payer=sig.payer,
+              summary=f"denial signal {sig.procedure_code}/CARC{sig.denial_carc} "
+                      f"({sig.pattern_type}) promoted to review",
+              lineage={"signal_id": sig.id, "pattern_type": sig.pattern_type})
     return {"signal_id": sig.id, "recommendation_id": rec.id,
             "recommendation": validate.rec_dict(rec)}
 

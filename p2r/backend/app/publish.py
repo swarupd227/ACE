@@ -19,7 +19,7 @@ import os
 import httpx
 from sqlalchemy.orm import Session
 
-from . import models
+from . import audit, models
 
 ACE_BASE_URL = os.getenv("ACE_BASE_URL", "http://host.docker.internal:8000")
 ACE_SOURCE_TAG = "P2R-INTEGRATION"
@@ -110,6 +110,10 @@ def publish_recommendation(db: Session, rec_id: str) -> dict:
     db.add(rec)
     db.commit()
     db.refresh(rec)
+    audit.log(db, phase="P4", action="PUBLISH", actor="P2R-INTEGRATION",
+              entity_type="recommendation", entity_id=rec.id, payer=rec.payer,
+              summary=f"published {len(created)} policy row(s) to ACE ({ACE_SOURCE_TAG})",
+              lineage={"ace_ids": [c.get("ace_id") for c in created], "ace_base_url": ACE_BASE_URL})
     return {"recommendation_id": rec.id, "published": len(created), "policies": created,
             "source": ACE_SOURCE_TAG, "payer": rec.payer}
 
@@ -140,5 +144,9 @@ def rollback_recommendation(db: Session, rec_id: str) -> dict:
     db.add(rec)
     db.commit()
     db.refresh(rec)
+    audit.log(db, phase="P4", action="ROLLBACK", actor="P2R-INTEGRATION",
+              entity_type="recommendation", entity_id=rec.id, payer=rec.payer,
+              summary=f"retracted {len(deleted)} policy row(s) from ACE",
+              lineage={"retracted_ace_ids": deleted})
     return {"recommendation_id": rec.id, "retracted": len(deleted), "ace_ids": deleted,
             "status": rec.status}

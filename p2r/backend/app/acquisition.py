@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import ingest, models, sample
+from . import audit, ingest, models, sample
 
 
 def _now_iso() -> str:
@@ -154,6 +154,11 @@ def acquire(db: Session, source_id: str, llm: dict | None = None) -> dict:
     db.add(src)
     db.commit()
     db.refresh(delta)
+    audit.log(db, phase="P1", action="ACQUIRE", actor="acquisition-agent",
+              entity_type="document", entity_id=doc_id, payer=src.payer,
+              summary=f"{change_type} from '{src.name}' — {d['summary']}",
+              lineage={"source_id": src.id, "prev_document_id": prev_doc_id,
+                       "delta": delta_dict(delta)})
     return {"source_id": src.id, "changed": True, "change_type": change_type,
             "document_id": doc_id, "provisions": ing["provision_count"], "delta": delta_dict(delta)}
 

@@ -24,6 +24,26 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class DecisionLogEntry(Base):
+    """Append-only governance ledger across all phases (P1-P4 + review).
+
+    Never updated or deleted — the lineage record from a deployed rule back to its source
+    document / denial signal, model version, reviewer and timestamp.
+    """
+    __tablename__ = "decision_log"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    phase: Mapped[str] = mapped_column(String(8), default="")   # P1|P2|P3|P4|UX
+    action: Mapped[str] = mapped_column(String(40), default="")
+    actor: Mapped[str] = mapped_column(String(60), default="system")
+    entity_type: Mapped[str] = mapped_column(String(32), default="")
+    entity_id: Mapped[str] = mapped_column(String(32), default="", index=True)
+    payer: Mapped[str] = mapped_column(String(80), default="")
+    summary: Mapped[str] = mapped_column(Text, default="")
+    lineage: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class PayerMaster(Base):
     """MDM master record for a payer — canonical identity the policies attach to."""
     __tablename__ = "payer_master"
