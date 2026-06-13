@@ -154,6 +154,35 @@ def list_recommendations(verdict: str = "", attention: bool = False, status: str
     return [validate.rec_dict(r) for r in db.scalars(q).all()]
 
 
+class RecPatch(BaseModel):
+    candidate_summary: str | None = None
+    reconciliation_verdict: str | None = None
+    code_sets: dict | None = None
+
+
+@app.patch("/recommendations/{rec_id}")
+def edit_recommendation(rec_id: str, body: RecPatch, db: Session = Depends(get_db)) -> dict:
+    """Phase 4 — a reviewer authors/corrects a candidate rule before approving it."""
+    rec = db.get(models.RuleRecommendation, rec_id)
+    if rec is None:
+        raise HTTPException(404, "recommendation not found")
+    if rec.status == "PUBLISHED":
+        raise HTTPException(409, "cannot edit a published recommendation")
+    if body.candidate_summary is not None:
+        rec.candidate_summary = body.candidate_summary
+    if body.code_sets is not None:
+        rec.code_sets = body.code_sets
+    if body.reconciliation_verdict is not None:
+        if body.reconciliation_verdict not in {"NET_NEW", "UPDATE", "DUPLICATE", "CONFLICT"}:
+            raise HTTPException(400, "invalid reconciliation_verdict")
+        rec.reconciliation_verdict = body.reconciliation_verdict
+        rec.needs_attention = (body.reconciliation_verdict == "CONFLICT") or rec.needs_attention
+    db.add(rec)
+    db.commit()
+    db.refresh(rec)
+    return validate.rec_dict(rec)
+
+
 # --- Phase 5: human approval + "Publish to ACE" integration glimpse ----------
 @app.post("/recommendations/{rec_id}/approve")
 def approve_recommendation(rec_id: str, db: Session = Depends(get_db)) -> dict:

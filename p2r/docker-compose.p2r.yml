@@ -38,5 +38,15 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - api
+    ports:
+      - "8180:80"                          # host 8180 — never ACE's 8080
+    restart: unless-stopped
+
 volumes:
   p2r_pgdata:
