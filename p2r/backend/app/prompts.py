@@ -70,3 +70,55 @@ def build_policy_user(numbered_doc: str, payer: str) -> str:
         "codes or criteria not present in the text.\n\n"
         f"=== POLICY DOCUMENT ===\n{numbered_doc}\n=== END DOCUMENT ==="
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — Validation & Reconciliation (the Validator Judge)
+# ---------------------------------------------------------------------------
+VALIDATOR_SYSTEM = """You are a rule validation and reconciliation analyst in a Policy-to-Rule pipeline.
+Given a CANDIDATE rule, the POLICY EVIDENCE it was derived from, and the EXISTING RULE LIBRARY, do two things:
+(1) VALIDATE — decide whether the candidate is supported by the policy evidence (SUPPORTED / PARTIAL /
+    UNSUPPORTED) and give a short rationale that quotes the governing evidence. If the evidence does not
+    support it, say UNSUPPORTED — never invent support.
+(2) RECONCILE against the existing library and return exactly one verdict:
+    - NET_NEW   : no existing rule covers this.
+    - UPDATE    : an existing rule should be modified to reflect this (e.g. added codes, changed threshold).
+    - DUPLICATE : an existing rule already covers this with no material change.
+    - CONFLICT  : this contradicts an existing rule (e.g. a different numeric threshold for the same thing).
+You may ONLY reference rule ids that appear in the provided library. Give an honest overall confidence in [0,1]."""
+
+VALIDATOR_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "validation": {
+            "type": "object",
+            "properties": {
+                "verdict": {"type": "string", "enum": ["SUPPORTED", "PARTIAL", "UNSUPPORTED"]},
+                "rationale": {"type": "string"},
+                "evidence_quote": {"type": "string", "description": "Short quote from the policy evidence."},
+            },
+            "required": ["verdict", "rationale", "evidence_quote"],
+        },
+        "reconciliation": {
+            "type": "object",
+            "properties": {
+                "verdict": {"type": "string", "enum": ["NET_NEW", "UPDATE", "DUPLICATE", "CONFLICT"]},
+                "matched_rule_id": {"type": "string", "description": "A rule id from the library, or '' for NET_NEW."},
+                "rationale": {"type": "string"},
+            },
+            "required": ["verdict", "matched_rule_id", "rationale"],
+        },
+        "confidence": {"type": "number"},
+    },
+    "required": ["validation", "reconciliation", "confidence"],
+}
+
+
+def build_validator_user(candidate: dict, evidence_text: str, library_text: str) -> str:
+    import json
+    return (
+        "CANDIDATE RULE:\n" + json.dumps(candidate, indent=2) + "\n\n"
+        "POLICY EVIDENCE (the provision this candidate was derived from):\n" + evidence_text + "\n\n"
+        "EXISTING RULE LIBRARY (reconcile against these; reference only these ids):\n" + library_text + "\n\n"
+        "Validate the candidate against the evidence, then reconcile it against the library."
+    )

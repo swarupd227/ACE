@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -59,4 +59,44 @@ class PolicyProvision(Base):
     conf_validator: Mapped[float] = mapped_column(Float, default=0.0)
     routing: Mapped[str] = mapped_column(String(16), default="")   # AUTO_LOAD|VERIFY|HOLD
     extraction_meta: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class RuleLibraryEntry(Base):
+    """An existing, deployed rule — the read-only library P3 reconciles against."""
+    __tablename__ = "rule_library"
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)  # e.g. RULE-LUM-PA
+    payer: Mapped[str] = mapped_column(String(80), default="")
+    title: Mapped[str] = mapped_column(Text, default="")
+    logic_summary: Mapped[str] = mapped_column(Text, default="")
+    code_sets: Mapped[dict] = mapped_column(JSONB, default=dict)
+    status: Mapped[str] = mapped_column(String(16), default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class RuleRecommendation(Base):
+    """Phase 3 output: a validated, reconciled candidate rule awaiting human review."""
+    __tablename__ = "rule_recommendations"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    payer: Mapped[str] = mapped_column(String(80), default="")
+    source_provision_id: Mapped[str] = mapped_column(String(32), default="")
+    source_document_id: Mapped[str] = mapped_column(String(32), default="")
+    candidate_summary: Mapped[str] = mapped_column(Text, default="")
+    provision_type: Mapped[str] = mapped_column(String(24), default="")
+    code_sets: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # (a) validation against policy evidence
+    validation_verdict: Mapped[str] = mapped_column(String(16), default="")  # SUPPORTED|PARTIAL|UNSUPPORTED
+    validation_rationale: Mapped[str] = mapped_column(Text, default="")
+    evidence: Mapped[list] = mapped_column(JSONB, default=list)  # [{provision_id, text}]
+    # (b) reconciliation against the rule library
+    reconciliation_verdict: Mapped[str] = mapped_column(String(16), default="")  # NET_NEW|UPDATE|DUPLICATE|CONFLICT
+    matched_rule_id: Mapped[str] = mapped_column(String(40), default="")
+    reconciliation_rationale: Mapped[str] = mapped_column(Text, default="")
+    code_overlap: Mapped[float] = mapped_column(Float, default=0.0)  # deterministic cross-check
+    confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    status: Mapped[str] = mapped_column(String(20), default="PENDING_REVIEW")
+    needs_attention: Mapped[bool] = mapped_column(Boolean, default=False)
+    model_version: Mapped[str] = mapped_column(String(60), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

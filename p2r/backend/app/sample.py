@@ -35,3 +35,19 @@ abdomen and pelvis performed in the same session.
 
 Electronically published by the Meridian Health Plan Medical Policy Committee.
 """
+
+# Existing deployed rules to reconcile candidates against (read-only library).
+# Deliberately overlaps the sample policy so reconciliation surfaces a mix of verdicts:
+#   PA rule covers only 72148 (policy adds CT 72131/72132 → UPDATE);
+#   frequency rule says 6 months (policy says 12 → CONFLICT/UPDATE);
+#   modifier-26 rule exists (policy adds the '50 not applicable' clause → UPDATE/DUPLICATE);
+#   no coverage/documentation/bundling rules exist yet → NET_NEW.
+RULE_LIBRARY_SEED = [
+    ("RULE-LUM-PA", "Meridian Health Plan",
+     "Prior authorization required for outpatient lumbar spine MRI (72148).", {"cpt": ["72148"]}),
+    ("RULE-LUM-FREQ", "Meridian Health Plan",
+     "Repeat lumbar spine MRI within 6 months of a prior study is not covered.", {"cpt": ["72148"]}),
+    ("RULE-LUM-MOD26", "Meridian Health Plan",
+     "Append modifier 26 for the professional component of facility spine imaging reads.",
+     {"cpt": ["72148"], "modifiers": ["26"]}),
+]

@@ -16,8 +16,8 @@ from sqlalchemy.orm import Session
 from core import llm_client
 from core.ir import ArtifactType
 
-from . import ingest, models, sample
-from .db import get_db, init_db
+from . import ingest, models, sample, validate
+from .db import SessionLocal, get_db, init_db
 
 app = FastAPI(title="P2R — Policy-to-Rule Intelligence (Nous RCM Framework)", version="0.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -28,6 +28,11 @@ _DOC_TYPES = {"application/pdf", "image/png", "image/jpeg", "image/webp"}
 @app.on_event("startup")
 def _startup() -> None:
     init_db()
+    db = SessionLocal()
+    try:
+        validate._seed_library(db)  # seed the read-only rule library if empty
+    finally:
+        db.close()
 
 
 @app.get("/health")
@@ -116,3 +121,32 @@ def list_provisions(routing: str = "", db: Session = Depends(get_db)) -> list[di
     if routing:
         q = q.where(models.PolicyProvision.routing == routing)
     return [ingest._prov_dict(p) for p in db.scalars(q).all()]
+
+
+# --- Phase 3: Validation & Reconciliation -----------------------------------
+@app.get("/rule-library")
+def rule_library(db: Session = Depends(get_db)) -> list[dict]:
+    rows = db.scalars(select(models.RuleLibraryEntry)).all()
+    return [{"id": r.id, "payer": r.payer, "title": r.title, "code_sets": r.code_sets, "status": r.status}
+            for r in rows]
+
+
+@app.post("/recommendations/from-document/{doc_id}")
+def recommend_from_document(doc_id: str, db: Session = Depends(get_db)) -> dict:
+    if not llm_client.llm_available():
+        raise HTTPException(503, "LLM not configured — set ANTHROPIC_API_KEY")
+    try:
+        return validate.generate_for_document(db, doc_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc))
+
+
+@app.get("/recommendations")
+def list_recommendations(verdict: str = "", attention: bool = False,
+                         db: Session = Depends(get_db)) -> list[dict]:
+    q = select(models.RuleRecommendation).order_by(models.RuleRecommendation.created_at.desc())
+    if verdict:
+        q = q.where(models.RuleRecommendation.reconciliation_verdict == verdict)
+    if attention:
+        q = q.where(models.RuleRecommendation.needs_attention == True)  # noqa: E712
+    return [validate.rec_dict(r) for r in db.scalars(q).all()]
