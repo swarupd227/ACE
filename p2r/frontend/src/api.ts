@@ -61,4 +61,8 @@ export const api = {
 
   // ACE integration glimpse
   aceStatus: () => req<AceStatus>("/integration/ace/status"),
+
+  // Golden-set eval harness
+  evalGolden: () => req<GoldenCase[]>("/eval/golden"),
+  evalRun: () => req<EvalReport>("/eval/run", { method: "POST" }),
 };

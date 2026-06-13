@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from core import llm_client
 from core.ir import ArtifactType
 
+from . import eval as evalh
 from . import ingest, models, publish, sample, validate
 from .db import SessionLocal, get_db, init_db
 
@@ -213,3 +214,21 @@ def publish_to_ace(rec_id: str, db: Session = Depends(get_db)) -> dict:
         raise HTTPException(400, str(exc))
     except Exception as exc:  # noqa: BLE001 — transport/HTTP failure reaching ACE
         raise HTTPException(502, f"publish to ACE failed: {exc}")
+
+
+# --- Golden-set evaluation harness ------------------------------------------
+@app.get("/eval/golden")
+def eval_golden() -> list[dict]:
+    """The adjudicated golden cases the harness scores against."""
+    return evalh.golden_set()
+
+
+@app.post("/eval/run")
+def eval_run(db: Session = Depends(get_db)) -> dict:
+    """Run the real pipeline against the golden set and return scored metrics."""
+    if not llm_client.llm_available():
+        raise HTTPException(503, "LLM not configured — set ANTHROPIC_API_KEY")
+    try:
+        return evalh.run_eval(db)
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc))

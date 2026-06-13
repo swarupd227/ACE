@@ -90,6 +90,45 @@ export interface Recommendation {
   };
 }
 
+export interface GoldenCase {
+  provision_type: string;
+  expected_verdict: string;
+  expected_codes: string[];
+  expected_attention: boolean;
+  note: string;
+}
+
+export interface EvalCase {
+  provision_type: string;
+  found: boolean;
+  expected_verdict: string;
+  actual_verdict: string | null;
+  verdict_ok: boolean;
+  matched_rule_id: string | null;
+  expected_codes: string[];
+  missing_codes: string[];
+  expected_attention: boolean;
+  actual_attention: boolean | null;
+  attention_ok: boolean;
+  confidence: number | null;
+  note: string;
+}
+
+export interface EvalReport {
+  golden_cases: number;
+  provisions_extracted: number;
+  recommendations: number;
+  model_version: string;
+  metrics: {
+    provision_coverage: number;
+    code_recall: number;
+    citation_rate: number;
+    verdict_accuracy: number;
+    attention_accuracy: number;
+  };
+  cases: EvalCase[];
+}
+
 export interface AceStatus {
   reachable: boolean;
   ace_base_url: string;
