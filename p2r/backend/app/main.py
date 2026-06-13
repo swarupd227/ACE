@@ -17,7 +17,7 @@ from core import llm_client
 from core.ir import ArtifactType
 
 from . import eval as evalh
-from . import ingest, models, publish, sample, validate
+from . import denials, ingest, models, publish, sample, validate
 from .db import SessionLocal, get_db, init_db
 
 app = FastAPI(title="P2R — Policy-to-Rule Intelligence (Nous RCM Framework)", version="0.2.0")
@@ -214,6 +214,56 @@ def publish_to_ace(rec_id: str, db: Session = Depends(get_db)) -> dict:
         raise HTTPException(400, str(exc))
     except Exception as exc:  # noqa: BLE001 — transport/HTTP failure reaching ACE
         raise HTTPException(502, f"publish to ACE failed: {exc}")
+
+
+# --- Phase 2: Denial Pattern Discovery --------------------------------------
+@app.post("/denials/load-sample")
+def denials_load_sample(db: Session = Depends(get_db)) -> dict:
+    """Seed synthetic 835 remittance data (PHI-free)."""
+    return {"remittance_lines": denials.load_sample(db)}
+
+
+@app.post("/denials/detect")
+def denials_detect(db: Session = Depends(get_db)) -> dict:
+    """Re-derive ranked denial signals from the remittance data (statistics-only)."""
+    try:
+        return denials.detect_signals(db)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.get("/denials/signals")
+def denials_signals(status: str = "", db: Session = Depends(get_db)) -> list[dict]:
+    q = select(models.DenialSignal).order_by(models.DenialSignal.rank)
+    if status:
+        q = q.where(models.DenialSignal.status == status)
+    return [denials.signal_dict(s) for s in db.scalars(q).all()]
+
+
+@app.get("/denials/remittances")
+def denials_remittances(procedure_code: str = "", denied: bool | None = None,
+                        limit: int = 200, db: Session = Depends(get_db)) -> list[dict]:
+    q = select(models.RemittanceLine).order_by(models.RemittanceLine.service_date.desc())
+    if procedure_code:
+        q = q.where(models.RemittanceLine.procedure_code == procedure_code)
+    if denied is not None:
+        q = q.where(models.RemittanceLine.denied == denied)  # noqa: E712
+    rows = db.scalars(q.limit(min(limit, 1000))).all()
+    return [{"id": r.id, "payer": r.payer, "claim_id": r.claim_id,
+             "procedure_code": r.procedure_code, "denied": r.denied,
+             "denial_carc": r.denial_carc, "denial_reason": r.denial_reason,
+             "billed_amount": r.billed_amount, "service_date": r.service_date} for r in rows]
+
+
+@app.post("/denials/signals/{signal_id}/promote")
+def denials_promote(signal_id: str, db: Session = Depends(get_db)) -> dict:
+    """Promote a denial signal's proposed rule into the P3 review queue."""
+    if not llm_client.llm_available():
+        raise HTTPException(503, "LLM not configured — set ANTHROPIC_API_KEY")
+    try:
+        return denials.promote_signal(db, signal_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
 
 
 # --- Golden-set evaluation harness ------------------------------------------

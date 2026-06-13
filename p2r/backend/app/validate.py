@@ -44,6 +44,56 @@ def _seed_library(db: Session) -> None:
     db.commit()
 
 
+def _library_ctx(db: Session, payer: str):
+    library = db.scalars(select(models.RuleLibraryEntry).where(
+        models.RuleLibraryEntry.payer == payer)).all()
+    lib_text = json.dumps([{"rule_id": r.id, "title": r.title, "code_sets": r.code_sets}
+                           for r in library], indent=2) if library else "(empty)"
+    return lib_text, {r.id for r in library}, {r.id: r for r in library}
+
+
+def judge_candidate(db: Session, *, payer: str, provision_type: str, summary: str,
+                    code_sets: dict, evidence_text: str, evidence_ref: dict,
+                    origin: str = "POLICY", source_provision_id: str = "",
+                    source_document_id: str = "", source_signal_id: str = "",
+                    llm: dict | None = None) -> models.RuleRecommendation:
+    """Validate one candidate against its evidence and reconcile it against the library.
+
+    Shared by P1 (policy provisions) and P2 (denial signals) — the single P3 judge.
+    """
+    lib_text, lib_ids, lib_by_id = _library_ctx(db, payer)
+    candidate = {"provision_type": provision_type, "summary": summary, "code_sets": code_sets}
+    result = llm_client.complete_json(
+        prompts.VALIDATOR_SYSTEM, prompts.build_validator_user(candidate, evidence_text, lib_text),
+        prompts.VALIDATOR_SCHEMA, temperature=0.0, llm=llm, cache=True,
+    )[0]
+    val = result.get("validation", {})
+    rec = result.get("reconciliation", {})
+    matched = rec.get("matched_rule_id", "") or ""
+    if matched not in lib_ids:   # grounding: only library ids allowed
+        matched = ""
+    overlap = _overlap(code_sets, lib_by_id[matched].code_sets) if matched else 0.0
+    conf = round(float(result.get("confidence", 0.0)), 3)
+    rverdict = rec.get("verdict", "NET_NEW")
+    vverdict = val.get("verdict", "")
+    attention = (rverdict == "CONFLICT") or (vverdict != "SUPPORTED") or (conf < 0.75)
+    row = models.RuleRecommendation(
+        payer=payer, origin=origin, source_provision_id=source_provision_id,
+        source_document_id=source_document_id, source_signal_id=source_signal_id,
+        candidate_summary=summary, provision_type=provision_type, code_sets=code_sets,
+        validation_verdict=vverdict, validation_rationale=val.get("rationale", ""),
+        evidence=[{**evidence_ref, "quote": val.get("evidence_quote", "")}],
+        reconciliation_verdict=rverdict, matched_rule_id=matched,
+        reconciliation_rationale=rec.get("rationale", ""), code_overlap=overlap,
+        confidence=conf, status="PENDING_REVIEW", needs_attention=attention,
+        model_version=llm_client.model_version(llm),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
 def generate_for_document(db: Session, doc_id: str, llm: dict | None = None) -> dict:
     doc = db.get(models.PolicyDocument, doc_id)
     if doc is None:
@@ -55,53 +105,25 @@ def generate_for_document(db: Session, doc_id: str, llm: dict | None = None) -> 
             models.PolicyProvision.routing != "HOLD",
         )
     ).all()
-    library = db.scalars(select(models.RuleLibraryEntry).where(
-        models.RuleLibraryEntry.payer == doc.payer)).all()
-    lib_text = json.dumps([{"rule_id": r.id, "title": r.title, "code_sets": r.code_sets}
-                           for r in library], indent=2) or "(empty)"
-    lib_ids = {r.id for r in library}
-    lib_by_id = {r.id: r for r in library}
-    mv = llm_client.model_version(llm)
-
     recs = []
     for p in provs:
-        candidate = {"provision_type": p.provision_type, "summary": p.summary, "code_sets": p.code_sets}
         evidence_text = f"[{p.provision_type}] {p.summary}\nConditions: {json.dumps(p.conditions)}"
-        result = llm_client.complete_json(
-            prompts.VALIDATOR_SYSTEM, prompts.build_validator_user(candidate, evidence_text, lib_text),
-            prompts.VALIDATOR_SCHEMA, temperature=0.0, llm=llm, cache=True,
-        )[0]
-        val = result.get("validation", {})
-        rec = result.get("reconciliation", {})
-        matched = rec.get("matched_rule_id", "") or ""
-        if matched not in lib_ids:   # grounding: only library ids allowed
-            matched = ""
-        overlap = _overlap(p.code_sets, lib_by_id[matched].code_sets) if matched else 0.0
-        conf = round(float(result.get("confidence", 0.0)), 3)
-        rverdict = rec.get("verdict", "NET_NEW")
-        vverdict = val.get("verdict", "")
-        attention = (rverdict == "CONFLICT") or (vverdict != "SUPPORTED") or (conf < 0.75)
-        row = models.RuleRecommendation(
-            payer=doc.payer, source_provision_id=p.id, source_document_id=doc_id,
-            candidate_summary=p.summary, provision_type=p.provision_type, code_sets=p.code_sets,
-            validation_verdict=vverdict, validation_rationale=val.get("rationale", ""),
-            evidence=[{"provision_id": p.id, "quote": val.get("evidence_quote", "")}],
-            reconciliation_verdict=rverdict, matched_rule_id=matched,
-            reconciliation_rationale=rec.get("rationale", ""), code_overlap=overlap,
-            confidence=conf, status="PENDING_REVIEW", needs_attention=attention, model_version=mv,
-        )
-        db.add(row)
-        recs.append(row)
-    db.commit()
-    for r in recs:
-        db.refresh(r)
+        recs.append(judge_candidate(
+            db, payer=doc.payer, provision_type=p.provision_type, summary=p.summary,
+            code_sets=p.code_sets, evidence_text=evidence_text,
+            evidence_ref={"provision_id": p.id}, origin="POLICY",
+            source_provision_id=p.id, source_document_id=doc_id, llm=llm,
+        ))
     return {"document_id": doc_id, "payer": doc.payer, "count": len(recs),
             "recommendations": [rec_dict(r) for r in recs]}
 
 
 def rec_dict(r: models.RuleRecommendation) -> dict:
     return {
-        "id": r.id, "payer": r.payer, "provision_type": r.provision_type,
+        "id": r.id, "payer": r.payer, "origin": r.origin,
+        "source_document_id": r.source_document_id, "source_provision_id": r.source_provision_id,
+        "source_signal_id": r.source_signal_id,
+        "provision_type": r.provision_type,
         "candidate_summary": r.candidate_summary, "code_sets": r.code_sets,
         "validation_verdict": r.validation_verdict, "validation_rationale": r.validation_rationale,
         "evidence": r.evidence, "reconciliation_verdict": r.reconciliation_verdict,
