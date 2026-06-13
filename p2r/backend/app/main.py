@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from core import llm_client
 from core.ir import ArtifactType
 
-from . import ingest, models, sample, validate
+from . import ingest, models, publish, sample, validate
 from .db import SessionLocal, get_db, init_db
 
 app = FastAPI(title="P2R — Policy-to-Rule Intelligence (Nous RCM Framework)", version="0.2.0")
@@ -142,11 +142,45 @@ def recommend_from_document(doc_id: str, db: Session = Depends(get_db)) -> dict:
 
 
 @app.get("/recommendations")
-def list_recommendations(verdict: str = "", attention: bool = False,
+def list_recommendations(verdict: str = "", attention: bool = False, status: str = "",
                          db: Session = Depends(get_db)) -> list[dict]:
     q = select(models.RuleRecommendation).order_by(models.RuleRecommendation.created_at.desc())
     if verdict:
         q = q.where(models.RuleRecommendation.reconciliation_verdict == verdict)
     if attention:
         q = q.where(models.RuleRecommendation.needs_attention == True)  # noqa: E712
+    if status:
+        q = q.where(models.RuleRecommendation.status == status)
     return [validate.rec_dict(r) for r in db.scalars(q).all()]
+
+
+# --- Phase 5: human approval + "Publish to ACE" integration glimpse ----------
+@app.post("/recommendations/{rec_id}/approve")
+def approve_recommendation(rec_id: str, db: Session = Depends(get_db)) -> dict:
+    """A reviewer signs off a recommendation; only APPROVED rules may be published to ACE."""
+    rec = db.get(models.RuleRecommendation, rec_id)
+    if rec is None:
+        raise HTTPException(404, "recommendation not found")
+    if rec.status == "PUBLISHED":
+        raise HTTPException(409, "already published")
+    rec.status = "APPROVED"
+    db.add(rec)
+    db.commit()
+    return {"recommendation_id": rec.id, "status": rec.status}
+
+
+@app.get("/integration/ace/status")
+def ace_status() -> dict:
+    """Is ACE's public API reachable, and how many P2R-authored policies live there?"""
+    return publish.ace_reachable()
+
+
+@app.post("/recommendations/{rec_id}/publish-to-ace")
+def publish_to_ace(rec_id: str, db: Session = Depends(get_db)) -> dict:
+    """Write the approved rule into ACE via its public policy API (sandbox payer only)."""
+    try:
+        return publish.publish_recommendation(db, rec_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except Exception as exc:  # noqa: BLE001 — transport/HTTP failure reaching ACE
+        raise HTTPException(502, f"publish to ACE failed: {exc}")

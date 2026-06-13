@@ -96,7 +96,10 @@ class RuleRecommendation(Base):
     reconciliation_rationale: Mapped[str] = mapped_column(Text, default="")
     code_overlap: Mapped[float] = mapped_column(Float, default=0.0)  # deterministic cross-check
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
-    status: Mapped[str] = mapped_column(String(20), default="PENDING_REVIEW")
+    status: Mapped[str] = mapped_column(String(20), default="PENDING_REVIEW")  # PENDING_REVIEW|APPROVED|PUBLISHED
     needs_attention: Mapped[bool] = mapped_column(Boolean, default=False)
     model_version: Mapped[str] = mapped_column(String(60), default="")
+    # Phase 5 — "Publish to ACE" integration glimpse (write-only, sandbox payer).
+    published_to_ace: Mapped[bool] = mapped_column(Boolean, default=False)
+    ace_publish: Mapped[dict] = mapped_column(JSONB, default=dict)  # {payer, source, policies:[{code,ace_id}], at}
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

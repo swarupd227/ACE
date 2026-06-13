@@ -108,4 +108,5 @@ def rec_dict(r: models.RuleRecommendation) -> dict:
         "matched_rule_id": r.matched_rule_id, "reconciliation_rationale": r.reconciliation_rationale,
         "code_overlap": r.code_overlap, "confidence": r.confidence, "status": r.status,
         "needs_attention": r.needs_attention,
+        "published_to_ace": r.published_to_ace, "ace_publish": r.ace_publish,
     }

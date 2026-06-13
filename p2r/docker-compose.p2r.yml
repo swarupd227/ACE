@@ -27,6 +27,9 @@ services:
     env_file: ../.env                      # same Nous env (Anthropic key); ACE vars ignored
     environment:
       DATABASE_URL: postgresql+psycopg://${P2R_DB_USER:-p2r}:${P2R_DB_PASSWORD:-p2r_dev_pw}@db:5432/${P2R_DB_NAME:-p2r}
+      # Phase 5 integration glimpse — ACE's public API, reached over the host gateway.
+      # Write-only, on explicit click, against a sandbox payer; never ACE's scripted demo.
+      ACE_BASE_URL: ${ACE_BASE_URL:-http://host.docker.internal:8000}
     depends_on:
       db:
         condition: service_healthy
