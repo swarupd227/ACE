@@ -17,7 +17,7 @@ from core import llm_client
 from core.ir import ArtifactType
 
 from . import eval as evalh
-from . import acquisition, denials, ingest, models, publish, sample, validate
+from . import acquisition, denials, ingest, models, publish, replay, rule_ir, sample, validate
 from .db import SessionLocal, get_db, init_db
 
 app = FastAPI(title="P2R — Policy-to-Rule Intelligence (Nous RCM Framework)", version="0.2.0")
@@ -204,6 +204,36 @@ def approve_recommendation(rec_id: str, db: Session = Depends(get_db)) -> dict:
 def ace_status() -> dict:
     """Is ACE's public API reachable, and how many P2R-authored policies live there?"""
     return publish.ace_reachable()
+
+
+# --- Phase 4: Rule IR / compiler, replay & differential testing, rollback ----
+@app.get("/recommendations/{rec_id}/rule-ir")
+def recommendation_rule_ir(rec_id: str, db: Session = Depends(get_db)) -> dict:
+    """Canonical Rule IR + compiled artifacts (engine-agnostic + ACE adapter)."""
+    rec = db.get(models.RuleRecommendation, rec_id)
+    if rec is None:
+        raise HTTPException(404, "recommendation not found")
+    return rule_ir.compile_all(rec)
+
+
+@app.post("/recommendations/{rec_id}/replay")
+def recommendation_replay(rec_id: str, db: Session = Depends(get_db)) -> dict:
+    """Replay the rule against the historical claim corpus → differential impact."""
+    rec = db.get(models.RuleRecommendation, rec_id)
+    if rec is None:
+        raise HTTPException(404, "recommendation not found")
+    return replay.replay_rule(db, rec)
+
+
+@app.post("/recommendations/{rec_id}/rollback")
+def recommendation_rollback(rec_id: str, db: Session = Depends(get_db)) -> dict:
+    """Retract a published rule from ACE and revert it to APPROVED."""
+    try:
+        return publish.rollback_recommendation(db, rec_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except Exception as exc:  # noqa: BLE001 — transport/HTTP failure reaching ACE
+        raise HTTPException(502, f"rollback failed: {exc}")
 
 
 @app.post("/recommendations/{rec_id}/publish-to-ace")

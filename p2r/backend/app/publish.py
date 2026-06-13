@@ -39,7 +39,7 @@ def _modifier_pref(code_sets: dict) -> str:
     return mods[0] if mods else ""
 
 
-def _build_policy_payloads(rec: models.RuleRecommendation) -> list[dict]:
+def build_policy_payloads(rec: models.RuleRecommendation) -> list[dict]:
     """One ACE payer-policy per CPT code in the recommendation. ACE keys policy on (payer, code)."""
     cpts = [str(c).strip() for c in (rec.code_sets or {}).get("cpt", []) or [] if str(c).strip()]
     if not cpts:
@@ -90,7 +90,7 @@ def publish_recommendation(db: Session, rec_id: str) -> dict:
     if (rec.payer or "").strip().lower() in _DEMO_PAYERS:
         raise ValueError(f"refusing to publish against scripted demo payer '{rec.payer}' (sandbox only)")
 
-    payloads = _build_policy_payloads(rec)
+    payloads = build_policy_payloads(rec)
     if not payloads:
         raise ValueError("recommendation has no CPT code to publish as an ACE policy")
 
@@ -112,3 +112,33 @@ def publish_recommendation(db: Session, rec_id: str) -> dict:
     db.refresh(rec)
     return {"recommendation_id": rec.id, "published": len(created), "policies": created,
             "source": ACE_SOURCE_TAG, "payer": rec.payer}
+
+
+def rollback_recommendation(db: Session, rec_id: str) -> dict:
+    """Retract a published rule from ACE (delete the policies it created) and revert status."""
+    rec = db.get(models.RuleRecommendation, rec_id)
+    if rec is None:
+        raise ValueError("recommendation not found")
+    if not rec.published_to_ace:
+        raise ValueError("recommendation is not published")
+    policies = (rec.ace_publish or {}).get("policies", [])
+    headers = {"X-Actor": "P2R-INTEGRATION", "X-Role": "Admin"}
+    deleted = []
+    with httpx.Client(base_url=ACE_BASE_URL, timeout=15.0, headers=headers) as c:
+        for p in policies:
+            aid = p.get("ace_id")
+            if aid is None:
+                continue
+            resp = c.delete(f"/api/policies/{aid}")
+            if resp.status_code in (200, 204, 404):  # 404 = already gone; treat as retracted
+                deleted.append(aid)
+            else:
+                resp.raise_for_status()
+    rec.published_to_ace = False
+    rec.status = "APPROVED"
+    rec.ace_publish = {"rolled_back": True, "retracted_ace_ids": deleted, "source": ACE_SOURCE_TAG}
+    db.add(rec)
+    db.commit()
+    db.refresh(rec)
+    return {"recommendation_id": rec.id, "retracted": len(deleted), "ace_ids": deleted,
+            "status": rec.status}
