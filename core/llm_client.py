@@ -57,6 +57,58 @@ def model_version(llm: dict | None = None) -> str:
     return f"{tag}/{e['model_default']}"
 
 
+_EXTRACT_SYSTEM = (
+    "You are a document transcription assistant. Transcribe the supplied document to verbatim "
+    "plain text, preserving headings, section labels, lists and line breaks. Do not summarize, "
+    "interpret, or add commentary — output only the transcribed text."
+)
+
+
+def extract_document_text(
+    data: bytes, media_type: str, *, llm: dict | None = None, usage_sink: list | None = None
+) -> str:
+    """Vision OCR for an uploaded policy document (PDF / PNG / JPEG / WebP): returns the
+    verbatim plain-text transcription, which then enters the normal cited-extraction pipeline.
+    Anthropic provider only (vision document/image blocks); honest LLMUnavailable otherwise."""
+    import base64
+
+    e = effective_llm(llm)
+    if not llm_available(llm):
+        raise LLMUnavailable("No LLM backend configured for document extraction.")
+    if e["provider"] != "anthropic":
+        raise LLMUnavailable(
+            "Document extraction requires the Anthropic provider (vision blocks); "
+            "switch the reasoning model in Admin, or paste the policy text."
+        )
+
+    import anthropic
+
+    block_type = "document" if media_type == "application/pdf" else "image"
+    client = anthropic.Anthropic(api_key=e["anthropic_api_key"])
+    resp = client.messages.create(
+        model=e["model_default"],
+        max_tokens=e["max_tokens"],
+        temperature=0.0,
+        system=_EXTRACT_SYSTEM,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": block_type,
+                 "source": {"type": "base64", "media_type": media_type,
+                            "data": base64.standard_b64encode(data).decode()}},
+                {"type": "text", "text": "Transcribe this policy document."},
+            ],
+        }],
+    )
+    if usage_sink is not None:
+        usage_sink.append({"in": getattr(resp.usage, "input_tokens", 0),
+                           "out": getattr(resp.usage, "output_tokens", 0)})
+    text = "".join(b.text for b in resp.content if b.type == "text").strip()
+    if len(text) < 20:
+        raise LLMUnavailable("Document extraction produced no usable text.")
+    return text
+
+
 def _anthropic_json(system, user, schema, model, temperature, e, cache=False) -> dict[str, Any]:
     import anthropic
 

@@ -13,6 +13,7 @@ export default function Workbench() {
   const nav = useNavigate();
   const [selected, setSelected] = useState<string | null>(null);
   const [showPaste, setShowPaste] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
   const [payer, setPayer] = useState("");
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
@@ -38,6 +39,12 @@ export default function Workbench() {
     onError: (e: any) => setErr(e.message),
   });
 
+  const ingestDoc = useMutation({
+    mutationFn: (file: File) => api.ingestDocument(file, payer, title || file.name),
+    onSuccess: (r) => { refreshDocs(r.document_id); setShowUpload(false); setTitle(""); setPayer(""); },
+    onError: (e: any) => setErr(e.message),
+  });
+
   const generate = useMutation({
     mutationFn: (docId: string) => api.generate(docId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["recommendations"] }); nav("/review"); },
@@ -50,7 +57,8 @@ export default function Workbench() {
         <h1 className="text-xl font-bold text-slate-800">Policy Workbench</h1>
         <p className="text-sm text-slate-500 mt-0.5">
           Ingest a payer policy → the model extracts cited, confidence-gated provisions → generate
-          candidate rules for review. Synthetic, PHI-free policies only.
+          candidate rules for review. Use the synthetic sample, paste any policy, or upload a public
+          policy document (e.g. a CMS LCD). PHI-free policy documents only.
         </p>
       </div>
 
@@ -72,9 +80,40 @@ export default function Workbench() {
           Ingest sample policy
         </button>
         <button className="btn-ghost" onClick={() => { setErr(""); setShowPaste((s) => !s); }}>
-          <Upload size={16} /> Paste a policy
+          <FileText size={16} /> Paste a policy
+        </button>
+        <button className="btn-ghost" onClick={() => { setErr(""); setShowUpload((s) => !s); }}>
+          <Upload size={16} /> Upload PDF / image
         </button>
       </div>
+
+      {showUpload && (
+        <div className="card p-4 space-y-3 fadeup">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="label mb-1">Payer</div>
+              <input className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={payer} onChange={(e) => setPayer(e.target.value)} placeholder="e.g. Medicare (CMS LCD L34220)" />
+            </div>
+            <div>
+              <div className="label mb-1">Title (optional)</div>
+              <input className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={title} onChange={(e) => setTitle(e.target.value)} placeholder="defaults to the file name" />
+            </div>
+          </div>
+          <div>
+            <div className="label mb-1">Policy document (PDF, PNG, JPEG, WebP — scanned OK)</div>
+            <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp"
+              disabled={ingestDoc.isPending}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) { setErr(""); ingestDoc.mutate(f); } }}
+              className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-ace-600 file:px-3 file:py-2 file:text-white file:font-semibold hover:file:bg-ace-700" />
+          </div>
+          {ingestDoc.isPending && (
+            <div className="flex items-center gap-2 text-sm text-slate-500"><Spinner className="h-4 w-4" /> Extracting via OCR + model…</div>
+          )}
+          <div className="text-[11px] text-slate-400">Document is OCR'd by the shared vision model, then run through the same cited-extraction pipeline. 12 MB max.</div>
+        </div>
+      )}
 
       {showPaste && (
         <div className="card p-4 space-y-3 fadeup">

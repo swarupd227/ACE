@@ -39,6 +39,24 @@ export const api = {
     req<{ document_id: string; provision_count: number }>("/ingest/policy", {
       method: "POST", body: JSON.stringify({ payer, title, text }),
     }),
+  // Multipart PDF/image upload → OCR → same extraction pipeline. Browser sets the boundary.
+  ingestDocument: async (file: File, payer: string, title: string) => {
+    const role = (typeof localStorage !== "undefined" && localStorage.getItem("p2r_role")) || "Admin";
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("payer", payer);
+    fd.append("title", title);
+    const res = await fetch(`${BASE}/ingest/policy/document`, {
+      method: "POST", body: fd,
+      headers: { "X-Actor": role.toLowerCase().replace(/\s+/g, "_"), "X-Role": role },
+    });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try { const j = await res.json(); detail = j.detail || detail; } catch { /* ignore */ }
+      throw new Error(detail);
+    }
+    return res.json() as Promise<{ document_id: string; provision_count: number }>;
+  },
 
   // Documents + provisions
   documents: () => req<DocumentRow[]>("/documents"),
