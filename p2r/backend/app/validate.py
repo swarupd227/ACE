@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from core import llm_client
 
-from . import audit, models, prompts
+from . import audit, config_store, models, prompts
 
 
 def _codes(cs: dict) -> set[str]:
@@ -76,7 +76,8 @@ def judge_candidate(db: Session, *, payer: str, provision_type: str, summary: st
     conf = round(float(result.get("confidence", 0.0)), 3)
     rverdict = rec.get("verdict", "NET_NEW")
     vverdict = val.get("verdict", "")
-    attention = (rverdict == "CONFLICT") or (vverdict != "SUPPORTED") or (conf < 0.75)
+    attn_below = config_store.section(db, "confidence").get("attention_below", 0.75)
+    attention = (rverdict == "CONFLICT") or (vverdict != "SUPPORTED") or (conf < attn_below)
     row = models.RuleRecommendation(
         payer=payer, origin=origin, source_provision_id=source_provision_id,
         source_document_id=source_document_id, source_signal_id=source_signal_id,

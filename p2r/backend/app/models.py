@@ -24,6 +24,15 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class AppConfig(Base):
+    """Runtime configuration (key → JSON value). Overrides the code DEFAULTS; drives the engine."""
+    __tablename__ = "app_config"
+
+    key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    value: Mapped[dict] = mapped_column(JSONB, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class DecisionLogEntry(Base):
     """Append-only governance ledger across all phases (P1-P4 + review).
 

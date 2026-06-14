@@ -7,6 +7,7 @@ import ReviewQueue from "./pages/ReviewQueue";
 import RuleLibrary from "./pages/RuleLibrary";
 import EvalHarness from "./pages/EvalHarness";
 import DecisionLog from "./pages/DecisionLog";
+import Admin from "./pages/Admin";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/library" element={<RuleLibrary />} />
         <Route path="/eval" element={<EvalHarness />} />
         <Route path="/audit" element={<DecisionLog />} />
+        <Route path="/admin" element={<Admin />} />
       </Routes>
     </Layout>
   );

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
   FileSearch, ClipboardCheck, Library, FlaskConical, Cpu, ShieldCheck, Workflow,
-  Radar, Activity, ScrollText, UserCog,
+  Radar, Activity, ScrollText, UserCog, SlidersHorizontal,
 } from "lucide-react";
 import { api } from "../api";
 import { useRole, ROLES, canAccess } from "../role";
@@ -16,6 +16,7 @@ const nav = [
   { to: "/library", label: "Rule Library", icon: Library },
   { to: "/eval", label: "Evaluation Harness", icon: FlaskConical },
   { to: "/audit", label: "Decision Log", icon: ScrollText },
+  { to: "/admin", label: "Admin / Configuration", icon: SlidersHorizontal },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

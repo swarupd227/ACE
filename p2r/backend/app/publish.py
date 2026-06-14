@@ -19,7 +19,7 @@ import os
 import httpx
 from sqlalchemy.orm import Session
 
-from . import audit, models
+from . import audit, config_store, models
 
 ACE_BASE_URL = os.getenv("ACE_BASE_URL", "http://host.docker.internal:8000")
 ACE_SOURCE_TAG = "P2R-INTEGRATION"
@@ -39,7 +39,7 @@ def _modifier_pref(code_sets: dict) -> str:
     return mods[0] if mods else ""
 
 
-def build_policy_payloads(rec: models.RuleRecommendation) -> list[dict]:
+def build_policy_payloads(rec: models.RuleRecommendation, source_tag: str = ACE_SOURCE_TAG) -> list[dict]:
     """One ACE payer-policy per CPT code in the recommendation. ACE keys policy on (payer, code)."""
     cpts = [str(c).strip() for c in (rec.code_sets or {}).get("cpt", []) or [] if str(c).strip()]
     if not cpts:
@@ -56,7 +56,7 @@ def build_policy_payloads(rec: models.RuleRecommendation) -> list[dict]:
             "requires_auth": requires_auth,
             "modifier_pref": modifier_pref,
             "covered_dx": covered_dx,
-            "source": ACE_SOURCE_TAG,
+            "source": source_tag,
         }
         for code in cpts
     ]
@@ -87,16 +87,20 @@ def publish_recommendation(db: Session, rec_id: str, actor: str = "system") -> d
         raise ValueError("recommendation not found")
     if rec.status != "APPROVED":
         raise ValueError(f"only APPROVED recommendations can be published (status={rec.status})")
-    if (rec.payer or "").strip().lower() in _DEMO_PAYERS:
+    integ = config_store.section(db, "integration")
+    base_url = integ.get("ace_base_url", ACE_BASE_URL)
+    tag = integ.get("source_tag", ACE_SOURCE_TAG)
+    denylist = {p.lower() for p in integ.get("demo_payer_denylist", list(_DEMO_PAYERS))}
+    if (rec.payer or "").strip().lower() in denylist:
         raise ValueError(f"refusing to publish against scripted demo payer '{rec.payer}' (sandbox only)")
 
-    payloads = build_policy_payloads(rec)
+    payloads = build_policy_payloads(rec, tag)
     if not payloads:
         raise ValueError("recommendation has no CPT code to publish as an ACE policy")
 
     headers = {"X-Actor": "P2R-INTEGRATION", "X-Role": "Admin"}
     created: list[dict] = []
-    with httpx.Client(base_url=ACE_BASE_URL, timeout=15.0, headers=headers) as c:
+    with httpx.Client(base_url=base_url, timeout=15.0, headers=headers) as c:
         for body in payloads:
             resp = c.post("/api/policies", json=body)
             resp.raise_for_status()
@@ -105,17 +109,17 @@ def publish_recommendation(db: Session, rec_id: str, actor: str = "system") -> d
 
     rec.published_to_ace = True
     rec.status = "PUBLISHED"
-    rec.ace_publish = {"payer": rec.payer, "source": ACE_SOURCE_TAG, "policies": created,
-                       "ace_base_url": ACE_BASE_URL}
+    rec.ace_publish = {"payer": rec.payer, "source": tag, "policies": created,
+                       "ace_base_url": base_url}
     db.add(rec)
     db.commit()
     db.refresh(rec)
     audit.log(db, phase="P4", action="PUBLISH", actor=actor,
               entity_type="recommendation", entity_id=rec.id, payer=rec.payer,
-              summary=f"published {len(created)} policy row(s) to ACE ({ACE_SOURCE_TAG})",
-              lineage={"ace_ids": [c.get("ace_id") for c in created], "ace_base_url": ACE_BASE_URL})
+              summary=f"published {len(created)} policy row(s) to ACE ({tag})",
+              lineage={"ace_ids": [c.get("ace_id") for c in created], "ace_base_url": base_url})
     return {"recommendation_id": rec.id, "published": len(created), "policies": created,
-            "source": ACE_SOURCE_TAG, "payer": rec.payer}
+            "source": tag, "payer": rec.payer}
 
 
 def rollback_recommendation(db: Session, rec_id: str, actor: str = "system") -> dict:

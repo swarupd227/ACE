@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from core import llm_client
 
-from . import models, prompts
+from . import config_store, models, prompts
 
 # Deterministic code validators (regex; same idea as ACE's reference checks).
 _RX = {
@@ -62,6 +62,8 @@ def _verify_citation(span: dict, lookup: dict[int, str]) -> bool:
 def ingest_policy(db: Session, payer: str, title: str, text: str,
                   source_type: str = "UPLOAD", llm: dict | None = None) -> dict:
     numbered, lookup = _number(text)
+    conf_cfg = config_store.section(db, "confidence")
+    auto_load, verify = conf_cfg.get("auto_load", 0.90), conf_cfg.get("verify", 0.70)
     usage: list = []
     result = llm_client.complete_json(
         prompts.POLICY_EXTRACT_SYSTEM, prompts.build_policy_user(numbered, payer),
@@ -85,7 +87,7 @@ def ingest_policy(db: Session, payer: str, title: str, text: str,
         verified = [{**c, "verified": _verify_citation(c, lookup)} for c in cits]
         cit_factor = 1.0 if any(c["verified"] for c in verified) else 0.5
         conf = round(conf_model * vfactor * cit_factor, 3)
-        routing = "AUTO_LOAD" if conf >= 0.90 else "VERIFY" if conf >= 0.70 else "HOLD"
+        routing = "AUTO_LOAD" if conf >= auto_load else "VERIFY" if conf >= verify else "HOLD"
         prov = models.PolicyProvision(
             document_id=doc.id, payer=payer, provision_type=p.get("provision_type", ""),
             summary=p.get("summary", ""), code_sets=p.get("code_sets", {}),

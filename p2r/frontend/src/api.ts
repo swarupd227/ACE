@@ -94,4 +94,15 @@ export const api = {
   // UX — decision log + lineage
   audit: (phase = "") => req<AuditEntry[]>(`/audit${phase ? `?phase=${phase}` : ""}`),
   lineage: (id: string) => req<Lineage>(`/recommendations/${id}/lineage`),
+
+  // Admin — runtime config, LLM, rule library CRUD, sources CRUD
+  adminConfig: () => req<{ config: any; defaults: any }>("/admin/config"),
+  putConfig: (key: string, value: any) => req<{ config: any }>(`/admin/config/${key}`, { method: "PUT", body: JSON.stringify({ value }) }),
+  resetConfig: () => req<{ config: any }>("/admin/config/reset", { method: "POST" }),
+  llmStatus: () => req<{ available: boolean; model: string; anthropic_key: boolean; openai_key: boolean }>("/admin/llm/status"),
+  testLlm: () => req<{ ok: boolean; model?: string; error?: string }>("/admin/llm/test", { method: "POST" }),
+  createRule: (r: any) => req("/rule-library", { method: "POST", body: JSON.stringify(r) }),
+  updateRule: (id: string, r: any) => req(`/rule-library/${id}`, { method: "PUT", body: JSON.stringify(r) }),
+  deleteRule: (id: string) => req(`/rule-library/${id}`, { method: "DELETE" }),
+  createSource: (s: any) => req("/sources", { method: "POST", body: JSON.stringify(s) }),
 };

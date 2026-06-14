@@ -17,8 +17,8 @@ from core import llm_client
 from core.ir import ArtifactType
 
 from . import eval as evalh
-from . import (acquisition, audit, denials, ingest, models, publish, replay, rule_ir,
-               sample, validate)
+from . import (acquisition, audit, config_store, denials, ingest, models, publish, replay,
+               rule_ir, sample, validate)
 from .db import SessionLocal, get_db, init_db
 
 app = FastAPI(title="P2R — Policy-to-Rule Intelligence (Nous RCM Framework)", version="0.2.0")
@@ -342,6 +342,140 @@ def denials_promote(signal_id: str, db: Session = Depends(get_db),
         return denials.promote_signal(db, signal_id, actor=actor)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+
+
+# --- Admin: runtime configuration (drives the engine) -----------------------
+@app.get("/admin/config")
+def admin_get_config(db: Session = Depends(get_db)) -> dict:
+    return {"config": config_store.load(db), "defaults": config_store.DEFAULTS}
+
+
+class ConfigPut(BaseModel):
+    value: dict
+
+
+@app.put("/admin/config/{key}")
+def admin_put_config(key: str, body: ConfigPut, db: Session = Depends(get_db),
+                     actor: str = Depends(actor_of)) -> dict:
+    if key not in config_store.DEFAULTS:
+        raise HTTPException(400, f"unknown config key '{key}'")
+    config_store.put(db, key, body.value)
+    audit.log(db, phase="UX", action="CONFIG", actor=actor, entity_type="config", entity_id=key,
+              summary=f"updated config '{key}'", lineage={"value": body.value})
+    return {"config": config_store.load(db)}
+
+
+@app.post("/admin/config/reset")
+def admin_reset_config(db: Session = Depends(get_db), actor: str = Depends(actor_of)) -> dict:
+    config_store.reset(db)
+    audit.log(db, phase="UX", action="CONFIG_RESET", actor=actor, entity_type="config",
+              summary="reset all config to defaults")
+    return {"config": config_store.load(db)}
+
+
+@app.get("/admin/llm/status")
+def admin_llm_status() -> dict:
+    return {"available": llm_client.llm_available(), "model": llm_client.model_version(),
+            "anthropic_key": bool(__import__("os").getenv("ANTHROPIC_API_KEY")),
+            "openai_key": bool(__import__("os").getenv("OPENAI_API_KEY"))}
+
+
+@app.post("/admin/llm/test")
+def admin_llm_test() -> dict:
+    if not llm_client.llm_available():
+        return {"ok": False, "error": "LLM not configured"}
+    try:
+        schema = {"type": "object", "properties": {"ok": {"type": "boolean"}}, "required": ["ok"]}
+        out = llm_client.complete_json("You are a connectivity probe.",
+                                       "Return {\"ok\": true}.", schema, temperature=0.0)[0]
+        return {"ok": bool(out.get("ok")), "model": llm_client.model_version()}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": str(exc)}
+
+
+# --- Admin: rule library CRUD (the reconciliation targets) ------------------
+class RuleLibIn(BaseModel):
+    id: str
+    payer: str
+    title: str = ""
+    code_sets: dict = {}
+    status: str = "active"
+
+
+@app.post("/rule-library")
+def create_rule(body: RuleLibIn, db: Session = Depends(get_db), actor: str = Depends(actor_of)) -> dict:
+    if db.get(models.RuleLibraryEntry, body.id):
+        raise HTTPException(409, "rule id already exists")
+    r = models.RuleLibraryEntry(id=body.id, payer=body.payer, title=body.title,
+                                logic_summary=body.title, code_sets=body.code_sets, status=body.status)
+    db.add(r)
+    db.commit()
+    audit.log(db, phase="UX", action="RULE_CREATE", actor=actor, entity_type="rule", entity_id=body.id,
+              payer=body.payer, summary=f"added library rule {body.id}")
+    return {"id": r.id}
+
+
+@app.put("/rule-library/{rule_id}")
+def update_rule(rule_id: str, body: RuleLibIn, db: Session = Depends(get_db),
+                actor: str = Depends(actor_of)) -> dict:
+    r = db.get(models.RuleLibraryEntry, rule_id)
+    if r is None:
+        raise HTTPException(404, "rule not found")
+    r.payer, r.title, r.logic_summary = body.payer, body.title, body.title
+    r.code_sets, r.status = body.code_sets, body.status
+    db.add(r)
+    db.commit()
+    audit.log(db, phase="UX", action="RULE_UPDATE", actor=actor, entity_type="rule", entity_id=rule_id,
+              payer=body.payer, summary=f"edited library rule {rule_id}")
+    return {"id": r.id}
+
+
+@app.delete("/rule-library/{rule_id}")
+def delete_rule(rule_id: str, db: Session = Depends(get_db), actor: str = Depends(actor_of)) -> dict:
+    r = db.get(models.RuleLibraryEntry, rule_id)
+    if r is None:
+        raise HTTPException(404, "rule not found")
+    db.delete(r)
+    db.commit()
+    audit.log(db, phase="UX", action="RULE_DELETE", actor=actor, entity_type="rule", entity_id=rule_id,
+              summary=f"removed library rule {rule_id}")
+    return {"deleted": rule_id}
+
+
+# --- Admin: source registry CRUD --------------------------------------------
+class SourceIn(BaseModel):
+    payer: str
+    name: str
+    source_type: str = "PORTAL"
+    location: str = ""
+    cadence: str = "weekly"
+    status: str = "active"
+
+
+@app.post("/sources")
+def create_source(body: SourceIn, db: Session = Depends(get_db), actor: str = Depends(actor_of)) -> dict:
+    s = models.PolicySource(**body.model_dump())
+    db.add(s)
+    db.commit()
+    db.refresh(s)
+    audit.log(db, phase="UX", action="SOURCE_CREATE", actor=actor, entity_type="source",
+              entity_id=s.id, payer=body.payer, summary=f"registered source '{body.name}'")
+    return acquisition.source_dict(s)
+
+
+@app.put("/sources/{source_id}")
+def update_source(source_id: str, body: SourceIn, db: Session = Depends(get_db),
+                  actor: str = Depends(actor_of)) -> dict:
+    s = db.get(models.PolicySource, source_id)
+    if s is None:
+        raise HTTPException(404, "source not found")
+    for k, v in body.model_dump().items():
+        setattr(s, k, v)
+    db.add(s)
+    db.commit()
+    audit.log(db, phase="UX", action="SOURCE_UPDATE", actor=actor, entity_type="source",
+              entity_id=source_id, payer=body.payer, summary=f"updated source '{body.name}'")
+    return acquisition.source_dict(s)
 
 
 # --- Governance: append-only decision log + lineage -------------------------

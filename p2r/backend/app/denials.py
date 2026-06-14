@@ -18,17 +18,18 @@ from sqlalchemy.orm import Session
 
 from core import llm_client
 
-from . import audit, models, sample_835, validate
+from . import audit, config_store, models, sample_835, validate
 
 RECENT_WINDOW = sample_835.RECENT_WINDOW
 
-# CARC → the kind of rule a denial pattern implies.
-_CARC_RULE = {
-    "197": ("PRIOR_AUTH", "Require prior authorization for {code} ({payer})"),
-    "16": ("DOCUMENTATION", "Enforce documentation completeness for {code} ({payer})"),
-    "11": ("COVERAGE", "Tighten medical-necessity / diagnosis pairing for {code} ({payer})"),
-    "50": ("COVERAGE", "Add medical-necessity criteria for {code} ({payer})"),
-    "151": ("FREQUENCY", "Add a frequency limit for {code} ({payer})"),
+# Human-readable rule-statement templates per provision type (the type itself comes from the
+# admin-configurable CARC map).
+_RULE_TEMPLATE = {
+    "PRIOR_AUTH": "Require prior authorization for {code} ({payer})",
+    "DOCUMENTATION": "Enforce documentation completeness for {code} ({payer})",
+    "COVERAGE": "Tighten medical-necessity / diagnosis pairing for {code} ({payer})",
+    "FREQUENCY": "Add a frequency limit for {code} ({payer})",
+    "MODIFIER": "Add a modifier requirement for {code} ({payer})",
 }
 
 
@@ -53,12 +54,13 @@ def _two_proportion_z(d1: int, n1: int, d2: int, n2: int) -> float:
     return (p1 - p2) / se
 
 
-def _classify(recent_rate: float, baseline_rate: float, lift: float, z: float) -> str:
-    if z >= 3.0 and lift >= 1.5:
+def _classify(recent_rate: float, baseline_rate: float, lift: float, z: float, cfg: dict) -> str:
+    zt, lt, pr = cfg["z_threshold"], cfg["lift_threshold"], cfg["persistent_rate"]
+    if z >= zt and lift >= lt:
         return "SPIKE"
-    if baseline_rate >= 0.20 and recent_rate >= 0.20:
+    if baseline_rate >= pr and recent_rate >= pr:
         return "PERSISTENT"
-    if lift >= 1.5 and recent_rate >= 0.10:
+    if lift >= lt and recent_rate >= 0.10:
         return "EMERGING"
     return ""
 
@@ -69,10 +71,15 @@ def detect_signals(db: Session, actor: str = "system") -> dict:
     if not rows:
         raise ValueError("no remittance data — load the 835 sample first")
 
+    cfg = config_store.section(db, "denials")
+    carc_map = config_store.section(db, "carc_map")
+    window = int(cfg.get("recent_window_days", RECENT_WINDOW))
+    min_denials = int(cfg.get("min_denials", 5))
+
     cutoff = max(r.service_date for r in rows)  # most recent service date (ISO sortable)
     from datetime import date as _date, timedelta
     cutoff_d = _date.fromisoformat(cutoff)
-    recent_start = (cutoff_d - timedelta(days=RECENT_WINDOW - 1)).isoformat()
+    recent_start = (cutoff_d - timedelta(days=window - 1)).isoformat()
 
     # Totals per (payer, code) and denials per (payer, code, carc), split by window.
     tot_recent: dict = defaultdict(int)
@@ -105,8 +112,8 @@ def detect_signals(db: Session, actor: str = "system") -> dict:
         baseline_rate = dbn / nb if nb else 0.0
         lift = recent_rate / baseline_rate if baseline_rate > 0 else (recent_rate / 0.01)
         z = _two_proportion_z(dr, nr, dbn, nb)
-        pattern = _classify(recent_rate, baseline_rate, lift, z)
-        if not pattern or dr < 5:
+        pattern = _classify(recent_rate, baseline_rate, lift, z, cfg)
+        if not pattern or dr < min_denials:
             continue
         score = round(dr * recent_rate * min(max(lift, 1.0), 10.0) * (1 + max(z, 0) / 10), 2)
         candidates.append({
@@ -119,7 +126,8 @@ def detect_signals(db: Session, actor: str = "system") -> dict:
     candidates.sort(key=lambda c: c["score"], reverse=True)
     created = []
     for rank, c in enumerate(candidates, start=1):
-        prov_type, tmpl = _CARC_RULE.get(c["carc"], ("COVERAGE", "Add a rule for {code} ({payer})"))
+        prov_type = carc_map.get(c["carc"], "COVERAGE")
+        tmpl = _RULE_TEMPLATE.get(prov_type, "Add a rule for {code} ({payer})")
         summary = (f"{tmpl.format(code=c['code'], payer=c['payer'])} — {c['dr']} denials "
                    f"({int(c['recent_rate']*100)}%) in the last {RECENT_WINDOW} days with CARC "
                    f"{c['carc']} ({sample_835.CARC_REASON.get(c['carc'], '')}), "
