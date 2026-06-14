@@ -34,6 +34,7 @@ export default function EvalHarness() {
   const [openGolden, setOpenGolden] = useState<string | null>(null);
   const { data: golden } = useQuery({ queryKey: ["eval-golden"], queryFn: api.evalGolden });
   const { data: hist } = useQuery({ queryKey: ["eval-history"], queryFn: api.evalHistory });
+  const { data: denialGolden } = useQuery({ queryKey: ["eval-denial-golden"], queryFn: api.evalDenialGolden });
   const delGolden = useMutation({ mutationFn: (id: string) => api.deleteGolden(id), onSuccess: () => qc.invalidateQueries({ queryKey: ["eval-golden"] }) });
 
   const ph = report?.phases;
@@ -189,6 +190,25 @@ export default function EvalHarness() {
             </div>
           );
         })}
+      </div>
+
+      {/* Denial-detection golden (P2 ground truth) */}
+      <div className="space-y-2">
+        <div className="label">Denial-detection golden (P2) — planted patterns the miner must recover</div>
+        {(denialGolden ?? []).map((d) => (
+          <div key={d.code + d.carc} className="card p-3 text-sm space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="pill bg-violet-50 text-violet-700 ring-1 ring-violet-200 font-mono">CPT {d.code}</span>
+              <span className="pill bg-slate-100 text-slate-600 font-mono">CARC {d.carc}</span>
+              <span className={clsx("pill ring-1",
+                d.pattern === "SPIKE" ? "bg-rose-50 text-rose-700 ring-rose-200"
+                : d.pattern === "EMERGING" ? "bg-amber-50 text-amber-700 ring-amber-200"
+                : "bg-violet-50 text-violet-700 ring-violet-200")}>{d.pattern}</span>
+              <span className="text-xs text-slate-400">{d.carc_reason}</span>
+            </div>
+            <div className="text-xs text-slate-500">{d.note}</div>
+          </div>
+        ))}
       </div>
     </div>
   );

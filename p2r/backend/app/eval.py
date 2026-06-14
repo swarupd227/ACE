@@ -36,10 +36,19 @@ _GOLDEN_SEED: list[dict] = [
 
 # Planted denial patterns (P2 ground truth — what the miner must recover from the synthetic 835).
 DENIAL_GOLDEN: list[dict] = [
-    {"code": "72148", "carc": "197"},
-    {"code": "72131", "carc": "11"},
-    {"code": "45378", "carc": "16"},
+    {"code": "72148", "carc": "197", "pattern": "SPIKE",
+     "note": "Auth-absent denials spike in the recent window → should propose PRIOR_AUTH."},
+    {"code": "72131", "carc": "11", "pattern": "EMERGING",
+     "note": "Rising diagnosis-inconsistent denials → should propose COVERAGE."},
+    {"code": "45378", "carc": "16", "pattern": "PERSISTENT",
+     "note": "Chronically high missing-info denials → should propose DOCUMENTATION."},
 ]
+
+
+def denial_golden() -> list[dict]:
+    """The planted denial patterns the P2 miner is scored against (ground truth)."""
+    from . import sample_835
+    return [{**g, "carc_reason": sample_835.CARC_REASON.get(g["carc"], "")} for g in DENIAL_GOLDEN]
 
 
 def seed_golden(db: Session) -> None:

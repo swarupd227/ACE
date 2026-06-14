@@ -548,6 +548,12 @@ def eval_run(db: Session = Depends(get_db), actor: str = Depends(actor_of)) -> d
         raise HTTPException(503, str(exc))
 
 
+@app.get("/eval/golden/denials")
+def eval_golden_denials() -> list[dict]:
+    """The planted denial patterns the P2 detection miner is scored against."""
+    return evalh.denial_golden()
+
+
 @app.get("/eval/history")
 def eval_history(db: Session = Depends(get_db)) -> list[dict]:
     """Past eval runs (for history + model-version drift)."""

@@ -74,6 +74,7 @@ export const api = {
   evalGolden: () => req<GoldenCase[]>("/eval/golden"),
   evalRun: () => req<EvalReport>("/eval/run", { method: "POST" }),
   evalHistory: () => req<EvalReport[]>("/eval/history"),
+  evalDenialGolden: () => req<{ code: string; carc: string; pattern: string; note: string; carc_reason: string }[]>("/eval/golden/denials"),
   createGolden: (g: any) => req("/eval/golden", { method: "POST", body: JSON.stringify(g) }),
   deleteGolden: (id: string) => req(`/eval/golden/${id}`, { method: "DELETE" }),
 
