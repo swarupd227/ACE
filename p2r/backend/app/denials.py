@@ -63,7 +63,7 @@ def _classify(recent_rate: float, baseline_rate: float, lift: float, z: float) -
     return ""
 
 
-def detect_signals(db: Session) -> dict:
+def detect_signals(db: Session, actor: str = "system") -> dict:
     """Re-derive denial signals from the remittance rows. Replaces prior NEW signals."""
     rows = db.scalars(select(models.RemittanceLine)).all()
     if not rows:
@@ -140,7 +140,7 @@ def detect_signals(db: Session) -> dict:
     db.commit()
     for s in created:
         db.refresh(s)
-    audit.log(db, phase="P2", action="DETECT", actor="denial-miner",
+    audit.log(db, phase="P2", action="DETECT", actor=actor,
               entity_type="denial_run", entity_id="",
               summary=f"{len(created)} signals from {len(rows)} remittance lines "
                       f"(top: {', '.join(c['code']+'/'+c['carc'] for c in candidates[:3])})",
@@ -149,7 +149,7 @@ def detect_signals(db: Session) -> dict:
             "recent_window_days": RECENT_WINDOW, "results": [signal_dict(s) for s in created]}
 
 
-def promote_signal(db: Session, signal_id: str, llm: dict | None = None) -> dict:
+def promote_signal(db: Session, signal_id: str, actor: str = "system", llm: dict | None = None) -> dict:
     """Hand a denial signal's proposed rule to the P3 Validator Judge → review queue."""
     sig = db.get(models.DenialSignal, signal_id)
     if sig is None:
@@ -169,14 +169,14 @@ def promote_signal(db: Session, signal_id: str, llm: dict | None = None) -> dict
         db, payer=sig.payer, provision_type=pr.get("provision_type", "COVERAGE"),
         summary=pr.get("summary", ""), code_sets=pr.get("code_sets", {}),
         evidence_text=evidence_text, evidence_ref={"signal_id": sig.id},
-        origin="DENIAL", source_signal_id=sig.id, llm=llm,
+        origin="DENIAL", source_signal_id=sig.id, actor=actor, llm=llm,
     )
     sig.status = "PROMOTED"
     sig.promoted_recommendation_id = rec.id
     sig.model_version = llm_client.model_version(llm)
     db.add(sig)
     db.commit()
-    audit.log(db, phase="P2", action="PROMOTE", entity_type="recommendation", entity_id=rec.id,
+    audit.log(db, phase="P2", action="PROMOTE", actor=actor, entity_type="recommendation", entity_id=rec.id,
               payer=sig.payer,
               summary=f"denial signal {sig.procedure_code}/CARC{sig.denial_carc} "
                       f"({sig.pattern_type}) promoted to review",

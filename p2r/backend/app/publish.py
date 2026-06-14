@@ -80,7 +80,7 @@ def ace_reachable(timeout: float = 4.0) -> dict:
         return {"reachable": False, "ace_base_url": ACE_BASE_URL, "error": str(exc)}
 
 
-def publish_recommendation(db: Session, rec_id: str) -> dict:
+def publish_recommendation(db: Session, rec_id: str, actor: str = "system") -> dict:
     """Publish an APPROVED recommendation's CPT policies into ACE. Raises ValueError on guard fail."""
     rec = db.get(models.RuleRecommendation, rec_id)
     if rec is None:
@@ -110,7 +110,7 @@ def publish_recommendation(db: Session, rec_id: str) -> dict:
     db.add(rec)
     db.commit()
     db.refresh(rec)
-    audit.log(db, phase="P4", action="PUBLISH", actor="P2R-INTEGRATION",
+    audit.log(db, phase="P4", action="PUBLISH", actor=actor,
               entity_type="recommendation", entity_id=rec.id, payer=rec.payer,
               summary=f"published {len(created)} policy row(s) to ACE ({ACE_SOURCE_TAG})",
               lineage={"ace_ids": [c.get("ace_id") for c in created], "ace_base_url": ACE_BASE_URL})
@@ -118,7 +118,7 @@ def publish_recommendation(db: Session, rec_id: str) -> dict:
             "source": ACE_SOURCE_TAG, "payer": rec.payer}
 
 
-def rollback_recommendation(db: Session, rec_id: str) -> dict:
+def rollback_recommendation(db: Session, rec_id: str, actor: str = "system") -> dict:
     """Retract a published rule from ACE (delete the policies it created) and revert status."""
     rec = db.get(models.RuleRecommendation, rec_id)
     if rec is None:
@@ -144,7 +144,7 @@ def rollback_recommendation(db: Session, rec_id: str) -> dict:
     db.add(rec)
     db.commit()
     db.refresh(rec)
-    audit.log(db, phase="P4", action="ROLLBACK", actor="P2R-INTEGRATION",
+    audit.log(db, phase="P4", action="ROLLBACK", actor=actor,
               entity_type="recommendation", entity_id=rec.id, payer=rec.payer,
               summary=f"retracted {len(deleted)} policy row(s) from ACE",
               lineage={"retracted_ace_ids": deleted})

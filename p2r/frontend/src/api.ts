@@ -6,9 +6,16 @@ import type {
 const BASE = (import.meta as any).env?.VITE_API_BASE ?? "/api";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  // Attribute every action to the active role for the append-only Decision Log.
+  const role = (typeof localStorage !== "undefined" && localStorage.getItem("p2r_role")) || "Admin";
   const res = await fetch(`${BASE}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Actor": `${role.toLowerCase().replace(/\s+/g, "_")}`,
+      "X-Role": role,
+      ...(init?.headers ?? {}),
+    },
   });
   if (!res.ok) {
     let detail = res.statusText;

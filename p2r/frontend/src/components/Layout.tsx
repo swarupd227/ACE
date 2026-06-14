@@ -3,9 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
   FileSearch, ClipboardCheck, Library, FlaskConical, Cpu, ShieldCheck, Workflow,
-  Radar, Activity, ScrollText,
+  Radar, Activity, ScrollText, UserCog,
 } from "lucide-react";
 import { api } from "../api";
+import { useRole, ROLES, canAccess } from "../role";
 
 const nav = [
   { to: "/", label: "Policy Workbench", icon: FileSearch, end: true },
@@ -20,6 +21,8 @@ const nav = [
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: api.meta });
   const { data: ace } = useQuery({ queryKey: ["ace-status"], queryFn: api.aceStatus, refetchInterval: 20000 });
+  const { role } = useRole();
+  const visibleNav = nav.filter((n) => canAccess(n.to, role));
 
   return (
     <div className="flex h-full">
@@ -39,7 +42,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 py-4 px-3 space-y-1">
-          {nav.map((n) => (
+          {visibleNav.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
@@ -91,11 +94,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <span className="pill bg-brand-50 text-brand-700 ring-1 ring-brand-300">
               {meta?.llm_available ? "Claude (Anthropic)" : "LLM offline"}
             </span>
+            <RoleSwitcher />
           </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
+    </div>
+  );
+}
+
+function RoleSwitcher() {
+  const { role, setRole } = useRole();
+  return (
+    <div className="flex items-center gap-1.5" title="Switch role (demo RBAC; maps to SSO/scopes in prod)">
+      <UserCog size={15} className="text-slate-400" />
+      <select
+        value={role}
+        onChange={(e) => setRole(e.target.value as any)}
+        className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm font-medium text-slate-700"
+      >
+        {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+      </select>
     </div>
   );
 }

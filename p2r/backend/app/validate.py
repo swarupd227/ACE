@@ -56,7 +56,7 @@ def judge_candidate(db: Session, *, payer: str, provision_type: str, summary: st
                     code_sets: dict, evidence_text: str, evidence_ref: dict,
                     origin: str = "POLICY", source_provision_id: str = "",
                     source_document_id: str = "", source_signal_id: str = "",
-                    llm: dict | None = None) -> models.RuleRecommendation:
+                    actor: str = "system", llm: dict | None = None) -> models.RuleRecommendation:
     """Validate one candidate against its evidence and reconcile it against the library.
 
     Shared by P1 (policy provisions) and P2 (denial signals) — the single P3 judge.
@@ -91,7 +91,7 @@ def judge_candidate(db: Session, *, payer: str, provision_type: str, summary: st
     db.add(row)
     db.commit()
     db.refresh(row)
-    audit.log(db, phase="P3", action="JUDGE", entity_type="recommendation", entity_id=row.id,
+    audit.log(db, phase="P3", action="JUDGE", actor=actor, entity_type="recommendation", entity_id=row.id,
               payer=payer, summary=f"{provision_type}: validation={vverdict}, reconciliation={rverdict}"
               + (f" (vs {matched})" if matched else ""),
               lineage={"origin": origin, "source_provision_id": source_provision_id,
@@ -100,7 +100,7 @@ def judge_candidate(db: Session, *, payer: str, provision_type: str, summary: st
     return row
 
 
-def generate_for_document(db: Session, doc_id: str, llm: dict | None = None) -> dict:
+def generate_for_document(db: Session, doc_id: str, actor: str = "system", llm: dict | None = None) -> dict:
     doc = db.get(models.PolicyDocument, doc_id)
     if doc is None:
         raise ValueError("document not found")
@@ -118,7 +118,7 @@ def generate_for_document(db: Session, doc_id: str, llm: dict | None = None) -> 
             db, payer=doc.payer, provision_type=p.provision_type, summary=p.summary,
             code_sets=p.code_sets, evidence_text=evidence_text,
             evidence_ref={"provision_id": p.id}, origin="POLICY",
-            source_provision_id=p.id, source_document_id=doc_id, llm=llm,
+            source_provision_id=p.id, source_document_id=doc_id, actor=actor, llm=llm,
         ))
     return {"document_id": doc_id, "payer": doc.payer, "count": len(recs),
             "recommendations": [rec_dict(r) for r in recs]}

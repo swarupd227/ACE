@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { FlaskConical, Play, CheckCircle2, XCircle } from "lucide-react";
 import { api } from "../api";
 import { Spinner, pct, confColor } from "../lib";
+import { useRole, can } from "../role";
 import type { EvalReport } from "../types";
 
 const METRIC_LABELS: Record<string, string> = {
@@ -14,6 +15,7 @@ const METRIC_LABELS: Record<string, string> = {
 };
 
 export default function EvalHarness() {
+  const { role } = useRole();
   const [report, setReport] = useState<EvalReport | null>(null);
   const [err, setErr] = useState("");
   const { data: golden } = useQuery({ queryKey: ["eval-golden"], queryFn: api.evalGolden });
@@ -34,10 +36,14 @@ export default function EvalHarness() {
             reconcile — and scores it. Nothing is hardcoded; every number comes from this run.
           </p>
         </div>
-        <button className="btn-primary shrink-0" disabled={run.isPending} onClick={() => run.mutate()}>
-          {run.isPending ? <Spinner className="h-4 w-4" /> : <Play size={16} />}
-          {run.isPending ? "Running…" : "Run evaluation"}
-        </button>
+        {can(role, "run_eval") ? (
+          <button className="btn-primary shrink-0" disabled={run.isPending} onClick={() => run.mutate()}>
+            {run.isPending ? <Spinner className="h-4 w-4" /> : <Play size={16} />}
+            {run.isPending ? "Running…" : "Run evaluation"}
+          </button>
+        ) : (
+          <span className="pill bg-slate-100 text-slate-500 shrink-0">read-only ({role})</span>
+        )}
       </div>
 
       {err && (

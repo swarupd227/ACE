@@ -9,6 +9,7 @@ import { api } from "../api";
 import {
   CodeChips, ConfidenceBar, ProvisionBadge, ReconBadge, StatusBadge, ValidationBadge, Spinner,
 } from "../lib";
+import { useRole, can } from "../role";
 import type { Recommendation } from "../types";
 
 const VERDICTS = ["", "NET_NEW", "UPDATE", "DUPLICATE", "CONFLICT"];
@@ -127,6 +128,7 @@ function AcePanel({ ace }: { ace?: { reachable: boolean; ace_base_url: string; p
 function RecCard({ rec, onChange, onError, aceReachable }: {
   rec: Recommendation; onChange: () => void; onError: (m: string) => void; aceReachable: boolean;
 }) {
+  const { role } = useRole();
   const [editing, setEditing] = useState(false);
   const [summary, setSummary] = useState(rec.candidate_summary);
   const [verdict, setVerdict] = useState(rec.reconciliation_verdict);
@@ -278,22 +280,22 @@ function RecCard({ rec, onChange, onError, aceReachable }: {
             <button className="btn-ghost" disabled={runLineage.isPending} onClick={() => runLineage.mutate()}>
               {runLineage.isPending ? <Spinner className="h-4 w-4" /> : <GitBranch size={15} />} Lineage
             </button>
-            {rec.status === "PUBLISHED" && (
+            {can(role, "publish") && rec.status === "PUBLISHED" && (
               <button className="btn-ghost text-rose-600" disabled={rollback.isPending} onClick={() => rollback.mutate()}>
                 {rollback.isPending ? <Spinner className="h-4 w-4" /> : <RotateCcw size={15} />} Rollback
               </button>
             )}
-            {rec.status !== "PUBLISHED" && (
+            {can(role, "edit") && rec.status !== "PUBLISHED" && (
               <button className="btn-ghost" onClick={() => setEditing(true)}>
                 <Pencil size={15} /> Edit
               </button>
             )}
-            {rec.status === "PENDING_REVIEW" && (
+            {can(role, "approve") && rec.status === "PENDING_REVIEW" && (
               <button className="btn-primary" disabled={approve.isPending} onClick={() => approve.mutate()}>
                 {approve.isPending ? <Spinner className="h-4 w-4" /> : <CheckCircle2 size={15} />} Approve
               </button>
             )}
-            {rec.status === "APPROVED" && (
+            {can(role, "publish") && rec.status === "APPROVED" && (
               <button className="btn-brand" disabled={publish.isPending || !aceReachable}
                 title={aceReachable ? "Write this rule into ACE via its public policy API" : "ACE not reachable"}
                 onClick={() => publish.mutate()}>
@@ -304,6 +306,9 @@ function RecCard({ rec, onChange, onError, aceReachable }: {
               <span className="pill bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
                 <ShieldCheck size={12} /> Published
               </span>
+            )}
+            {role === "Auditor" && (
+              <span className="pill bg-slate-100 text-slate-500">read-only (Auditor)</span>
             )}
           </>
         )}

@@ -6,7 +6,7 @@ records with composite confidence and a routing decision.
 """
 from __future__ import annotations
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -25,6 +25,12 @@ app = FastAPI(title="P2R — Policy-to-Rule Intelligence (Nous RCM Framework)", 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 _DOC_TYPES = {"application/pdf", "image/png", "image/jpeg", "image/webp"}
+
+
+def actor_of(x_actor: str = Header(default="system", alias="X-Actor"),
+             x_role: str = Header(default="", alias="X-Role")) -> str:
+    """The acting user/role from the UI, for Decision-Log attribution (not enforcement)."""
+    return f"{x_actor}" + (f" ({x_role})" if x_role else "")
 
 
 @app.on_event("startup")
@@ -135,11 +141,12 @@ def rule_library(db: Session = Depends(get_db)) -> list[dict]:
 
 
 @app.post("/recommendations/from-document/{doc_id}")
-def recommend_from_document(doc_id: str, db: Session = Depends(get_db)) -> dict:
+def recommend_from_document(doc_id: str, db: Session = Depends(get_db),
+                            actor: str = Depends(actor_of)) -> dict:
     if not llm_client.llm_available():
         raise HTTPException(503, "LLM not configured — set ANTHROPIC_API_KEY")
     try:
-        return validate.generate_for_document(db, doc_id)
+        return validate.generate_for_document(db, doc_id, actor=actor)
     except ValueError as exc:
         raise HTTPException(404, str(exc))
 
@@ -164,7 +171,8 @@ class RecPatch(BaseModel):
 
 
 @app.patch("/recommendations/{rec_id}")
-def edit_recommendation(rec_id: str, body: RecPatch, db: Session = Depends(get_db)) -> dict:
+def edit_recommendation(rec_id: str, body: RecPatch, db: Session = Depends(get_db),
+                        actor: str = Depends(actor_of)) -> dict:
     """Phase 4 — a reviewer authors/corrects a candidate rule before approving it."""
     rec = db.get(models.RuleRecommendation, rec_id)
     if rec is None:
@@ -183,14 +191,15 @@ def edit_recommendation(rec_id: str, body: RecPatch, db: Session = Depends(get_d
     db.add(rec)
     db.commit()
     db.refresh(rec)
-    audit.log(db, phase="UX", action="EDIT", actor="reviewer", entity_type="recommendation",
-              entity_id=rec.id, payer=rec.payer, summary="reviewer edited the candidate before approval")
+    audit.log(db, phase="UX", action="EDIT", actor=actor, entity_type="recommendation",
+              entity_id=rec.id, payer=rec.payer, summary="candidate edited before approval")
     return validate.rec_dict(rec)
 
 
 # --- Phase 5: human approval + "Publish to ACE" integration glimpse ----------
 @app.post("/recommendations/{rec_id}/approve")
-def approve_recommendation(rec_id: str, db: Session = Depends(get_db)) -> dict:
+def approve_recommendation(rec_id: str, db: Session = Depends(get_db),
+                           actor: str = Depends(actor_of)) -> dict:
     """A reviewer signs off a recommendation; only APPROVED rules may be published to ACE."""
     rec = db.get(models.RuleRecommendation, rec_id)
     if rec is None:
@@ -200,7 +209,7 @@ def approve_recommendation(rec_id: str, db: Session = Depends(get_db)) -> dict:
     rec.status = "APPROVED"
     db.add(rec)
     db.commit()
-    audit.log(db, phase="UX", action="APPROVE", actor="reviewer", entity_type="recommendation",
+    audit.log(db, phase="UX", action="APPROVE", actor=actor, entity_type="recommendation",
               entity_id=rec.id, payer=rec.payer, summary=f"{rec.provision_type} approved for publication")
     return {"recommendation_id": rec.id, "status": rec.status}
 
@@ -231,10 +240,11 @@ def recommendation_replay(rec_id: str, db: Session = Depends(get_db)) -> dict:
 
 
 @app.post("/recommendations/{rec_id}/rollback")
-def recommendation_rollback(rec_id: str, db: Session = Depends(get_db)) -> dict:
+def recommendation_rollback(rec_id: str, db: Session = Depends(get_db),
+                            actor: str = Depends(actor_of)) -> dict:
     """Retract a published rule from ACE and revert it to APPROVED."""
     try:
-        return publish.rollback_recommendation(db, rec_id)
+        return publish.rollback_recommendation(db, rec_id, actor=actor)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     except Exception as exc:  # noqa: BLE001 — transport/HTTP failure reaching ACE
@@ -242,10 +252,11 @@ def recommendation_rollback(rec_id: str, db: Session = Depends(get_db)) -> dict:
 
 
 @app.post("/recommendations/{rec_id}/publish-to-ace")
-def publish_to_ace(rec_id: str, db: Session = Depends(get_db)) -> dict:
+def publish_to_ace(rec_id: str, db: Session = Depends(get_db),
+                   actor: str = Depends(actor_of)) -> dict:
     """Write the approved rule into ACE via its public policy API (sandbox payer only)."""
     try:
-        return publish.publish_recommendation(db, rec_id)
+        return publish.publish_recommendation(db, rec_id, actor=actor)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     except Exception as exc:  # noqa: BLE001 — transport/HTTP failure reaching ACE
@@ -260,12 +271,13 @@ def list_sources(db: Session = Depends(get_db)) -> list[dict]:
 
 
 @app.post("/sources/{source_id}/acquire")
-def acquire_source(source_id: str, db: Session = Depends(get_db)) -> dict:
+def acquire_source(source_id: str, db: Session = Depends(get_db),
+                   actor: str = Depends(actor_of)) -> dict:
     """Run the acquisition agent against a source: fetch → change-detect → ingest delta."""
     if not llm_client.llm_available():
         raise HTTPException(503, "LLM not configured — set ANTHROPIC_API_KEY")
     try:
-        return acquisition.acquire(db, source_id)
+        return acquisition.acquire(db, source_id, actor=actor)
     except ValueError as exc:
         raise HTTPException(404, str(exc))
 
@@ -289,10 +301,10 @@ def denials_load_sample(db: Session = Depends(get_db)) -> dict:
 
 
 @app.post("/denials/detect")
-def denials_detect(db: Session = Depends(get_db)) -> dict:
+def denials_detect(db: Session = Depends(get_db), actor: str = Depends(actor_of)) -> dict:
     """Re-derive ranked denial signals from the remittance data (statistics-only)."""
     try:
-        return denials.detect_signals(db)
+        return denials.detect_signals(db, actor=actor)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
@@ -321,12 +333,13 @@ def denials_remittances(procedure_code: str = "", denied: bool | None = None,
 
 
 @app.post("/denials/signals/{signal_id}/promote")
-def denials_promote(signal_id: str, db: Session = Depends(get_db)) -> dict:
+def denials_promote(signal_id: str, db: Session = Depends(get_db),
+                    actor: str = Depends(actor_of)) -> dict:
     """Promote a denial signal's proposed rule into the P3 review queue."""
     if not llm_client.llm_available():
         raise HTTPException(503, "LLM not configured — set ANTHROPIC_API_KEY")
     try:
-        return denials.promote_signal(db, signal_id)
+        return denials.promote_signal(db, signal_id, actor=actor)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
