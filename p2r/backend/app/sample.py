@@ -52,6 +52,21 @@ RULE_LIBRARY_SEED = [
      {"cpt": ["72148"], "modifiers": ["26"]}),
 ]
 
+# Existing deployed rules for Medicare, lumbar-MRI themed — so a real public CMS lumbar-MRI LCD,
+# ingested under payer "Medicare", reconciles to real verdicts (UPDATE/DUPLICATE/CONFLICT) instead
+# of all-NET_NEW. Wording is generic/synthetic; the judge decides verdicts against the actual LCD.
+MEDICARE_RULE_LIBRARY_SEED = [
+    ("RULE-MED-LUM-COV", "Medicare",
+     "Lumbar spine MRI (72148) is covered for low back pain with neurologic deficit or red-flag findings.",
+     {"cpt": ["72148"]}),
+    ("RULE-MED-LUM-FREQ", "Medicare",
+     "Repeat lumbar spine MRI within 12 months requires a documented change in clinical status.",
+     {"cpt": ["72148"]}),
+    ("RULE-MED-LUM-DOC", "Medicare",
+     "Conservative therapy must be documented before advanced lumbar imaging is reimbursed.",
+     {"cpt": ["72148"]}),
+]
+
 # A revised publication of the same policy, used by the acquisition agent (P1) to demonstrate
 # real change-detection: the FREQUENCY threshold moves 12 -> 24 months, prior-auth adds CT 72133,
 # and a new PLACE-OF-SERVICE provision appears.

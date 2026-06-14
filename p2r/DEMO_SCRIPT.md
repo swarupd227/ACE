@@ -189,6 +189,17 @@ All five platform requirements are demonstrable from the workbench. A tight clic
    provision or denial signal) → decision trail. Open **Decision Log** for the append-only,
    phase-filtered governance ledger. *"Every action is logged, immutably, with full lineage."*
 
+### Live ingestion of a real public policy
+P2R can ingest a real, public payer policy live:
+- **CMS Medicare LCD (public domain, recommended)** — e.g. *Lumbar MRI (L34220)* from the CMS
+  Medicare Coverage Database. In a browser, save it as PDF (or copy the coverage text).
+- In the Workbench, **Upload PDF / image** (OCR) or **Paste a policy**. Set the **payer to
+  "Medicare"** — the library is pre-seeded with Medicare lumbar-MRI rules, so reconciliation (P3)
+  returns real verdicts (DUPLICATE / CONFLICT / NET_NEW), not all-NET_NEW. (Payer matching is
+  case-insensitive substring, so "Medicare (CMS LCD L34220)" also matches.)
+- Note: automated crawling of payer sites is out of scope (CMS returns HTTP 403 to bots) — the
+  live flow is browser-download → upload, which is the realistic acquisition pattern.
+
 See `REQUIREMENTS_TRACEABILITY.md` for the requirement-by-requirement mapping and verification.
 
 ## Troubleshooting

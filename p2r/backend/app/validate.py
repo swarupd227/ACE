@@ -35,18 +35,28 @@ def _overlap(a: dict, b: dict) -> float:
 
 
 def _seed_library(db: Session) -> None:
+    """Seed the read-only rule library (Meridian sample + Medicare lumbar set). Additive per-id."""
     from . import sample
-    if db.scalars(select(models.RuleLibraryEntry).limit(1)).first():
-        return
-    for rid, payer, summary, cs in sample.RULE_LIBRARY_SEED:
+    existing = {r.id for r in db.scalars(select(models.RuleLibraryEntry)).all()}
+    added = False
+    for rid, payer, summary, cs in (sample.RULE_LIBRARY_SEED + sample.MEDICARE_RULE_LIBRARY_SEED):
+        if rid in existing:
+            continue
         db.add(models.RuleLibraryEntry(id=rid, payer=payer, title=summary,
                                        logic_summary=summary, code_sets=cs, status="active"))
-    db.commit()
+        added = True
+    if added:
+        db.commit()
 
 
 def _library_ctx(db: Session, payer: str):
-    library = db.scalars(select(models.RuleLibraryEntry).where(
-        models.RuleLibraryEntry.payer == payer)).all()
+    # Tolerant payer match: a library rule applies if its payer name is a case-insensitive
+    # substring of the document's payer (or vice versa). So "Medicare (CMS LCD L34220)" matches
+    # the "Medicare" rules, and "Meridian Health Plan" still matches its own rules.
+    p = (payer or "").strip().lower()
+    allrules = db.scalars(select(models.RuleLibraryEntry)).all()
+    library = [r for r in allrules if r.payer and p and
+               (r.payer.lower() in p or p in r.payer.lower())]
     lib_text = json.dumps([{"rule_id": r.id, "title": r.title, "code_sets": r.code_sets}
                            for r in library], indent=2) if library else "(empty)"
     return lib_text, {r.id for r in library}, {r.id: r for r in library}
