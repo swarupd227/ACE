@@ -1,12 +1,21 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Play, CheckCircle2, XCircle, History, Activity, FileSearch, ClipboardCheck, Gauge, Trash2 } from "lucide-react";
+import { Play, CheckCircle2, XCircle, History, Activity, FileSearch, ClipboardCheck, Gauge, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import clsx from "clsx";
 import { api } from "../api";
 import { Spinner, pct, confColor } from "../lib";
 import { useRole, can } from "../role";
 import EvalConsole from "../components/EvalConsole";
 import type { EvalReport } from "../types";
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="label">{label}</div>
+      <div className="mt-0.5">{children}</div>
+    </div>
+  );
+}
 
 function Metric({ label, v }: { label: string; v: number }) {
   return (
@@ -22,6 +31,7 @@ export default function EvalHarness() {
   const qc = useQueryClient();
   const [report, setReport] = useState<EvalReport | null>(null);
   const [streaming, setStreaming] = useState(false);
+  const [openGolden, setOpenGolden] = useState<string | null>(null);
   const { data: golden } = useQuery({ queryKey: ["eval-golden"], queryFn: api.evalGolden });
   const { data: hist } = useQuery({ queryKey: ["eval-history"], queryFn: api.evalHistory });
   const delGolden = useMutation({ mutationFn: (id: string) => api.deleteGolden(id), onSuccess: () => qc.invalidateQueries({ queryKey: ["eval-golden"] }) });
@@ -141,17 +151,44 @@ export default function EvalHarness() {
 
       {/* Golden set manager */}
       <div className="space-y-2">
-        <div className="label">Golden set ({golden?.length ?? 0} adjudicated cases)</div>
-        {(golden ?? []).map((g) => (
-          <div key={g.id} className="card p-3 flex items-center gap-3 text-sm">
-            <span className="pill bg-ace-50 text-ace-700 ring-1 ring-ace-100 w-32 justify-center">{g.provision_type}</span>
-            <span className="font-mono text-xs text-slate-500">{g.expected_verdict}</span>
-            <span className="text-xs text-slate-400 flex-1">{g.note}</span>
-            {can(role, "admin") && g.id && (
-              <button className="btn-ghost text-rose-600 py-1" onClick={() => delGolden.mutate(g.id!)}><Trash2 size={14} /></button>
-            )}
-          </div>
-        ))}
+        <div className="label">Golden set ({golden?.length ?? 0} adjudicated cases) — click a row to expand</div>
+        {(golden ?? []).map((g, i) => {
+          const id = g.id ?? String(i);
+          const open = openGolden === id;
+          return (
+            <div key={id} className="card overflow-hidden">
+              <div className="p-3 flex items-center gap-3 text-sm cursor-pointer hover:bg-slate-50"
+                onClick={() => setOpenGolden(open ? null : id)}>
+                {open ? <ChevronDown size={15} className="text-slate-400 shrink-0" /> : <ChevronRight size={15} className="text-slate-400 shrink-0" />}
+                <span className="pill bg-ace-50 text-ace-700 ring-1 ring-ace-100 w-32 justify-center">{g.provision_type}</span>
+                <span className="font-mono text-xs text-slate-500">{g.expected_verdict}</span>
+                <span className="text-xs text-slate-400 flex-1 truncate">{g.note}</span>
+                {can(role, "admin") && g.id && (
+                  <button className="btn-ghost text-rose-600 py-1" onClick={(e) => { e.stopPropagation(); delGolden.mutate(g.id!); }}><Trash2 size={14} /></button>
+                )}
+              </div>
+              {open && (
+                <div className="px-4 pb-3 pt-1 border-t border-slate-100 grid grid-cols-2 gap-x-6 gap-y-2 text-sm fadeup">
+                  <Field label="Provision type"><span className="font-mono">{g.provision_type}</span></Field>
+                  <Field label="Expected reconciliation verdict"><span className="font-mono">{g.expected_verdict}</span></Field>
+                  <Field label="Expected codes">
+                    {g.expected_codes.length ? (
+                      <div className="flex flex-wrap gap-1">
+                        {g.expected_codes.map((c) => <span key={c} className="pill bg-violet-50 text-violet-700 ring-1 ring-violet-200 font-mono">{c}</span>)}
+                      </div>
+                    ) : <span className="text-slate-400">none</span>}
+                  </Field>
+                  <Field label="Expected 'needs attention'">
+                    <span className={clsx("pill ring-1", g.expected_attention ? "bg-rose-50 text-rose-700 ring-rose-200" : "bg-slate-100 text-slate-600 ring-slate-200")}>
+                      {g.expected_attention ? "yes" : "no"}
+                    </span>
+                  </Field>
+                  <div className="col-span-2"><Field label="Adjudicator note"><span className="text-slate-600">{g.note}</span></Field></div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
