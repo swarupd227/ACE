@@ -70,9 +70,12 @@ export const api = {
   // ACE integration glimpse
   aceStatus: () => req<AceStatus>("/integration/ace/status"),
 
-  // Golden-set eval harness
+  // Golden-set eval harness (multi-phase)
   evalGolden: () => req<GoldenCase[]>("/eval/golden"),
   evalRun: () => req<EvalReport>("/eval/run", { method: "POST" }),
+  evalHistory: () => req<EvalReport[]>("/eval/history"),
+  createGolden: (g: any) => req("/eval/golden", { method: "POST", body: JSON.stringify(g) }),
+  deleteGolden: (id: string) => req(`/eval/golden/${id}`, { method: "DELETE" }),
 
   // P1 — source registry, acquisition agent, deltas, payer MDM
   sources: () => req<PolicySource[]>("/sources"),

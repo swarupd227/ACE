@@ -24,6 +24,31 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class EvalGoldenCase(Base):
+    """An adjudicated golden expectation for the policy-extraction/reconciliation eval (data, CRUD)."""
+    __tablename__ = "eval_golden"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    provision_type: Mapped[str] = mapped_column(String(24), default="")
+    expected_verdict: Mapped[str] = mapped_column(String(16), default="")
+    expected_codes: Mapped[list] = mapped_column(JSONB, default=list)
+    expected_attention: Mapped[bool] = mapped_column(Boolean, default=False)
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class EvalRun(Base):
+    """A persisted evaluation run — for history and model-version drift comparison."""
+    __tablename__ = "eval_runs"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    model_version: Mapped[str] = mapped_column(String(60), default="")
+    overall_score: Mapped[float] = mapped_column(Float, default=0.0)
+    phases: Mapped[dict] = mapped_column(JSONB, default=dict)
+    actor: Mapped[str] = mapped_column(String(60), default="system")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class AppConfig(Base):
     """Runtime configuration (key → JSON value). Overrides the code DEFAULTS; drives the engine."""
     __tablename__ = "app_config"

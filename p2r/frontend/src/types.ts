@@ -91,6 +91,7 @@ export interface Recommendation {
 }
 
 export interface GoldenCase {
+  id?: string;
   provision_type: string;
   expected_verdict: string;
   expected_codes: string[];
@@ -115,18 +116,18 @@ export interface EvalCase {
 }
 
 export interface EvalReport {
-  golden_cases: number;
-  provisions_extracted: number;
-  recommendations: number;
+  run_id?: string;
   model_version: string;
-  metrics: {
-    provision_coverage: number;
-    code_recall: number;
-    citation_rate: number;
-    verdict_accuracy: number;
-    attention_accuracy: number;
+  overall_score: number;
+  golden_cases?: number;
+  created_at?: string | null;
+  phases: {
+    P1: { provision_coverage: number; code_recall: number; citation_validity: number };
+    P2: { recall: number; precision: number; planted: number; found: number; recovered: number };
+    P3: { verdict_accuracy: number; attention_accuracy: number };
+    calibration: { mean_conf_correct: number | null; mean_conf_wrong: number | null; n_correct: number; n_wrong: number };
+    cases: EvalCase[];
   };
-  cases: EvalCase[];
 }
 
 export interface AceStatus {

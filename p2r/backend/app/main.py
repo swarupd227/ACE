@@ -40,6 +40,7 @@ def _startup() -> None:
     try:
         validate._seed_library(db)       # seed the read-only rule library if empty
         acquisition.seed_registry(db)    # seed payer master (MDM) + acquisition sources
+        evalh.seed_golden(db)            # seed the table-backed golden set
     finally:
         db.close()
 
@@ -496,17 +497,53 @@ def recommendation_lineage(rec_id: str, db: Session = Depends(get_db)) -> dict:
 
 # --- Golden-set evaluation harness ------------------------------------------
 @app.get("/eval/golden")
-def eval_golden() -> list[dict]:
-    """The adjudicated golden cases the harness scores against."""
-    return evalh.golden_set()
+def eval_golden(db: Session = Depends(get_db)) -> list[dict]:
+    """The adjudicated (table-backed) golden cases the harness scores against."""
+    return evalh.golden_set(db)
+
+
+class GoldenIn(BaseModel):
+    provision_type: str
+    expected_verdict: str
+    expected_codes: list[str] = []
+    expected_attention: bool = False
+    note: str = ""
+
+
+@app.post("/eval/golden")
+def eval_golden_create(body: GoldenIn, db: Session = Depends(get_db), actor: str = Depends(actor_of)) -> dict:
+    g = models.EvalGoldenCase(**body.model_dump())
+    db.add(g)
+    db.commit()
+    audit.log(db, phase="UX", action="GOLDEN_ADD", actor=actor, entity_type="golden", entity_id=g.id,
+              summary=f"added golden case {body.provision_type}={body.expected_verdict}")
+    return {"id": g.id}
+
+
+@app.delete("/eval/golden/{case_id}")
+def eval_golden_delete(case_id: str, db: Session = Depends(get_db), actor: str = Depends(actor_of)) -> dict:
+    g = db.get(models.EvalGoldenCase, case_id)
+    if g is None:
+        raise HTTPException(404, "golden case not found")
+    db.delete(g)
+    db.commit()
+    audit.log(db, phase="UX", action="GOLDEN_DELETE", actor=actor, entity_type="golden", entity_id=case_id,
+              summary="removed golden case")
+    return {"deleted": case_id}
 
 
 @app.post("/eval/run")
-def eval_run(db: Session = Depends(get_db)) -> dict:
-    """Run the real pipeline against the golden set and return scored metrics."""
+def eval_run(db: Session = Depends(get_db), actor: str = Depends(actor_of)) -> dict:
+    """Run the real multi-phase pipeline against the golden set; persists the run."""
     if not llm_client.llm_available():
         raise HTTPException(503, "LLM not configured — set ANTHROPIC_API_KEY")
     try:
-        return evalh.run_eval(db)
+        return evalh.run_eval(db, actor=actor)
     except RuntimeError as exc:
         raise HTTPException(503, str(exc))
+
+
+@app.get("/eval/history")
+def eval_history(db: Session = Depends(get_db)) -> list[dict]:
+    """Past eval runs (for history + model-version drift)."""
+    return evalh.history(db)
