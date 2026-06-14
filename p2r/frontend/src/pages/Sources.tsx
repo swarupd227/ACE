@@ -1,26 +1,50 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Radar, RefreshCw, GitCompare, Building2 } from "lucide-react";
+import { Radar, RefreshCw, GitCompare, Building2, Plus, Power } from "lucide-react";
+import clsx from "clsx";
 import { api } from "../api";
 import { Spinner } from "../lib";
+import { useRole, can } from "../role";
 import type { PolicyDelta } from "../types";
+
+const BLANK = { payer: "", name: "", source_type: "PORTAL", location: "", cadence: "weekly" };
 
 export default function Sources() {
   const qc = useQueryClient();
+  const { role } = useRole();
+  const isAdmin = can(role, "admin");
   const [err, setErr] = useState("");
   const [last, setLast] = useState<string>("");
+  const [showAdd, setShowAdd] = useState(false);
+  const [nw, setNw] = useState({ ...BLANK });
   const { data: sources } = useQuery({ queryKey: ["sources"], queryFn: api.sources });
   const { data: deltas } = useQuery({ queryKey: ["deltas"], queryFn: api.deltas });
   const { data: masters } = useQuery({ queryKey: ["payer-master"], queryFn: api.payerMaster });
+
+  const invalidateSources = () => qc.invalidateQueries({ queryKey: ["sources"] });
 
   const acquire = useMutation({
     mutationFn: (id: string) => api.acquire(id),
     onSuccess: (r) => {
       setLast(r.changed ? `${r.change_type}: ${r.delta?.summary}` : "No change — content identical to last poll");
-      qc.invalidateQueries({ queryKey: ["sources"] });
+      invalidateSources();
       qc.invalidateQueries({ queryKey: ["deltas"] });
       qc.invalidateQueries({ queryKey: ["documents"] });
     },
+    onError: (e: any) => setErr(e.message),
+  });
+
+  const createSource = useMutation({
+    mutationFn: () => api.createSource(nw),
+    onSuccess: () => { invalidateSources(); setShowAdd(false); setNw({ ...BLANK }); },
+    onError: (e: any) => setErr(e.message),
+  });
+  const toggleSource = useMutation({
+    mutationFn: (s: any) => api.updateSource(s.id, {
+      payer: s.payer, name: s.name, source_type: s.source_type, location: s.location,
+      cadence: s.cadence, status: s.status === "active" ? "disabled" : "active",
+    }),
+    onSuccess: invalidateSources,
     onError: (e: any) => setErr(e.message),
   });
 
@@ -39,22 +63,71 @@ export default function Sources() {
 
       {/* Sources */}
       <div className="space-y-2">
-        <div className="label">Registered sources</div>
+        <div className="flex items-center justify-between">
+          <div className="label">Registered sources</div>
+          {isAdmin && (
+            <button className="btn-ghost py-1" onClick={() => { setErr(""); setShowAdd((s) => !s); }}>
+              <Plus size={15} /> Register source
+            </button>
+          )}
+        </div>
+
+        {isAdmin && showAdd && (
+          <div className="card p-4 grid grid-cols-6 gap-2 items-end fadeup">
+            {([["payer", "Payer"], ["name", "Source name"], ["location", "Location (URL / mailbox)"]] as const).map(([k, lbl]) => (
+              <label key={k} className="text-xs text-slate-500 col-span-2">{lbl}
+                <input value={(nw as any)[k]} onChange={(e) => setNw({ ...nw, [k]: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
+              </label>
+            ))}
+            <label className="text-xs text-slate-500 col-span-2">Type
+              <select value={nw.source_type} onChange={(e) => setNw({ ...nw, source_type: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm">
+                {["PORTAL", "FEED", "EMAIL"].map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </label>
+            <label className="text-xs text-slate-500 col-span-2">Cadence
+              <select value={nw.cadence} onChange={(e) => setNw({ ...nw, cadence: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm">
+                {["daily", "weekly", "monthly"].map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </label>
+            <button className="btn-primary col-span-2" disabled={createSource.isPending || !nw.payer || !nw.name}
+              onClick={() => { setErr(""); createSource.mutate(); }}>
+              {createSource.isPending ? <Spinner className="h-4 w-4" /> : <Plus size={15} />} Add source
+            </button>
+          </div>
+        )}
+
         {(sources ?? []).map((s) => (
-          <div key={s.id} className="card p-4 flex items-center justify-between gap-4">
+          <div key={s.id} className={clsx("card p-4 flex items-center justify-between gap-4", s.status !== "active" && "opacity-60")}>
             <div className="flex items-start gap-3 min-w-0">
               <Radar size={18} className="text-ace-500 mt-0.5 shrink-0" />
               <div className="min-w-0">
-                <div className="text-sm font-semibold text-slate-800 truncate">{s.name}</div>
+                <div className="text-sm font-semibold text-slate-800 truncate flex items-center gap-2">
+                  {s.name}
+                  {s.status !== "active" && <span className="pill bg-slate-100 text-slate-500">disabled</span>}
+                </div>
                 <div className="text-xs text-slate-500 font-mono truncate">{s.location}</div>
                 <div className="text-[11px] text-slate-400 mt-0.5">
                   {s.payer} · {s.source_type} · {s.cadence} · polled {s.fetch_count}× {s.last_checked && `· last ${s.last_checked.slice(0, 16).replace("T", " ")}`}
                 </div>
               </div>
             </div>
-            <button className="btn-primary shrink-0" disabled={acquire.isPending} onClick={() => { setErr(""); acquire.mutate(s.id); }}>
-              {acquire.isPending ? <Spinner className="h-4 w-4" /> : <RefreshCw size={15} />} Run acquisition
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {isAdmin && (
+                <button className="btn-ghost" title={s.status === "active" ? "Disable" : "Enable"}
+                  disabled={toggleSource.isPending} onClick={() => { setErr(""); toggleSource.mutate(s); }}>
+                  <Power size={15} className={s.status === "active" ? "text-emerald-500" : "text-slate-400"} />
+                </button>
+              )}
+              {can(role, "acquire") && (
+                <button className="btn-primary" disabled={acquire.isPending || s.status !== "active"}
+                  onClick={() => { setErr(""); acquire.mutate(s.id); }}>
+                  {acquire.isPending ? <Spinner className="h-4 w-4" /> : <RefreshCw size={15} />} Run acquisition
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>

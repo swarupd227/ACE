@@ -126,5 +126,6 @@ export const api = {
   createRule: (r: any) => req("/rule-library", { method: "POST", body: JSON.stringify(r) }),
   updateRule: (id: string, r: any) => req(`/rule-library/${id}`, { method: "PUT", body: JSON.stringify(r) }),
   deleteRule: (id: string) => req(`/rule-library/${id}`, { method: "DELETE" }),
-  createSource: (s: any) => req("/sources", { method: "POST", body: JSON.stringify(s) }),
+  createSource: (s: any) => req<PolicySource>("/sources", { method: "POST", body: JSON.stringify(s) }),
+  updateSource: (id: string, s: any) => req<PolicySource>(`/sources/${id}`, { method: "PUT", body: JSON.stringify(s) }),
 };
