@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { api } from "../api";
 import { Spinner, pct, confColor } from "../lib";
 import { useRole, can } from "../role";
+import EvalConsole from "../components/EvalConsole";
 import type { EvalReport } from "../types";
 
 function Metric({ label, v }: { label: string; v: number }) {
@@ -20,15 +21,9 @@ export default function EvalHarness() {
   const { role } = useRole();
   const qc = useQueryClient();
   const [report, setReport] = useState<EvalReport | null>(null);
-  const [err, setErr] = useState("");
+  const [streaming, setStreaming] = useState(false);
   const { data: golden } = useQuery({ queryKey: ["eval-golden"], queryFn: api.evalGolden });
   const { data: hist } = useQuery({ queryKey: ["eval-history"], queryFn: api.evalHistory });
-
-  const run = useMutation({
-    mutationFn: api.evalRun,
-    onSuccess: (r) => { setReport(r); setErr(""); qc.invalidateQueries({ queryKey: ["eval-history"] }); },
-    onError: (e: any) => setErr(e.message),
-  });
   const delGolden = useMutation({ mutationFn: (id: string) => api.deleteGolden(id), onSuccess: () => qc.invalidateQueries({ queryKey: ["eval-golden"] }) });
 
   const ph = report?.phases;
@@ -43,14 +38,19 @@ export default function EvalHarness() {
           </p>
         </div>
         {can(role, "run_eval") ? (
-          <button className="btn-primary shrink-0" disabled={run.isPending} onClick={() => run.mutate()}>
-            {run.isPending ? <Spinner className="h-4 w-4" /> : <Play size={16} />}
-            {run.isPending ? "Running…" : "Run evaluation"}
+          <button className="btn-primary shrink-0" disabled={streaming} onClick={() => setStreaming(true)}>
+            {streaming ? <Spinner className="h-4 w-4" /> : <Play size={16} />}
+            {streaming ? "Running…" : "Run evaluation"}
           </button>
         ) : <span className="pill bg-slate-100 text-slate-500 shrink-0">read-only ({role})</span>}
       </div>
 
-      {err && <div className="card p-3 border-rose-200 bg-rose-50 text-sm text-rose-700">{err}</div>}
+      {streaming && (
+        <EvalConsole
+          onClose={() => setStreaming(false)}
+          onDone={(r) => { setReport(r); setStreaming(false); qc.invalidateQueries({ queryKey: ["eval-history"] }); }}
+        />
+      )}
 
       {ph && (
         <>

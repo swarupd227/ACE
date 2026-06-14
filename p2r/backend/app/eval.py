@@ -71,18 +71,23 @@ def _cleanup(db: Session, doc_id: str) -> None:
     db.commit()
 
 
-def run_eval(db: Session, actor: str = "system", llm: dict | None = None) -> dict:
+def run_eval(db: Session, actor: str = "system", llm: dict | None = None, emit=None) -> dict:
+    e = emit or (lambda ev: None)
     if not llm_client.llm_available(llm):
         raise RuntimeError("LLM not configured — set ANTHROPIC_API_KEY")
+    e({"type": "log", "phase": "setup", "message": "Seeding rule library + golden set…"})
     validate._seed_library(db)
     seed_golden(db)
     golden = golden_set(db)
 
     # --- P1 + P3: ingest a throwaway copy of the sample policy, judge it ---
+    e({"type": "log", "phase": "P1", "message": "P1 · Ingesting sample policy & extracting cited provisions…"})
     ing = ingest.ingest_policy(db, sample.SAMPLE_PAYER, f"[EVAL] {sample.SAMPLE_TITLE}",
                                sample.SAMPLE_POLICY, source_type="EVAL", llm=llm)
     doc_id = ing["document_id"]
     try:
+        e({"type": "log", "phase": "P1", "message": f"Extracted {ing['provision_count']} provisions."})
+        e({"type": "log", "phase": "P3", "message": "P3 · Validating & reconciling candidates against the library…"})
         gen = validate.generate_for_document(db, doc_id, actor="eval", llm=llm)
         recs = gen["recommendations"]
         provs = db.scalars(select(models.PolicyProvision).where(
@@ -118,10 +123,12 @@ def run_eval(db: Session, actor: str = "system", llm: dict | None = None) -> dic
               "code_recall": round(code_num / code_den, 3) if code_den else 1.0,
               "citation_validity": round(cited / len(provs), 3) if provs else 0.0}
         p3 = {"verdict_accuracy": round(vacc / n, 3), "attention_accuracy": round(aacc / n, 3)}
+        e({"type": "log", "phase": "P3", "message": f"Verdict accuracy {int(p3['verdict_accuracy']*100)}% over {n} candidates."})
     finally:
         _cleanup(db, doc_id)
 
     # --- P2: does the denial miner recover the planted patterns? ---
+    e({"type": "log", "phase": "P2", "message": "P2 · Running the denial miner over the 835 corpus…"})
     denials.load_sample(db)
     found_sigs = denials.detect_signals(db, actor="eval")["results"]
     found_keys = {(s["procedure_code"], s["denial_carc"]) for s in found_sigs}
@@ -130,6 +137,8 @@ def run_eval(db: Session, actor: str = "system", llm: dict | None = None) -> dic
     p2 = {"recall": round(tp / len(gold_keys), 3) if gold_keys else 0.0,
           "precision": round(tp / len(found_keys), 3) if found_keys else 0.0,
           "planted": len(gold_keys), "found": len(found_keys), "recovered": tp}
+    e({"type": "log", "phase": "P2", "message": f"Recovered {tp}/{len(gold_keys)} planted patterns."})
+    e({"type": "log", "phase": "score", "message": "Scoring + calibration…"})
 
     # --- Calibration: mean confidence of correct vs wrong verdicts ---
     cc, wc = calib["correct_conf"], calib["wrong_conf"]

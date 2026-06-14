@@ -6,8 +6,13 @@ records with composite confidence and a routing decision.
 """
 from __future__ import annotations
 
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
+import json
+import queue
+import threading
+
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -547,3 +552,37 @@ def eval_run(db: Session = Depends(get_db), actor: str = Depends(actor_of)) -> d
 def eval_history(db: Session = Depends(get_db)) -> list[dict]:
     """Past eval runs (for history + model-version drift)."""
     return evalh.history(db)
+
+
+@app.get("/eval/run/stream")
+def eval_run_stream(actor: str = Query("system")) -> StreamingResponse:
+    """Stream a multi-phase eval run as Server-Sent Events (the agent-console pattern).
+
+    EventSource can't send headers, so the acting role arrives as a query param.
+    """
+    if not llm_client.llm_available():
+        raise HTTPException(503, "LLM not configured — set ANTHROPIC_API_KEY")
+    q: "queue.Queue[dict]" = queue.Queue()
+
+    def work() -> None:
+        db = SessionLocal()
+        try:
+            report = evalh.run_eval(db, actor=actor, emit=q.put)
+            q.put({"type": "done", "report": report})
+        except Exception as exc:  # noqa: BLE001 — surface to the client stream
+            q.put({"type": "error", "message": str(exc)})
+        finally:
+            db.close()
+            q.put({"type": "__end__"})
+
+    threading.Thread(target=work, daemon=True).start()
+
+    def gen():
+        while True:
+            ev = q.get()
+            if ev.get("type") == "__end__":
+                break
+            yield f"data: {json.dumps(ev)}\n\n"
+
+    return StreamingResponse(gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
