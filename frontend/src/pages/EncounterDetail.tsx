@@ -585,6 +585,19 @@ export default function EncounterDetail() {
             </div>
           </div>
         )}
+        {run?.stage_log?.find((s) => s.stage === "5_calibration")?.incomplete_code_set && (
+          <div className="mt-3 rounded-lg bg-amber-50 ring-1 ring-amber-200 p-3 flex items-start gap-2">
+            <AlertTriangle size={16} className="mt-0.5 text-amber-600 shrink-0" />
+            <div>
+              <div className="text-sm font-semibold text-amber-800">
+                Warning: fewer codes generated than findings identified at extraction
+              </div>
+              <div className="text-xs text-amber-700 mt-0.5">
+                Review for missing codes before accepting.
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {run && <WorkflowActions run={run} />}

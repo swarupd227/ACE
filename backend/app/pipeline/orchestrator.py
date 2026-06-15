@@ -672,10 +672,19 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         say("  ⚑ Conditioning flag", f"{f.get('type')}: {f.get('detail')}", "warn")
     log.append({"stage": "1_conditioning", "title": "Document Conditioning",
                 "sections": analysis.get("sections", []), "flags": flags})
+    # Deterministic count: confirmed and suspected findings both produce a code
+    # (suspected → symptom code via §IV.H outpatient uncertain-diagnosis rule).
+    # Ruled-out and history findings do not produce codes and are excluded.
+    codeable_count = sum(
+        1 for diag in analysis.get("diagnoses", [])
+        if diag.get("status") in ("confirmed", "suspected")
+    )
+    analysis["codeable_findings_count"] = codeable_count
     log.append({"stage": "2_extraction", "title": "Clinical Entity Extraction",
                 "diagnoses": analysis.get("diagnoses", []), "procedures": analysis.get("procedures", []),
                 "medications": analysis.get("medications", []), "devices": analysis.get("devices", []),
-                "em_factors": analysis.get("em_factors", {})})
+                "em_factors": analysis.get("em_factors", {}),
+                "codeable_findings_count": codeable_count})
     _audit(db, run, "1_analysis", "analysis_done",
            {"summary": run.chart_summary, "flags": flags})
 
@@ -816,17 +825,34 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     persisted: list[models.CodeResult] = []
     gate_log = []
     for c in agg_codes:
-        # Deterministic professional-component handling: a facility radiology read (7xxxx) or surgical
-        # pathology interpretation (88xxx) at POS 22/23/19/21 bills the professional component — append
-        # modifier 26 if the model didn't. Rules belong in the rule engine, not the model's memory.
-        _is_prof = c["code"][:1] == "7" or c["code"][:2] == "88"
-        if c["code_system"] == "CPT" and _is_prof and enc.pos in ("22", "23", "19", "21"):
+        # Deterministic billing-component handling for facility radiology reads (7xxxx) and
+        # surgical pathology interpretations (88xxx) at POS 22/23/19/21.  The encounter-level
+        # bill_type field drives modifier assignment so the coding engine never needs to parse
+        # report text to determine the billing arrangement:
+        #   GLOBAL       — no component modifier (radiologist owns the whole bill)
+        #   PROFESSIONAL — modifier 26  (radiologist bills pro-fee only; default)
+        #   TECHNICAL    — modifier TC  (facility bills technical component only)
+        _is_facility_billed = c["code"][:1] == "7" or c["code"][:2] == "88"
+        if c["code_system"] == "CPT" and _is_facility_billed and enc.pos in ("22", "23", "19", "21"):
             mods = list(c.get("modifiers", []))
-            if "26" not in mods and "TC" not in mods:
-                mods.append("26")
+            bt = (getattr(enc, "bill_type", None) or "PROFESSIONAL").upper()
+            if bt == "GLOBAL":
+                mods = [m for m in mods if m not in ("26", "TC")]
                 c["modifiers"] = mods
                 c["rule_justification"] = (c.get("rule_justification", "") +
-                                           " [auto: modifier 26 professional component for facility read]").strip()
+                                           " [auto: global bill — no component modifier]").strip()
+            elif bt == "TECHNICAL":
+                if "26" not in mods and "TC" not in mods:
+                    mods.append("TC")
+                    c["modifiers"] = mods
+                    c["rule_justification"] = (c.get("rule_justification", "") +
+                                               " [auto: modifier TC technical component for facility read]").strip()
+            else:  # PROFESSIONAL (default)
+                if "26" not in mods and "TC" not in mods:
+                    mods.append("26")
+                    c["modifiers"] = mods
+                    c["rule_justification"] = (c.get("rule_justification", "") +
+                                               " [auto: modifier 26 professional component for facility read]").strip()
 
         cit_ok, cit_score = verify_citations(c, lookup)
         ungrounded_proc = _is_proc_code(c) and c["code"] not in retrieved_proc_codes
@@ -926,6 +952,22 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         stb_t = float(spec_cfg.get("stb_threshold", stb_t))
         qa_t = float(spec_cfg.get("qa_threshold", qa_t))
         thresholds_source = f"specialty ({enc.specialty})"
+
+    # --- Incomplete code set guard (Stage 5, before STB threshold check) ---
+    # Fewer accepted ICD-10 codes than codeable findings from Stage 2 signals a RAG
+    # miss, typo in source data, or extraction gap. Apply a −0.08 confidence penalty
+    # and flag the chart so near-threshold cases never slip through to STB silently.
+    accepted_icd10_count = sum(1 for cr in accepted if cr.code_system == "ICD10CM")
+    incomplete_code_set = codeable_count > 0 and accepted_icd10_count < codeable_count
+    if incomplete_code_set:
+        overall = round(max(overall - 0.08, 0.0), 3)
+        run.overall_confidence = overall
+        run.accuracy_estimate = overall
+        say("Calibration & Routing",
+            f"INCOMPLETE_CODE_SET: {accepted_icd10_count} ICD-10 code(s) accepted vs "
+            f"{codeable_count} codeable finding(s) at extraction — confidence penalised "
+            f"−0.08 → {overall:.2f}",
+            "warn")
 
     # bounded-autonomy hard rules → never STB (each toggleable by admin config)
     bounded = []
@@ -1115,6 +1157,9 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         "bounded_autonomy": bounded,
         "missing_required_code_families_for_stb": missing_required,
         "missing_primary_procedure_reason": missing_primary_proc_reason,
+        "incomplete_code_set": incomplete_code_set,
+        "codeable_findings_count": codeable_count,
+        "accepted_icd10_count": accepted_icd10_count,
         "thresholds": {"STB": stb_t, "QA": qa_t, "source": thresholds_source},
     }
     log.append(calibration_log)
@@ -1157,6 +1202,11 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         return finalize_lane("MANUAL", missing_primary_proc_reason)
     if bounded or needs_review:
         return finalize_lane("QA", "; ".join(bounded) or _needs_review_reason(needs_review))
+    if incomplete_code_set and routing_overall >= stb_t:
+        return finalize_lane("QA",
+            f"INCOMPLETE_CODE_SET_NEAR_THRESHOLD: {accepted_icd10_count} ICD-10 code(s) accepted vs "
+            f"{codeable_count} finding(s) identified at extraction (confidence {routing_overall:.2f} "
+            f"post-penalty) — review for missing codes before accepting")
     if routing_overall >= stb_t:
         return finalize_lane("STB", f"All gates passed; calibrated confidence {routing_overall:.2f} >= {stb_t}")
     if routing_overall >= qa_t:

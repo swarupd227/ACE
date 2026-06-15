@@ -167,6 +167,25 @@ HARD RULES:
 - Use ONLY codes that appear in the provided CANDIDATE REFERENCE context. Do not invent codes.
 - Respect the retrieved payer policy and NCCI/MUE notes provided.
 - Provide an honest self-confidence in [0,1] per code and a one-line rule justification.
+- OUTPATIENT UNCERTAIN DIAGNOSIS (ICD-10-CM §IV.H — HIGHEST PRIORITY for all outpatient
+  encounters including radiology): When the clinical or radiology note uses qualifying
+  language — "suspected", "probable", "possible", "consistent with", "cannot be excluded",
+  "cannot rule out", "early X" with hedging, or "clinical correlation recommended" — do NOT
+  code the suspected condition. Code the documented sign, symptom, or finding that prompted
+  the study instead. §IV.H governs all outpatient settings; §I.C.x inpatient rules do NOT
+  override it for outpatient encounters. Example: impression "early appendicitis cannot be
+  excluded" → R10.31 (RLQ pain) only; K35.80 must NOT be assigned.
+- SYMPTOM SPECIFICITY: Always assign the MOST SPECIFIC symptom code the documentation
+  supports. R10.31 (right lower quadrant pain) when RLQ location is documented; R10.0
+  (acute abdomen) only when generalised acute abdomen is explicitly documented. Never
+  downgrade to a less-specific code when a more specific one is supported.
+- R93.x (Abnormal findings on diagnostic imaging) INCIDENTAL TEST — before assigning any
+  R93.x code, confirm ALL three conditions hold: (1) the finding was discovered unexpectedly,
+  unrelated to the reason the study was ordered; (2) the finding is NOT already captured by
+  another assigned diagnosis code; (3) the finding is NOT the radiologic evidence or correlate
+  of the presenting symptom or indication. If any condition fails, do NOT assign R93.x.
+  The abnormal finding that directly explains or supports the presenting indication is never
+  incidental — the symptom/indication code already captures it.
 - For injury codes, the 7th character MUST match the documented episode of care: A initial,
   D subsequent (routine follow-up), S sequela. Never default to 'A' on a follow-up visit.
 - Code documented medications and devices/supplies with their HCPCS Level II codes when they
@@ -239,6 +258,26 @@ SPECIALTY_GUIDANCE = {
         "modifier 26 (professional component) to the imaging CPT — you are coding the radiologist's read.\n"
         "- For unilateral extremity studies, append RT or LT when laterality is documented.\n"
         "- Use a single COMBINATION code when one exists (e.g., CT abdomen+pelvis); do not unbundle.\n"
+        "- UNCERTAIN DIAGNOSIS IN RADIOLOGY (§IV.H): Radiology impressions frequently use hedging\n"
+        "  language. Treat these phrases as UNCERTAIN → code the symptom/indication, NOT the condition:\n"
+        "    'cannot be excluded', 'cannot rule out', 'consistent with' (non-definitive), 'suspected',\n"
+        "    'probable', 'possible', 'early X' with qualifying language, 'clinical correlation\n"
+        "    recommended'. EXAMPLE: impression 'early appendicitis cannot be excluded' → R10.31\n"
+        "    (RLQ pain) only; K35.80 must NOT be assigned. Code a definitive diagnosis only when the\n"
+        "    impression states it without qualifying language (e.g., 'acute appendicitis').\n"
+        "- SYMPTOM SPECIFICITY: Use the most specific symptom code. R10.31 for documented RLQ pain;\n"
+        "  R10.0 only for documented generalised acute abdomen. Never downgrade specificity.\n"
+        "- R93.x INCIDENTAL-FINDING RULE: Assign R93.x ONLY when the imaging finding is truly\n"
+        "  incidental — discovered unexpectedly, unrelated to the study indication, and NOT already\n"
+        "  captured by another code. Do NOT assign R93.x when:\n"
+        "    * The abnormal finding directly explains or supports the presenting symptom (radiologic\n"
+        "      correlate of the indication, e.g., periappendiceal inflammation on CT for RLQ pain\n"
+        "      → R10.31 only; R93.5 is NOT appropriate).\n"
+        "    * The finding IS the study indication (e.g., follow-up CT for a known lung nodule\n"
+        "      → nodule code only; do NOT add R93.x).\n"
+        "    * A more specific diagnosis code already subsumes the finding.\n"
+        "  CORRECT: CT chest for cough, incidental liver lesion found → cough code + R93.2.\n"
+        "  INCORRECT: MRI knee for knee pain, joint effusion found → knee pain only; R93.6 not added.\n"
         "- Link to the ordering indication; if no definitive diagnosis, code the sign/symptom.\n"
         "- Do NOT infer an eponymic or named fracture subtype (for example Colles', Smith, Barton, "
         "or Salter-Harris) unless that pattern is explicitly documented in the report. If the chart "

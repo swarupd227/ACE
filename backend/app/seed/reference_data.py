@@ -2752,6 +2752,14 @@ ONTOLOGY_CONCEPTS = [
     ("C0032227", "Pleural effusion", "Disease", [{"system": "ICD10CM", "code": "J90"}]),
     ("C0022646", "Kidney structure", "Body Part", []),
     ("C0023884", "Liver structure", "Body Part", []),
+    # Atelectasis (UMLS C0004144) — maps to J98.11. Covers all clinical synonyms
+    # ("bibasilar atelectasis", "subsegmental atelectasis", "atelectatic changes",
+    # "linear atelectasis", "discoid atelectasis", "platelike atelectasis") via the
+    # "atelectasis" token in the lexical scorer. Edges link it to the lung finding_site
+    # and to pneumonia (the two conditions co-occur on chest X-ray so the pneumonia
+    # concept node also surfaces it via graph traversal when consolidation is the chief
+    # finding). UMLS CUI verified via NLM VSAC / Wikidata P2892.
+    ("C0004144", "Atelectasis", "Disease", [{"system": "ICD10CM", "code": "J98.11"}]),
     # =======================================================================
     # TRAUMA / MUSCULOSKELETAL KNOWLEDGE GRAPH for the Chapter 19 'S' injury
     # codes. Real UMLS CUIs verified via the Wikidata UMLS-CUI cross-reference
@@ -2832,6 +2840,8 @@ ONTOLOGY_EDGES = [
     ("C0259779", "finding_site", "C0028429"),    # deviated nasal septum -> nasal septum
     ("C0034065", "finding_site", "C0024109"),    # pulmonary embolism -> lung
     ("C0032227", "finding_site", "C0024109"),    # pleural effusion -> lung
+    ("C0004144", "finding_site", "C0024109"),    # atelectasis -> lung
+    ("C0032285", "associated_with", "C0004144"), # pneumonia associated_with atelectasis
     ("C0022650", "finding_site", "C0022646"),    # calculus of kidney -> kidney
     # --- Trauma / musculoskeletal: fracture/injury -> finding_site (bone/joint) ---
     ("C0035522", "finding_site", "C0035561"),    # rib fracture -> rib
@@ -3002,8 +3012,32 @@ GUIDELINES = [
      "Do not replace the screening indication with a finding code.", "Radiology"),
     ("Radiology Coding Guidance", "AbnormalFindings",
      "When imaging is abnormal but no definitive diagnosis is established, code the specific abnormal "
-     "finding (e.g., solitary pulmonary nodule R91.1, abnormal retroperitoneal imaging R93.5) or the "
-     "sign/symptom that prompted the study, per the uncertain-diagnosis rule.", "Radiology"),
+     "finding (e.g., solitary pulmonary nodule R91.1) or the sign/symptom that prompted the study, "
+     "per the uncertain-diagnosis rule (§IV.H for outpatient). NOTE: R93.x codes apply ONLY to "
+     "incidental findings — see the IncidentalFindings guideline; do not apply R93.x to the primary "
+     "finding being evaluated.",
+     "Radiology"),
+    ("Radiology Coding Guidance", "OutpatientUncertainDiagnosis",
+     "ICD-10-CM Official Guidelines §IV.H (Outpatient Uncertain Diagnosis — HIGHEST PRIORITY): "
+     "For outpatient encounters, including all radiology reports, do NOT code a diagnosis described "
+     "as 'suspected', 'probable', 'possible', 'consistent with', 'cannot be excluded', 'cannot rule "
+     "out', or followed by 'clinical correlation recommended'. Code the documented sign, symptom, or "
+     "abnormal finding instead. This rule applies to ALL outpatient settings and overrides §I.C.x "
+     "inpatient rules. EXAMPLE: CT abdomen for RLQ pain, impression 'early appendicitis cannot be "
+     "excluded' → R10.31 (right lower quadrant pain) only; K35.80 must NOT be assigned. Contrast: "
+     "if the impression states 'acute appendicitis' definitively → K35.80 is appropriate.",
+     "Radiology"),
+    ("Radiology Coding Guidance", "IncidentalFindings",
+     "ICD-10-CM Guideline Section I.C.18: R93.x (Abnormal findings on diagnostic imaging) codes are "
+     "appropriate ONLY for truly incidental findings — discovered unexpectedly, unrelated to the study "
+     "indication, and not captured by another assigned code. R93.x is NOT appropriate when the abnormal "
+     "finding (1) directly explains or supports the presenting symptom, (2) IS the study indication "
+     "(e.g., follow-up of a known nodule), or (3) is subsumed by a more specific assigned diagnosis. "
+     "INCORRECT: CT abdomen/pelvis for RLQ pain finds periappendiceal inflammation → code R10.31 only; "
+     "R93.5 must NOT be added (the inflammation is the radiologic correlate of the symptom). "
+     "CORRECT: CT chest for cough incidentally finds a liver lesion → code cough + R93.2 (liver finding "
+     "is unrelated to the chest study indication).",
+     "Radiology"),
     ("HCC Risk Adjustment Coding Guidance", "Capture",
      "Risk-adjustment coding captures every chronic condition that is active and addressed at the "
      "encounter with MEAT evidence (Monitored, Evaluated, Assessed, or Treated). Code combination codes "

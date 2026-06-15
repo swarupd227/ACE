@@ -8,7 +8,7 @@ CHARTS = [
     dict(
         mrn="RAD10001", patient_name="Jordan Avery", age=58, sex="M", specialty="Radiology",
         modality="XR", payer="Medicare", pos="22", dos="2026-04-12", client="Riverbend Health",
-        source_system="PracticeAdmin", report_type="radiology_report",
+        source_system="PracticeAdmin", report_type="radiology_report", bill_type="GLOBAL",
         scenario="Scenario 1 — Standard radiology (single procedure)",
         chart_text=(
             "RADIOLOGY REPORT\n"
