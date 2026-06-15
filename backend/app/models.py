@@ -49,6 +49,10 @@ class Encounter(Base):
     client: Mapped[str] = mapped_column(String(80), default="")  # source client/health system
     source_system: Mapped[str] = mapped_column(String(40), default="PracticeAdmin")
     report_type: Mapped[str] = mapped_column(String(40), default="report")
+    # Billing component: GLOBAL (no modifier), PROFESSIONAL (modifier 26), TECHNICAL (modifier TC).
+    # Defaults to PROFESSIONAL — existing behaviour for charts without an explicit setting.
+    # Set per-encounter in seed data or via the ingest feed; never derived from report text.
+    bill_type: Mapped[str] = mapped_column(String(16), default="PROFESSIONAL")
     chart_text: Mapped[str] = mapped_column(Text)
     # demo authoring metadata: what this synthetic chart is designed to exercise
     scenario: Mapped[str] = mapped_column(String(80), default="")
