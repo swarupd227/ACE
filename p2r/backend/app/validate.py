@@ -111,7 +111,9 @@ def judge_candidate(db: Session, *, payer: str, provision_type: str, summary: st
     return row
 
 
-def generate_for_document(db: Session, doc_id: str, actor: str = "system", llm: dict | None = None) -> dict:
+def generate_for_document(db: Session, doc_id: str, actor: str = "system",
+                          llm: dict | None = None, emit=None) -> dict:
+    e = emit or (lambda ev: None)
     doc = db.get(models.PolicyDocument, doc_id)
     if doc is None:
         raise ValueError("document not found")
@@ -122,15 +124,24 @@ def generate_for_document(db: Session, doc_id: str, actor: str = "system", llm: 
             models.PolicyProvision.routing != "HOLD",
         )
     ).all()
+    e({"type": "log", "message": f"{len(provs)} provisions to validate & reconcile against the library."})
     recs = []
-    for p in provs:
+    for i, p in enumerate(provs, start=1):
+        e({"type": "log", "phase": p.provision_type,
+           "message": f"({i}/{len(provs)}) Validating & reconciling {p.provision_type}…"})
         evidence_text = f"[{p.provision_type}] {p.summary}\nConditions: {json.dumps(p.conditions)}"
-        recs.append(judge_candidate(
+        r = judge_candidate(
             db, payer=doc.payer, provision_type=p.provision_type, summary=p.summary,
             code_sets=p.code_sets, evidence_text=evidence_text,
             evidence_ref={"provision_id": p.id}, origin="POLICY",
             source_provision_id=p.id, source_document_id=doc_id, actor=actor, llm=llm,
-        ))
+        )
+        matched = f" vs {r.matched_rule_id}" if r.matched_rule_id else ""
+        flag = " — needs attention" if r.needs_attention else ""
+        e({"type": "log", "phase": p.provision_type,
+           "message": f"  → {r.validation_verdict} / {r.reconciliation_verdict}{matched}{flag}"})
+        recs.append(r)
+    e({"type": "log", "message": f"Done — {len(recs)} recommendations queued for review."})
     return {"document_id": doc_id, "payer": doc.payer, "count": len(recs),
             "recommendations": [rec_dict(r) for r in recs]}
 

@@ -110,8 +110,10 @@ def _delta(prev: list[models.PolicyProvision], new: list[models.PolicyProvision]
             "summary": "; ".join(bits) if bits else "no material change"}
 
 
-def acquire(db: Session, source_id: str, actor: str = "acquisition-agent", llm: dict | None = None) -> dict:
+def acquire(db: Session, source_id: str, actor: str = "acquisition-agent",
+            llm: dict | None = None, emit=None) -> dict:
     """Poll a source: fetch its current version, ingest + delta only if the content changed."""
+    e = emit or (lambda ev: None)
     src = db.get(models.PolicySource, source_id)
     if src is None:
         raise ValueError("source not found")
@@ -119,23 +121,28 @@ def acquire(db: Session, source_id: str, actor: str = "acquisition-agent", llm: 
     if not versions:
         raise ValueError("source has no content configured")
 
+    e({"type": "log", "phase": "P1", "message": f"Polling '{src.name}'…"})
     idx = min(src.fetch_count, len(versions) - 1)  # successive polls reveal successive revisions
     content = versions[idx]
     new_hash = hashlib.sha256(content.encode()).hexdigest()
     src.last_checked = _now_iso()
+    e({"type": "log", "phase": "P1", "message": f"Fetched content (sha256 {new_hash[:12]}…)."})
 
     if new_hash == src.last_content_hash:
         src.fetch_count += 1
         db.add(src)
         db.commit()
+        e({"type": "log", "phase": "P1", "message": "No change since last poll — nothing to ingest."})
         return {"source_id": src.id, "changed": False, "reason": "content unchanged since last poll"}
 
+    e({"type": "log", "phase": "P1", "message": "Content changed — extracting cited provisions…"})
     prev_doc_id = src.last_document_id
     prev_provs = _provs(db, prev_doc_id) if prev_doc_id else []
     ing = ingest.ingest_policy(db, src.payer, title, content, source_type="ACQUIRED", llm=llm)
     doc_id = ing["document_id"]
     ensure_payer_master(db, src.payer)
     new_provs = _provs(db, doc_id)
+    e({"type": "log", "phase": "P1", "message": f"Extracted {len(new_provs)} provisions; computing delta…"})
 
     change_type = "REVISION" if prev_doc_id else "NEW_POLICY"
     d = _delta(prev_provs, new_provs) if prev_doc_id else {
@@ -154,6 +161,7 @@ def acquire(db: Session, source_id: str, actor: str = "acquisition-agent", llm: 
     db.add(src)
     db.commit()
     db.refresh(delta)
+    e({"type": "log", "phase": "P1", "message": f"{change_type}: {d['summary']}"})
     audit.log(db, phase="P1", action="ACQUIRE", actor=actor,
               entity_type="document", entity_id=doc_id, payer=src.payer,
               summary=f"{change_type} from '{src.name}' — {d['summary']}",

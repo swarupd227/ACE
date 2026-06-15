@@ -157,13 +157,18 @@ def detect_signals(db: Session, actor: str = "system") -> dict:
             "recent_window_days": RECENT_WINDOW, "results": [signal_dict(s) for s in created]}
 
 
-def promote_signal(db: Session, signal_id: str, actor: str = "system", llm: dict | None = None) -> dict:
+def promote_signal(db: Session, signal_id: str, actor: str = "system",
+                   llm: dict | None = None, emit=None) -> dict:
     """Hand a denial signal's proposed rule to the P3 Validator Judge → review queue."""
+    e = emit or (lambda ev: None)
     sig = db.get(models.DenialSignal, signal_id)
     if sig is None:
         raise ValueError("signal not found")
     if sig.status == "PROMOTED" and sig.promoted_recommendation_id:
         raise ValueError("signal already promoted")
+    e({"type": "log", "phase": "P2",
+       "message": f"Promoting {sig.pattern_type} signal {sig.procedure_code}/CARC{sig.denial_carc}…"})
+    e({"type": "log", "phase": "P3", "message": "Validating candidate against denial evidence & the rule library…"})
     pr = sig.proposed_rule or {}
     ev = sig.evidence.get("aggregates", {})
     evidence_text = (
@@ -179,6 +184,9 @@ def promote_signal(db: Session, signal_id: str, actor: str = "system", llm: dict
         evidence_text=evidence_text, evidence_ref={"signal_id": sig.id},
         origin="DENIAL", source_signal_id=sig.id, actor=actor, llm=llm,
     )
+    e({"type": "log", "phase": "P3",
+       "message": f"  → {rec.validation_verdict} / {rec.reconciliation_verdict}"
+                  + (f" vs {rec.matched_rule_id}" if rec.matched_rule_id else "")})
     sig.status = "PROMOTED"
     sig.promoted_recommendation_id = rec.id
     sig.model_version = llm_client.model_version(llm)

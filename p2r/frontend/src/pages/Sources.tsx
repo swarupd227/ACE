@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { api } from "../api";
 import { Spinner } from "../lib";
 import { useRole, can } from "../role";
+import StreamConsole from "../components/StreamConsole";
 import type { PolicyDelta } from "../types";
 
 const BLANK = { payer: "", name: "", source_type: "PORTAL", location: "", cadence: "weekly" };
@@ -21,18 +22,9 @@ export default function Sources() {
   const { data: deltas } = useQuery({ queryKey: ["deltas"], queryFn: api.deltas });
   const { data: masters } = useQuery({ queryKey: ["payer-master"], queryFn: api.payerMaster });
 
+  const actor = role.toLowerCase().replace(/\s+/g, "_");
+  const [acqSrc, setAcqSrc] = useState<string | null>(null);  // source id currently streaming
   const invalidateSources = () => qc.invalidateQueries({ queryKey: ["sources"] });
-
-  const acquire = useMutation({
-    mutationFn: (id: string) => api.acquire(id),
-    onSuccess: (r) => {
-      setLast(r.changed ? `${r.change_type}: ${r.delta?.summary}` : "No change — content identical to last poll");
-      invalidateSources();
-      qc.invalidateQueries({ queryKey: ["deltas"] });
-      qc.invalidateQueries({ queryKey: ["documents"] });
-    },
-    onError: (e: any) => setErr(e.message),
-  });
 
   const createSource = useMutation({
     mutationFn: () => api.createSource(nw),
@@ -122,9 +114,9 @@ export default function Sources() {
                 </button>
               )}
               {can(role, "acquire") && (
-                <button className="btn-primary" disabled={acquire.isPending || s.status !== "active"}
-                  onClick={() => { setErr(""); acquire.mutate(s.id); }}>
-                  {acquire.isPending ? <Spinner className="h-4 w-4" /> : <RefreshCw size={15} />} Run acquisition
+                <button className="btn-primary" disabled={acqSrc !== null || s.status !== "active"}
+                  onClick={() => { setErr(""); setLast(""); setAcqSrc(s.id); }}>
+                  {acqSrc === s.id ? <Spinner className="h-4 w-4" /> : <RefreshCw size={15} />} Run acquisition
                 </button>
               )}
             </div>
@@ -154,6 +146,22 @@ export default function Sources() {
           </div>
         ))}
       </div>
+
+      {acqSrc && (
+        <StreamConsole
+          title="Running acquisition agent"
+          path={`/sources/${acqSrc}/acquire/stream?actor=${encodeURIComponent(actor)}`}
+          onClose={() => setAcqSrc(null)}
+          onDone={(ev) => {
+            const r = ev.result || {};
+            setLast(r.changed ? `${r.change_type}: ${r.delta?.summary}` : "No change — content identical to last poll");
+            setAcqSrc(null);
+            invalidateSources();
+            qc.invalidateQueries({ queryKey: ["deltas"] });
+            qc.invalidateQueries({ queryKey: ["documents"] });
+          }}
+        />
+      )}
     </div>
   );
 }

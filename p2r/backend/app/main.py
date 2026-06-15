@@ -38,6 +38,35 @@ def actor_of(x_actor: str = Header(default="system", alias="X-Actor"),
     return f"{x_actor}" + (f" ({x_role})" if x_role else "")
 
 
+def _sse_response(run) -> StreamingResponse:
+    """Run `run(db, emit)` in a worker thread and stream its emits as SSE, ending with a
+    'done' event carrying the result (or an 'error' event). The agent-console pattern."""
+    q: "queue.Queue[dict]" = queue.Queue()
+
+    def work() -> None:
+        db = SessionLocal()
+        try:
+            result = run(db, q.put)
+            q.put({"type": "done", "result": result})
+        except Exception as exc:  # noqa: BLE001 — surface to the client stream
+            q.put({"type": "error", "message": str(exc)})
+        finally:
+            db.close()
+            q.put({"type": "__end__"})
+
+    threading.Thread(target=work, daemon=True).start()
+
+    def gen():
+        while True:
+            ev = q.get()
+            if ev.get("type") == "__end__":
+                break
+            yield f"data: {json.dumps(ev)}\n\n"
+
+    return StreamingResponse(gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 @app.on_event("startup")
 def _startup() -> None:
     init_db()
@@ -155,6 +184,14 @@ def recommend_from_document(doc_id: str, db: Session = Depends(get_db),
         return validate.generate_for_document(db, doc_id, actor=actor)
     except ValueError as exc:
         raise HTTPException(404, str(exc))
+
+
+@app.get("/recommendations/from-document/{doc_id}/stream")
+def recommend_from_document_stream(doc_id: str, actor: str = Query("system")) -> StreamingResponse:
+    """Stream P3 generation (per-provision validate + reconcile) as Server-Sent Events."""
+    if not llm_client.llm_available():
+        raise HTTPException(503, "LLM not configured — set ANTHROPIC_API_KEY")
+    return _sse_response(lambda db, emit: validate.generate_for_document(db, doc_id, actor=actor, emit=emit))
 
 
 @app.get("/recommendations")
@@ -288,6 +325,14 @@ def acquire_source(source_id: str, db: Session = Depends(get_db),
         raise HTTPException(404, str(exc))
 
 
+@app.get("/sources/{source_id}/acquire/stream")
+def acquire_source_stream(source_id: str, actor: str = Query("system")) -> StreamingResponse:
+    """Stream the acquisition agent (poll → change-detect → extract) as Server-Sent Events."""
+    if not llm_client.llm_available():
+        raise HTTPException(503, "LLM not configured — set ANTHROPIC_API_KEY")
+    return _sse_response(lambda db, emit: acquisition.acquire(db, source_id, actor=actor, emit=emit))
+
+
 @app.get("/deltas")
 def list_deltas(db: Session = Depends(get_db)) -> list[dict]:
     return [acquisition.delta_dict(d) for d in
@@ -348,6 +393,14 @@ def denials_promote(signal_id: str, db: Session = Depends(get_db),
         return denials.promote_signal(db, signal_id, actor=actor)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+
+
+@app.get("/denials/signals/{signal_id}/promote/stream")
+def denials_promote_stream(signal_id: str, actor: str = Query("system")) -> StreamingResponse:
+    """Stream denial-signal promotion (P2 → P3 judge) as Server-Sent Events."""
+    if not llm_client.llm_available():
+        raise HTTPException(503, "LLM not configured — set ANTHROPIC_API_KEY")
+    return _sse_response(lambda db, emit: denials.promote_signal(db, signal_id, actor=actor, emit=emit))
 
 
 # --- Admin: runtime configuration (drives the engine) -----------------------

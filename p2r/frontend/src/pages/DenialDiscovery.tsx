@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { Database, Activity, TrendingUp, ArrowUpRight, Spline } from "lucide-react";
 import { api } from "../api";
 import { Spinner, pct } from "../lib";
+import { useRole } from "../role";
+import StreamConsole from "../components/StreamConsole";
 import type { DenialSignal } from "../types";
 import clsx from "clsx";
 
@@ -19,18 +21,16 @@ function PatternBadge({ p }: { p: string }) {
 export default function DenialDiscovery() {
   const qc = useQueryClient();
   const nav = useNavigate();
+  const { role } = useRole();
+  const actor = role.toLowerCase().replace(/\s+/g, "_");
   const [err, setErr] = useState("");
+  const [promoteSig, setPromoteSig] = useState<string | null>(null);  // signal id currently streaming
   const { data: signals } = useQuery({ queryKey: ["denial-signals"], queryFn: () => api.denialSignals() });
 
   const load = useMutation({ mutationFn: api.denialsLoadSample, onError: (e: any) => setErr(e.message) });
   const detect = useMutation({
     mutationFn: api.denialsDetect,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["denial-signals"] }),
-    onError: (e: any) => setErr(e.message),
-  });
-  const promote = useMutation({
-    mutationFn: (id: string) => api.promoteSignal(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["denial-signals"] }); qc.invalidateQueries({ queryKey: ["recommendations"] }); nav("/review"); },
     onError: (e: any) => setErr(e.message),
   });
 
@@ -66,8 +66,22 @@ export default function DenialDiscovery() {
         </div>
       ) : (
         <div className="space-y-3">
-          {signals!.map((s) => <SignalCard key={s.id} s={s} onPromote={() => promote.mutate(s.id)} promoting={promote.isPending} />)}
+          {signals!.map((s) => <SignalCard key={s.id} s={s} onPromote={() => setPromoteSig(s.id)} promoting={promoteSig === s.id} />)}
         </div>
+      )}
+
+      {promoteSig && (
+        <StreamConsole
+          title="Promoting denial signal to review"
+          path={`/denials/signals/${promoteSig}/promote/stream?actor=${encodeURIComponent(actor)}`}
+          onClose={() => setPromoteSig(null)}
+          onDone={() => {
+            setPromoteSig(null);
+            qc.invalidateQueries({ queryKey: ["denial-signals"] });
+            qc.invalidateQueries({ queryKey: ["recommendations"] });
+            nav("/review");
+          }}
+        />
       )}
     </div>
   );

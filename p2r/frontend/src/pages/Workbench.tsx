@@ -6,6 +6,8 @@ import { api } from "../api";
 import {
   CodeChips, ConfidenceBar, ProvisionBadge, RoutingBadge, Spinner,
 } from "../lib";
+import { useRole } from "../role";
+import StreamConsole from "../components/StreamConsole";
 import type { DocumentRow } from "../types";
 
 export default function Workbench() {
@@ -45,11 +47,9 @@ export default function Workbench() {
     onError: (e: any) => setErr(e.message),
   });
 
-  const generate = useMutation({
-    mutationFn: (docId: string) => api.generate(docId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["recommendations"] }); nav("/review"); },
-    onError: (e: any) => setErr(e.message),
-  });
+  const { role } = useRole();
+  const [genDoc, setGenDoc] = useState<string | null>(null);  // doc id currently streaming generation
+  const actor = role.toLowerCase().replace(/\s+/g, "_");
 
   return (
     <div className="fadeup space-y-5">
@@ -163,8 +163,8 @@ export default function Workbench() {
         {/* Provisions for the selected doc */}
         <div className="col-span-8">
           {selected ? (
-            <ProvisionPanel docId={selected} onGenerate={() => { setErr(""); generate.mutate(selected); }}
-              generating={generate.isPending} />
+            <ProvisionPanel docId={selected} onGenerate={() => { setErr(""); setGenDoc(selected); }}
+              generating={genDoc === selected} />
           ) : (
             <div className="card p-8 text-center text-sm text-slate-400">
               Select a policy to see its extracted provisions.
@@ -172,6 +172,15 @@ export default function Workbench() {
           )}
         </div>
       </div>
+
+      {genDoc && (
+        <StreamConsole
+          title="Generating rule recommendations"
+          path={`/recommendations/from-document/${genDoc}/stream?actor=${encodeURIComponent(actor)}`}
+          onClose={() => setGenDoc(null)}
+          onDone={() => { setGenDoc(null); qc.invalidateQueries({ queryKey: ["recommendations"] }); nav("/review"); }}
+        />
+      )}
     </div>
   );
 }
