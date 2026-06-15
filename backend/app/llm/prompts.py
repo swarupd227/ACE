@@ -17,7 +17,12 @@ ANALYSIS_SYSTEM = """You are a clinical documentation analyst supporting a medic
 You read a single clinical chart and produce a STRUCTURED analysis. You never invent
 content that is not present in the chart. When a fact is absent, say so explicitly.
 You are precise about laterality, contrast, view counts, encounter type, negation
-("rule out X" is NOT X), and temporality ("history of" is not an active condition)."""
+("rule out X" is NOT X), and temporality ("history of" is not an active condition).
+You also capture, when documented: the EPISODE of care for injuries (initial/subsequent/
+sequela — it drives the ICD-10 7th character), any COMPLICATION or manifestation linked
+to a condition (it drives combination-code selection), MEDICATIONS administered or
+supplied (name, dose, route — they drive HCPCS J-codes), and DEVICES/implants/supplies
+(they drive HCPCS Level II). Empty values are correct when the chart is silent."""
 
 ANALYSIS_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -58,10 +63,44 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
                     "status": {"type": "string", "enum": ["confirmed", "suspected", "ruled_out", "history"]},
                     "laterality": {"type": "string"},
                     "acuity": {"type": "string"},
+                    "episode": {"type": "string", "enum": ["initial", "subsequent", "sequela", "n/a"],
+                                "description": "Episode of care for injuries — drives the ICD-10 7th character."},
+                    "complication": {"type": "string",
+                                     "description": "Documented complication/manifestation linked to this condition ('' if none) — select the combination code."},
                     "line_start": {"type": "integer"},
                     "line_end": {"type": "integer"},
                 },
-                "required": ["text", "status", "line_start", "line_end"],
+                "required": ["text", "status", "episode", "complication", "line_start", "line_end"],
+            },
+        },
+        "medications": {
+            "type": "array",
+            "description": "Medications administered or supplied at this encounter (drive HCPCS J-codes).",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "dose": {"type": "string"},
+                    "route": {"type": "string"},
+                    "indication": {"type": "string"},
+                    "line_start": {"type": "integer"},
+                    "line_end": {"type": "integer"},
+                },
+                "required": ["name", "dose", "route", "line_start", "line_end"],
+            },
+        },
+        "devices": {
+            "type": "array",
+            "description": "Devices, implants or supplies provided (drive HCPCS Level II).",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "type": {"type": "string"},
+                    "line_start": {"type": "integer"},
+                    "line_end": {"type": "integer"},
+                },
+                "required": ["name", "type", "line_start", "line_end"],
             },
         },
         "procedures": {
@@ -95,7 +134,7 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
             "required": ["encounter_type", "problems", "data_complexity", "risk", "total_time_minutes", "separate_procedure_same_day"],
         },
     },
-    "required": ["summary", "sections", "conditioning_flags", "diagnoses", "procedures", "em_factors"],
+    "required": ["summary", "sections", "conditioning_flags", "diagnoses", "medications", "devices", "procedures", "em_factors"],
 }
 
 
@@ -147,6 +186,10 @@ HARD RULES:
   of the presenting symptom or indication. If any condition fails, do NOT assign R93.x.
   The abnormal finding that directly explains or supports the presenting indication is never
   incidental — the symptom/indication code already captures it.
+- For injury codes, the 7th character MUST match the documented episode of care: A initial,
+  D subsequent (routine follow-up), S sequela. Never default to 'A' on a follow-up visit.
+- Code documented medications and devices/supplies with their HCPCS Level II codes when they
+  appear in the candidate context (e.g., the injected drug's J-code alongside the procedure).
 You will be told the specialty. Output diagnoses (ICD-10-CM) and procedures (CPT/HCPCS for
 outpatient, or ICD-10-PCS for inpatient) with modifiers where the documentation supports them.
 For inpatient admissions, mark the principal diagnosis with role='principal'."""
@@ -234,7 +277,19 @@ SPECIALTY_GUIDANCE = {
         "      → nodule code only; do NOT add R93.x).\n"
         "    * A more specific diagnosis code already subsumes the finding.\n"
         "  CORRECT: CT chest for cough, incidental liver lesion found → cough code + R93.2.\n"
-        "  INCORRECT: MRI knee for knee pain, joint effusion found → knee pain only; R93.6 not added."
+        "  INCORRECT: MRI knee for knee pain, joint effusion found → knee pain only; R93.6 not added.\n"
+        "- Link to the ordering indication; if no definitive diagnosis, code the sign/symptom.\n"
+        "- Do NOT infer an eponymic or named fracture subtype (for example Colles', Smith, Barton, "
+        "or Salter-Harris) unless that pattern is explicitly documented in the report. If the chart "
+        "only gives descriptive fracture findings, choose the less-specific supported fracture code.\n"
+        "- Do NOT default to a generic 'abnormal imaging findings' code when the chart documents a "
+        "clinically significant structural abnormality and the candidate context includes a more "
+        "specific organ-system diagnosis code. Use the organ-system code when supported, without "
+        "upgrading uncertain etiology to a definitive disease.\n"
+        "- If the impression uses uncertain radiology language such as 'consistent with', "
+        "'compatible with', or 'suggestive of', do not upgrade that to a definitive disease code "
+        "when the chart separately documents the supported imaging findings. Prefer the directly "
+        "documented findings that are explicitly present in the report."
     ),
     "E&M": (
         "E&M RULES:\n"
@@ -283,7 +338,9 @@ SPECIALTY_GUIDANCE = {
         "- For routine, uncomplicated pregnancy supervision use Z34.8x by trimester (not an O-code).\n"
         "- Code cervical dysplasia to specificity: CIN I = N87.0, CIN II = N87.1.\n"
         "- When one provider gives antepartum + delivery + postpartum care, use the global obstetric "
-        "package (e.g., 59400) instead of itemizing individual visits."
+        "package (e.g., 59400) instead of itemizing individual visits.\n"
+        "- IUD insertion: code 58300 plus the supplied device's HCPCS code (levonorgestrel IUS = J7298) "
+        "and the encounter dx Z30.430."
     ),
     "GI / Endoscopy": (
         "GI / ENDOSCOPY RULES:\n"
@@ -329,7 +386,8 @@ SPECIALTY_GUIDANCE = {
         "- Code the procedure: cataract extraction with IOL = 66984; intravitreal injection = 67028; laser "
         "trabeculoplasty = 65855; retinal OCT = 92134.\n"
         "- Append eye laterality (RT/LT) when documented.\n"
-        "- Code the diagnosis (cataract H25.9, macular degeneration H35.30, glaucoma H40.9)."
+        "- Code the diagnosis (cataract H25.9, macular degeneration H35.30, glaucoma H40.9).\n"
+        "- When the injected drug is documented, also code its HCPCS J-code (e.g., aflibercept = J0178)."
     ),
     "Inpatient (DRG)": (
         "INPATIENT (MS-DRG) RULES:\n"

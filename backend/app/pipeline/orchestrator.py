@@ -8,7 +8,7 @@ import re
 import time
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import config_store, models
@@ -16,7 +16,7 @@ from ..config import settings
 from ..knowledge import graph_rag
 from ..llm import prompts
 from ..llm.client import LLMUnavailable, complete_json, model_version
-from . import anes, apc, drg, hcc, history, pii, validation
+from . import anes, apc, calibration, drg, governance, hcc, history, pii, validation
 
 # Confidence routing thresholds (calibrated per-specialty in production)
 STB_THRESHOLD = 0.90
@@ -64,6 +64,10 @@ def _family_label(family: str) -> str:
     return {"CPT_HCPCS": "CPT/HCPCS"}.get(family, family)
 
 
+def _family_matches(code_system: str, family: str) -> bool:
+    return _code_family(code_system) == family
+
+
 def _present_code_families(codes: list[models.CodeResult]) -> set[str]:
     return {_code_family(c.code_system) for c in codes}
 
@@ -82,6 +86,346 @@ def _retrieved_proc_code_set(retr: graph_rag.Retrieval) -> set[str]:
 
 def _is_proc_code(code: dict) -> bool:
     return code.get("code_system") in ("CPT", "HCPCS")
+
+
+def _spans_overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
+    return max(a_start, b_start) <= min(a_end, b_end)
+
+
+def _diagnosis_support_status(code: dict, analysis: dict) -> str | None:
+    if code.get("code_system") != "ICD10CM":
+        return None
+    desc_tokens = _tok(code.get("description", ""))
+    if not desc_tokens:
+        return None
+    matched: list[str] = []
+    citations = code.get("chart_citations") or []
+    diagnoses = analysis.get("diagnoses") or []
+    for diag in diagnoses:
+        if not isinstance(diag, dict):
+            continue
+        diag_tokens = _tok(diag.get("text", ""))
+        if not (desc_tokens & diag_tokens):
+            continue
+        if citations:
+            overlaps = any(
+                _spans_overlap(
+                    int(c.get("line_start", 0)),
+                    int(c.get("line_end", 0)),
+                    int(diag.get("line_start", 0)),
+                    int(diag.get("line_end", 0)),
+                )
+                for c in citations
+            )
+            if not overlaps:
+                continue
+        matched.append(diag.get("status", ""))
+    if "confirmed" in matched:
+        return "confirmed"
+    if "suspected" in matched:
+        return "suspected"
+    if "ruled_out" in matched:
+        return "ruled_out"
+    if "history" in matched:
+        return "history"
+    return None
+
+
+_UNCERTAIN_DIAG_PHRASES = (
+    "consistent with",
+    "compatible with",
+    "suggestive of",
+    "possible",
+    "probably",
+    "probable",
+    "may represent",
+    "could represent",
+    "concerning for",
+    "suspicious for",
+    "cannot exclude",
+    "rule out",
+)
+
+
+def _citations_only_uncertain(code: dict) -> bool:
+    citations = code.get("chart_citations") or []
+    if not citations:
+        return False
+    saw_uncertain = False
+    for cit in citations:
+        text = (cit.get("text", "") or "").lower()
+        if any(phrase in text for phrase in _UNCERTAIN_DIAG_PHRASES):
+            saw_uncertain = True
+            continue
+        return False
+    return saw_uncertain
+
+
+def _is_definitive_injury_code(code: dict) -> bool:
+    if code.get("code_system") != "ICD10CM":
+        return False
+    val = (code.get("code") or "").upper()
+    desc = (code.get("description") or "").lower()
+    return val.startswith(("S", "T")) or any(
+        term in desc for term in ("fracture", "dislocation", "sprain", "tear", "laceration")
+    )
+
+
+def _integral_soft_tissue_symptom(code: dict, all_codes: list[dict]) -> bool:
+    if code.get("code_system") != "ICD10CM":
+        return False
+    cval = (code.get("code") or "").upper()
+    desc = (code.get("description") or "").lower()
+    if not (
+        "soft tissue disorder" in desc
+        or "localized swelling" in desc
+        or "edema" in desc
+        or cval.startswith(("M79", "R22", "R60"))
+    ):
+        return False
+    cited_text = " ".join((c.get("text", "") or "").lower() for c in (code.get("chart_citations") or []))
+    if not any(term in cited_text for term in ("swelling", "soft tissue swelling", "pain", "edema", "lump", "mass")):
+        return False
+    return any(_is_definitive_injury_code(other) for other in all_codes if other is not code)
+
+
+def _diagnosis_candidate_drop_reason(
+    code: dict,
+    analysis: dict,
+    chart_region: str | None,
+    all_codes: list[dict],
+    retrieved_icd_candidates: list[dict],
+) -> str | None:
+    if code.get("code_system") != "ICD10CM":
+        return None
+    region_match = validation._code_matches_region(code.get("description", ""), chart_region)
+    if region_match is False:
+        return f"ICD does not align with chart body region ({chart_region})"
+    if _integral_soft_tissue_symptom(code, all_codes):
+        return "Symptom/soft-tissue finding is integral to a more definitive injury diagnosis"
+    support = _diagnosis_support_status(code, analysis)
+    if support == "suspected":
+        return "Diagnosis supported only by suspected/consistent-with documentation"
+    if support == "ruled_out":
+        return "Diagnosis is documented as ruled out"
+    if support == "history":
+        return "Diagnosis is documented as historical rather than active"
+    if _citations_only_uncertain(code):
+        return "Diagnosis supported only by uncertain citation language"
+    if _is_generic_imaging_abnormality(code) and _has_structural_abnormality_signal(code):
+        alternatives = _region_specific_disease_candidates(chart_region, retrieved_icd_candidates, code)
+        if alternatives:
+            return "Generic imaging-abnormality code is less appropriate than available region-specific diagnosis candidates"
+    return None
+
+
+def _modality_mismatch(enc: models.Encounter, chart_modality: str | None) -> str | None:
+    if not chart_modality or not enc.modality:
+        return None
+    saved = graph_rag._norm_modality(enc.modality)
+    extracted = graph_rag._norm_modality(chart_modality)
+    if not saved or not extracted or saved == extracted:
+        return None
+    return f"saved modality {saved} differs from chart modality {extracted}"
+
+
+_STRUCTURAL_ABNORMALITY_TERMS = (
+    "mass",
+    "lesion",
+    "tumor",
+    "neoplasm",
+    "nodule",
+    "collection",
+    "hematoma",
+    "cyst",
+    "extra-axial",
+)
+
+
+def _is_generic_imaging_abnormality(code: dict) -> bool:
+    if code.get("code_system") != "ICD10CM":
+        return False
+    cval = (code.get("code") or "").upper()
+    desc = (code.get("description") or "").lower()
+    return cval.startswith(("R90", "R91", "R92", "R93")) or "abnormal findings on diagnostic imaging" in desc
+
+
+def _citation_text(code: dict) -> str:
+    return " ".join((c.get("text", "") or "").lower() for c in (code.get("chart_citations") or []))
+
+
+def _has_structural_abnormality_signal(code: dict) -> bool:
+    return any(term in _citation_text(code) for term in _STRUCTURAL_ABNORMALITY_TERMS)
+
+
+def _region_specific_disease_candidates(
+    chart_region: str | None, all_codes: list[dict], current: dict
+) -> list[dict]:
+    matches = []
+    for other in all_codes:
+        if other is current or other.get("code_system") != "ICD10CM":
+            continue
+        oval = (other.get("code") or "").upper()
+        if oval.startswith("R"):
+            continue
+        region_match = validation._code_matches_region(other.get("description", ""), chart_region)
+        if region_match is False:
+            continue
+        matches.append(other)
+    return matches
+
+
+def _failed_gate_names(code_results: list[models.CodeResult]) -> list[str]:
+    names: list[str] = []
+    seen: set[str] = set()
+    for cr in code_results:
+        for gate in cr.gate_results or []:
+            if gate.get("passed"):
+                continue
+            name = gate.get("gate", "")
+            if name and name not in seen:
+                names.append(name)
+                seen.add(name)
+    return names
+
+
+def _missing_required_code_family_reason(
+    missing_required: list[str], persisted: list[models.CodeResult]
+) -> str:
+    messages: list[str] = []
+    for family in missing_required:
+        related = [cr for cr in persisted if _family_matches(cr.code_system, family)]
+        label = _family_label(family)
+        if not related:
+            messages.append(f"No {label} candidates were generated")
+            continue
+        failed = _failed_gate_names(related)
+        if failed:
+            messages.append(f"No accepted {label} remained after validation ({', '.join(failed)})")
+        else:
+            messages.append(f"No accepted {label} remained after validation")
+    return "; ".join(messages)
+
+
+_ANCILLARY_HCPCS_TERMS = (
+    "contrast",
+    "agent",
+    "material",
+    "supply",
+    "device",
+    "implant",
+    "drug",
+    "tray",
+    "kit",
+    "per ml",
+    "per mg",
+    "per unit",
+    "per dose",
+)
+
+
+def _analysis_supply_tokens(analysis: dict) -> set[str]:
+    parts: list[str] = []
+    for med in analysis.get("medications") or []:
+        if not isinstance(med, dict):
+            continue
+        parts.extend([med.get("name", ""), med.get("dose", ""), med.get("route", ""), med.get("indication", "")])
+    for device in analysis.get("devices") or []:
+        if not isinstance(device, dict):
+            continue
+        parts.extend([device.get("name", ""), device.get("type", "")])
+    return _tok(" ".join(parts))
+
+
+def _is_ancillary_procedure_result(code: models.CodeResult, analysis: dict) -> bool:
+    if code.code_system != "HCPCS":
+        return False
+    desc = (code.description or "").lower()
+    if any(term in desc for term in _ANCILLARY_HCPCS_TERMS):
+        return True
+    supply_tokens = _analysis_supply_tokens(analysis)
+    if not supply_tokens:
+        return False
+    return bool(_tok(desc) & supply_tokens)
+
+
+def _primary_procedure_results(codes: list[models.CodeResult], analysis: dict) -> list[models.CodeResult]:
+    return [
+        cr for cr in codes
+        if cr.code_system in ("CPT", "HCPCS") and not _is_ancillary_procedure_result(cr, analysis)
+    ]
+
+
+def _missing_primary_procedure_reason(
+    cfg: dict,
+    encounter: models.Encounter,
+    persisted: list[models.CodeResult],
+    accepted: list[models.CodeResult],
+    analysis: dict,
+) -> str | None:
+    required = _specialty_cfg(cfg, encounter.specialty).get("required_code_families_for_stb", []) or []
+    if "CPT_HCPCS" not in required:
+        return None
+    if not (analysis.get("procedures") or []):
+        return None
+    proc_results = [cr for cr in persisted if cr.code_system in ("CPT", "HCPCS")]
+    if not proc_results:
+        return None
+    accepted_primary = _primary_procedure_results(accepted, analysis)
+    if accepted_primary:
+        return None
+    primary_candidates = _primary_procedure_results(proc_results, analysis)
+    if not primary_candidates:
+        return "No accepted primary procedure remained; only ancillary HCPCS supply/drug codes were available"
+    failed = _failed_gate_names(primary_candidates)
+    if failed:
+        return f"No accepted primary procedure remained after validation ({', '.join(failed)})"
+    return "No accepted primary procedure remained after validation"
+
+
+def _needs_review_reason(needs_review: list[models.CodeResult]) -> str:
+    failed = _failed_gate_names(needs_review)
+    if failed:
+        return "Needs review: " + ", ".join(failed)
+    return "gate(s) need review"
+
+
+def _confidence_penalty_cfg(cfg: dict) -> dict[str, float]:
+    raw = cfg.get("confidence_penalties", {}) or {}
+
+    def bounded(name: str, default: float) -> float:
+        try:
+            value = float(raw.get(name, default))
+        except (TypeError, ValueError):
+            value = default
+        return max(0.0, min(1.0, value))
+
+    return {
+        "needs_review_code_multiplier": bounded("needs_review_code_multiplier", 0.70),
+        "qa_review_multiplier": bounded("qa_review_multiplier", 0.75),
+        "manual_lane_multiplier": bounded("manual_lane_multiplier", 0.40),
+        "manual_without_accepted_confidence": bounded("manual_without_accepted_confidence", 0.0),
+        "rejected_code_confidence": bounded("rejected_code_confidence", 0.0),
+    }
+
+
+def _lane_adjusted_overall_confidence(
+    lane: str,
+    accepted: list[models.CodeResult],
+    needs_review: list[models.CodeResult],
+    penalties: dict[str, float],
+) -> float:
+    accepted_floor = min((cr.confidence for cr in accepted), default=0.0)
+    review_floor = min((cr.confidence for cr in [*accepted, *needs_review]), default=0.0)
+    if lane == "STB":
+        return round(accepted_floor, 3)
+    if lane == "QA":
+        if needs_review:
+            return round(review_floor * penalties["qa_review_multiplier"], 3)
+        return round(accepted_floor, 3)
+    if not accepted:
+        return round(penalties["manual_without_accepted_confidence"], 3)
+    return round(review_floor * penalties["manual_lane_multiplier"], 3)
 
 
 # ---------------------------------------------------------------------------
@@ -184,6 +528,10 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
 
     say("Orchestrator", f"Coding run started · {enc.patient_name} · {enc.specialty} {enc.modality}".strip(), "head")
 
+    # Token governance config (the budget ladder is applied after finish() is defined).
+    gov = cfg.get("token_governance", {})
+    cache_on = bool(gov.get("prompt_cache", True))
+
     def finish(lane: str, reason: str):
         run.routing_lane = lane
         run.routing_reason = reason
@@ -192,11 +540,33 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         if lane == "STB":
             run.billed_at = _now()  # straight-through → the claim goes out
         run.latency_ms = int((time.time() - t0) * 1000)
-        run.input_tokens = sum(u.get("in", 0) for u in usage)
+        # full-price input includes cache writes; cache reads are tracked separately (~90% cheaper)
+        run.input_tokens = sum(u.get("in", 0) + u.get("cache_write", 0) for u in usage)
         run.output_tokens = sum(u.get("out", 0) for u in usage)
+        run.cache_read_tokens = sum(u.get("cache_read", 0) for u in usage)
         run.llm_calls = len(usage)
         run.finished_at = _now()
         enc.status = "CODED"
+        # Specialty-matched routing: below-threshold work goes to a coder/auditor who
+        # covers this specialty (least-loaded) — never to a generic queue. Roster
+        # entries without a specialties list match everything (backward compatible).
+        if lane in ("QA", "MANUAL") and not run.assigned_to:
+            role_needed = "QA Auditor" if lane == "QA" else "Coder"
+            pool = [m for m in (cfg.get("roster") or [])
+                    if m.get("role") == role_needed
+                    and (not m.get("specialties") or enc.specialty in m["specialties"])]
+            if pool:
+                loads = dict(db.execute(
+                    select(models.CodingRun.assigned_to, func.count())
+                    .where(models.CodingRun.assigned_to != "")
+                    .group_by(models.CodingRun.assigned_to)
+                ).all())
+                pick = min(pool, key=lambda m: loads.get(m["name"], 0))
+                run.assigned_to = pick["name"]
+                say("Calibration & Routing",
+                    f"auto-assigned to {pick['name']} ({role_needed}, covers {enc.specialty})", "info")
+                _audit(db, run, "routing", "auto_assigned",
+                       {"to": pick["name"], "role": role_needed, "specialty": enc.specialty})
         say("Calibration & Routing",
             f"routed → {lane} · {reason}",
             {"STB": "good", "QA": "warn", "MANUAL": "bad"}.get(lane, "info"))
@@ -216,6 +586,25 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         db.commit()
         db.refresh(run)
         return run
+
+    # --- Token budget ladder (warn → throttle → route-to-human) — before any model call ---
+    bstat = governance.budget_status(db, gov)
+    throttle = False
+    if bstat["enabled"] and bstat["budget"] > 0:
+        if bstat["state"] == "exhausted":
+            say("Budget Guard",
+                f"daily token budget exhausted ({bstat['spent']:,}/{bstat['budget']:,}) — "
+                "routing to a human coder, no codes fabricated", "bad")
+            log.append({"stage": "0_budget", "title": "Token Budget", "status": bstat})
+            _audit(db, run, "0_budget", "budget_exhausted", bstat)
+            return finish("MANUAL", "Daily token budget exhausted — routed to human coder")
+        if bstat["state"] == "throttle":
+            throttle = True
+            say("Budget Guard",
+                f"budget at {bstat['pct']*100:.0f}% — throttling: self-consistency disabled to conserve tokens",
+                "warn")
+        elif bstat["state"] == "warn":
+            say("Budget Guard", f"budget at {bstat['pct']*100:.0f}% of the daily limit", "warn")
 
     # --- Stage 0 ---
     step("0", "Eligibility")
@@ -268,7 +657,7 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         analysis = complete_json(
             prompts.ANALYSIS_SYSTEM,
             prompts.build_analysis_user(numbered, enc.specialty, prior_context=prior_ctx),
-            prompts.ANALYSIS_SCHEMA, temperature=0.0, llm=llmc, usage_sink=usage,
+            prompts.ANALYSIS_SCHEMA, temperature=0.0, llm=llmc, usage_sink=usage, cache=cache_on,
         )[0]
     except LLMUnavailable as e:
         log.append({"stage": "1_analysis", "title": "Clinical Analysis", "error": str(e)})
@@ -293,6 +682,7 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     analysis["codeable_findings_count"] = codeable_count
     log.append({"stage": "2_extraction", "title": "Clinical Entity Extraction",
                 "diagnoses": analysis.get("diagnoses", []), "procedures": analysis.get("procedures", []),
+                "medications": analysis.get("medications", []), "devices": analysis.get("devices", []),
                 "em_factors": analysis.get("em_factors", {}),
                 "codeable_findings_count": codeable_count})
     _audit(db, run, "1_analysis", "analysis_done",
@@ -311,14 +701,24 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     log.append({"stage": "rag", "title": "Graph-RAG Retrieval",
                 "icd_candidates": retr.icd_candidates, "proc_candidates": retr.proc_candidates,
                 "ontology_paths": retr.ontology_paths, "payer_policies": retr.payer_policies,
-                "guideline_excerpts": retr.guideline_excerpts, "learned": retr.learned})
+                "guideline_excerpts": retr.guideline_excerpts, "learned": retr.learned,
+                "chart_region": retr.chart_region, "chart_modality": retr.chart_modality})
     retrieved_proc_codes = _retrieved_proc_code_set(retr)
+    modality_mismatch = _modality_mismatch(enc, retr.chart_modality)
+    if modality_mismatch:
+        say("Metadata Guard", modality_mismatch, "warn")
+        log.append({"stage": "rag_metadata", "title": "Chart vs Metadata Cross-Check",
+                    "issue": modality_mismatch})
+        _audit(db, run, "rag_metadata", "modality_mismatch", {
+            "saved_modality": enc.modality,
+            "chart_modality": retr.chart_modality,
+        })
 
     # --- Stage 3 – coding (self-consistency on hard encounters) ---
     n_proc = len(analysis.get("procedures", []))
     spec_cfg = _specialty_cfg(cfg, enc.specialty)
     hard = bool(spec_cfg.get("hard")) or is_ambiguous or n_proc > 1
-    samples = cfg["self_consistency"]["hard_samples"] if hard else 1
+    samples = 1 if throttle else (cfg["self_consistency"]["hard_samples"] if hard else 1)
     temp = 0.4 if samples > 1 else 0.0
     rag_ctx = retr.as_prompt_context()
     if extra_context:
@@ -330,7 +730,7 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         coding_samples = complete_json(
             prompts.CODING_SYSTEM,
             prompts.build_coding_user(numbered, enc.specialty, analysis, rag_ctx),
-            prompts.CODING_SCHEMA, hard=hard, temperature=temp, samples=samples, llm=llmc, usage_sink=usage,
+            prompts.CODING_SCHEMA, hard=hard, temperature=temp, samples=samples, llm=llmc, usage_sink=usage, cache=cache_on,
         )
     except LLMUnavailable as e:
         log.append({"stage": "3_coding", "title": "Code Generation", "error": str(e)})
@@ -363,6 +763,30 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     say("Coding Agent",
         f"{len(agg_codes)} candidate code(s): " + ", ".join(c["code"] for c in agg_codes), "good")
 
+    filtered_codes = []
+    dropped_candidates = []
+    for c in agg_codes:
+        drop_reason = _diagnosis_candidate_drop_reason(
+            c, analysis, retr.chart_region, agg_codes, retr.icd_candidates
+        )
+        if drop_reason:
+            dropped_candidates.append({
+                "code": c.get("code"),
+                "description": c.get("description", ""),
+                "code_system": c.get("code_system"),
+                "reason": drop_reason,
+            })
+        else:
+            filtered_codes.append(c)
+    if dropped_candidates:
+        say("Deterministic Filters",
+            f"dropped {len(dropped_candidates)} unsupported candidate(s): "
+            + ", ".join(d["code"] for d in dropped_candidates), "warn")
+        log.append({"stage": "3a_candidate_filtering", "title": "Deterministic Candidate Filtering",
+                    "dropped_candidates": dropped_candidates})
+        _audit(db, run, "3a_candidate_filtering", "candidates_dropped", dropped_candidates)
+    agg_codes = filtered_codes
+
     # --- Stage 3b — citation verification + Stage 4 — gates + Stage 5 — calibration ---
     step("4", "Validation gates")
     say("Validation Engine", "verifying citations + running deterministic gates (existence, NCCI, MUE, modifiers, specificity, payer necessity)…", "tool")
@@ -371,6 +795,23 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     # but present under the sibling family in the reference data, correct the family rather
     # than rejecting an otherwise-valid, cited code. Data-driven — never invents a code.
     for c in agg_codes:
+        if c["code_system"] == "ICD10CM" and validation._ref(db, "ICD10CM", c["code"]) is None:
+            children = db.scalars(
+                select(models.ReferenceCode).where(
+                    models.ReferenceCode.code_system == "ICD10CM",
+                    models.ReferenceCode.parent == c["code"],
+                    models.ReferenceCode.billable == True,  # noqa: E712
+                )
+            ).all()
+            if len(children) == 1:
+                only = children[0]
+                say("Validation Engine",
+                    f"normalized ICD10CM {c['code']} → {only.code} (single billable child)", "warn")
+                c["code"] = only.code
+                c["description"] = only.description
+                c["rule_justification"] = (
+                    c.get("rule_justification", "") + f" [auto: normalized to billable child {only.code}]"
+                ).strip()
         if c["code_system"] in ("CPT", "HCPCS"):
             sibling = "HCPCS" if c["code_system"] == "CPT" else "CPT"
             if (validation._ref(db, c["code_system"], c["code"]) is None
@@ -427,7 +868,9 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
                 "code": c["code"],
                 "retrieved_proc_codes": sorted(retrieved_proc_codes),
             })
-        gates.extend(validation.run_gates(db, c, enc, code_dicts, retr.payer_policies))
+        gates.extend(validation.run_gates(
+            db, c, enc, code_dicts, retr.payer_policies, chart_region=retr.chart_region
+        ))
         gate_pass_ratio = sum(1 for g in gates if g["passed"]) / len(gates) if gates else 0.0
         existence_ok = next((g["passed"] for g in gates if g["gate"] == "code_existence"), False)
         _np = sum(1 for g in gates if g["passed"])
@@ -454,11 +897,18 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         elif not validation.gates_passed(gates):
             status = "needs_review"
 
+        penalties = _confidence_penalty_cfg(cfg)
+        adjusted_confidence = calibrated
+        if status == "needs_review":
+            adjusted_confidence = round(calibrated * penalties["needs_review_code_multiplier"], 3)
+        elif status == "rejected":
+            adjusted_confidence = round(penalties["rejected_code_confidence"], 3)
+
         cr = models.CodeResult(
             run_id=run.id, code_system=c["code_system"], code=c["code"],
             description=c.get("description", ""), role=c.get("role", ""),
             modifiers=c.get("modifiers", []), sequence=c.get("sequence", 0),
-            confidence=calibrated, conf_model=round(conf_model, 3), conf_doc_match=conf_doc_match,
+            confidence=adjusted_confidence, conf_model=round(conf_model, 3), conf_doc_match=conf_doc_match,
             conf_rule=round(conf_rule, 3), conf_historical=conf_historical,
             chart_citations=c.get("chart_citations", []),
             guideline_citations=c.get("guideline_citations", []),
@@ -482,9 +932,26 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     rejected = [cr for cr in persisted if cr.status == "rejected"]
     needs_review = [cr for cr in persisted if cr.status == "needs_review"]
     missing_required = _missing_required_code_families_for_stb(cfg, enc, accepted)
-    overall = round(min((cr.confidence for cr in accepted), default=0.0), 3) if accepted else 0.0
-    run.overall_confidence = overall
-    run.accuracy_estimate = overall  # calibrated estimate; true accuracy comes from the eval harness
+    missing_primary_proc_reason = _missing_primary_procedure_reason(cfg, enc, persisted, accepted, analysis)
+    raw_overall = round(min((cr.confidence for cr in accepted), default=0.0), 3) if accepted else 0.0
+    # Fitted calibration: raw blend is a feature, the routed value is calibrated
+    # against real outcomes (eval harness + coder feedback). Identity until fitted.
+    overall, cal_info = calibration.apply(db, enc.specialty, raw_overall)
+    if cal_info.get("fitted"):
+        say("Calibration & Routing",
+            f"fitted calibration ({cal_info['source']}, n={cal_info['samples']}): "
+            f"raw {raw_overall:.3f} → calibrated {overall:.3f} "
+            f"(isotonic {cal_info['isotonic']:.3f}, shrinkage {cal_info['shrinkage_weight']})", "info")
+    confidence_penalties = _confidence_penalty_cfg(cfg)
+    routing_overall = overall
+    display_overall = routing_overall
+
+    # Per-specialty routing thresholds override the global pair when configured.
+    thresholds_source = "global"
+    if spec_cfg.get("stb_threshold") is not None or spec_cfg.get("qa_threshold") is not None:
+        stb_t = float(spec_cfg.get("stb_threshold", stb_t))
+        qa_t = float(spec_cfg.get("qa_threshold", qa_t))
+        thresholds_source = f"specialty ({enc.specialty})"
 
     # --- Incomplete code set guard (Stage 5, before STB threshold check) ---
     # Fewer accepted ICD-10 codes than codeable findings from Stage 2 signals a RAG
@@ -508,6 +975,8 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         bounded.append("blocking conditioning flag")
     if ba.get("ambiguous_or_contradiction", True) and is_ambiguous:
         bounded.append("ambiguous/contradictory documentation")
+    if ba.get("metadata_modality_mismatch", True) and modality_mismatch:
+        bounded.append(modality_mismatch)
     if ba.get("unsigned_note", True):
         # Deterministic metadata check first (FHIR docStatus-style); the model's
         # text-derived 'unsigned' flag remains as the backup signal.
@@ -675,37 +1144,74 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
             + (f" · {len(pr['not_covered'])} outside curated subset" if pr["not_covered"] else ""),
             "good" if pr["resolved"] else "warn")
 
-    log.append({"stage": "5_calibration", "title": "Confidence Calibration & Routing",
-                "overall_confidence": overall, "accepted": len(accepted),
-                "needs_review": len(needs_review), "rejected": len(rejected),
-                "bounded_autonomy": bounded, "missing_required_code_families_for_stb": missing_required,
-                "incomplete_code_set": incomplete_code_set,
-                "codeable_findings_count": codeable_count,
-                "accepted_icd10_count": accepted_icd10_count,
-                "thresholds": {"STB": stb_t, "QA": qa_t}})
-    _audit(db, run, "5_calibration", "calibrated", {"overall": overall, "bounded": bounded,
-                                                     "incomplete_code_set": incomplete_code_set})
+    calibration_log = {
+        "stage": "5_calibration",
+        "title": "Confidence Calibration & Routing",
+        "raw_confidence": raw_overall,
+        "calibration": cal_info,
+        "routing_confidence": routing_overall,
+        "overall_confidence": display_overall,
+        "accepted": len(accepted),
+        "needs_review": len(needs_review),
+        "rejected": len(rejected),
+        "bounded_autonomy": bounded,
+        "missing_required_code_families_for_stb": missing_required,
+        "missing_primary_procedure_reason": missing_primary_proc_reason,
+        "incomplete_code_set": incomplete_code_set,
+        "codeable_findings_count": codeable_count,
+        "accepted_icd10_count": accepted_icd10_count,
+        "thresholds": {"STB": stb_t, "QA": qa_t, "source": thresholds_source},
+    }
+    log.append(calibration_log)
+
+    def finalize_lane(lane: str, reason: str):
+        final_overall = _lane_adjusted_overall_confidence(lane, accepted, needs_review, confidence_penalties)
+        run.overall_confidence = final_overall
+        run.accuracy_estimate = final_overall  # calibrated estimate; true accuracy comes from the eval harness
+        calibration_log["lane"] = lane
+        calibration_log["overall_confidence"] = final_overall
+        calibration_log["confidence_penalties"] = confidence_penalties
+        _audit(
+            db,
+            run,
+            "5_calibration",
+            "calibrated",
+            {
+                "raw": raw_overall,
+                "routing_overall": routing_overall,
+                "overall": final_overall,
+                "calibration": cal_info,
+                "thresholds_source": thresholds_source,
+                "bounded": bounded,
+                "lane": lane,
+            },
+        )
+        return finish(lane, reason)
 
     if not accepted or rejected:
-        return finish("MANUAL", "Rejected/uncitable candidates present — human coding required"
-                      if rejected else "No defensible codes — human coding required")
+        return finalize_lane("MANUAL", "Rejected/uncitable candidates present - human coding required"
+                             if rejected else "No defensible codes - human coding required")
     if missing_required:
-        labels = ", ".join(_family_label(family) for family in missing_required)
+        reason = _missing_required_code_family_reason(missing_required, persisted)
         _audit(db, run, "5_calibration", "missing_required_code_families",
                {"specialty": enc.specialty, "missing": missing_required})
-        return finish("MANUAL", f"Missing required billing code family for STB: {labels}")
+        return finalize_lane("MANUAL", reason)
+    if missing_primary_proc_reason:
+        _audit(db, run, "5_calibration", "missing_primary_procedure",
+               {"specialty": enc.specialty, "reason": missing_primary_proc_reason})
+        return finalize_lane("MANUAL", missing_primary_proc_reason)
     if bounded or needs_review:
-        return finish("QA", "; ".join(bounded) or "gate(s) need review")
-    if incomplete_code_set and overall >= stb_t:
-        return finish("QA",
+        return finalize_lane("QA", "; ".join(bounded) or _needs_review_reason(needs_review))
+    if incomplete_code_set and routing_overall >= stb_t:
+        return finalize_lane("QA",
             f"INCOMPLETE_CODE_SET_NEAR_THRESHOLD: {accepted_icd10_count} ICD-10 code(s) accepted vs "
-            f"{codeable_count} finding(s) identified at extraction (confidence {overall:.2f} "
+            f"{codeable_count} finding(s) identified at extraction (confidence {routing_overall:.2f} "
             f"post-penalty) — review for missing codes before accepting")
-    if overall >= stb_t:
-        return finish("STB", f"All gates passed; calibrated confidence {overall:.2f} ≥ {stb_t}")
-    if overall >= qa_t:
-        return finish("QA", f"Calibrated confidence {overall:.2f} in QA band")
-    return finish("MANUAL", f"Calibrated confidence {overall:.2f} below QA threshold")
+    if routing_overall >= stb_t:
+        return finalize_lane("STB", f"All gates passed; calibrated confidence {routing_overall:.2f} >= {stb_t}")
+    if routing_overall >= qa_t:
+        return finalize_lane("QA", f"Calibrated confidence {routing_overall:.2f} in QA band")
+    return finalize_lane("MANUAL", f"Calibrated confidence {routing_overall:.2f} below QA threshold")
 
 
 def cdi_scan(db: Session, encounter_id: str, emit=None) -> list[models.CdiQuery]:

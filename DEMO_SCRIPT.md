@@ -247,6 +247,14 @@ nobody hands you a configurable platform" beat.*
   discounting and C-APCs — Addendum B is public CMS data, curated subset here, full quarterly file in
   production. And note: the facility lens never changes clinical routing — it's a parallel payment view."*
   The Evaluation Harness scores **facility-estimate accuracy** for these cases.
+- **Token & cost governance** (Admin / Configuration → **Cost & Budget**) → *"We don't just meter tokens, we
+  manage them."* Three levers, all live: **prompt caching** (the static prompt prefix is cached — the
+  Dashboard's *Served from cache* metric is real cache-read tokens), a **daily token budget** with a
+  warn → throttle → **route-to-human** ladder (set a small budget, code a chart → it routes MANUAL with
+  *"Daily token budget exhausted"*, never fabricating — the same honest fallback as a model outage), and
+  **$/token rates** that turn the token metrics into **cost per chart** on the Performance Dashboard.
+  *"Production adds the SLM-distillation path on Azure for the highest-volume specialties — caching governs
+  the prompt, budgets govern the spend, smaller models govern the unit cost."*
 - **Change Log** tab (Admin / Configuration) → *"And every one of these edits is itself governed."* Show
   the append-only trail: who (by role), when, what area, action, and target — for config, policy, KG,
   guideline, reference-data, and golden-set edits. *"Your audit and compliance teams asked who changed the

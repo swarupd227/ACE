@@ -26,6 +26,7 @@ def init_db() -> None:
             "ALTER TABLE encounters ADD COLUMN IF NOT EXISTS addendum_at TIMESTAMPTZ",
             "ALTER TABLE encounters ADD COLUMN IF NOT EXISTS bill_type VARCHAR(16) DEFAULT 'PROFESSIONAL'",
             "ALTER TABLE coding_runs ADD COLUMN IF NOT EXISTS billed_at TIMESTAMPTZ",
+            "ALTER TABLE coding_runs ADD COLUMN IF NOT EXISTS cache_read_tokens INTEGER DEFAULT 0",
             "ALTER TABLE hcc_results ADD COLUMN IF NOT EXISTS recapture_gaps JSONB DEFAULT '[]'",
         ):
             conn.execute(text(ddl))
@@ -156,6 +157,12 @@ def seed_all(force: bool = False) -> dict:
             db.add(models.ApcEntry(code=code, status_indicator=si, apc=apc,
                                    apc_title=title, national_rate=rate))
 
+        # Stage-4 table-driven gates: POS validity + modifier pairings
+        for code, allowed, rationale in rd.POS_RULES:
+            db.add(models.PosRule(code=code, allowed_pos=allowed, rationale=rationale))
+        for code, mod, rationale in rd.MODIFIER_PAIR_RULES:
+            db.add(models.ModifierPairRule(code=code, modifier=mod, rationale=rationale))
+
         # golden set
         for g in charts.GOLDEN_CASES:
             db.add(models.GoldenCase(specialty=g["specialty"], chart_text=g["chart_text"],
@@ -256,12 +263,27 @@ def seed_missing() -> dict:
                 mue.add(code); bump("mue")
 
         # payer policy — key (payer, code)
-        pp = {(p.payer, p.code) for p in db.scalars(select(models.PayerPolicy)).all()}
+        pp_rows = {(p.payer, p.code): p for p in db.scalars(select(models.PayerPolicy)).all()}
         for payer, code, mn, auth, modpref, dx in rd.PAYER_POLICY:
-            if (payer, code) not in pp:
+            row = pp_rows.get((payer, code))
+            if row is None:
                 db.add(models.PayerPolicy(payer=payer, code=code, medical_necessity=mn,
                                           requires_auth=auth, modifier_pref=modpref, covered_dx=dx))
-                pp.add((payer, code)); bump("payer_policy")
+                pp_rows[(payer, code)] = True
+                bump("payer_policy")
+            else:
+                changed = (
+                    row.medical_necessity != mn
+                    or row.requires_auth != auth
+                    or row.modifier_pref != modpref
+                    or list(row.covered_dx or []) != list(dx or [])
+                )
+                if changed:
+                    row.medical_necessity = mn
+                    row.requires_auth = auth
+                    row.modifier_pref = modpref
+                    row.covered_dx = dx
+                    bump("payer_policy")
 
         # ontology concepts — key cui (unique)
         cuis = {c.cui for c in db.scalars(select(models.OntologyConcept)).all()}
@@ -346,6 +368,18 @@ def seed_missing() -> dict:
                 db.add(models.ApcEntry(code=code, status_indicator=si, apc=apc,
                                        apc_title=title, national_rate=rate))
                 apcs.add(code); bump("apc_entries")
+
+        # Stage-4 gates — POS rules by code; modifier pairings by (code, modifier)
+        posr = {p.code for p in db.scalars(select(models.PosRule)).all()}
+        for code, allowed, rationale in rd.POS_RULES:
+            if code not in posr:
+                db.add(models.PosRule(code=code, allowed_pos=allowed, rationale=rationale))
+                posr.add(code); bump("pos_rules")
+        mpr = {(m.code, m.modifier) for m in db.scalars(select(models.ModifierPairRule)).all()}
+        for code, mod, rationale in rd.MODIFIER_PAIR_RULES:
+            if (code, mod) not in mpr:
+                db.add(models.ModifierPairRule(code=code, modifier=mod, rationale=rationale))
+                mpr.add((code, mod)); bump("modifier_pair_rules")
 
         # golden set — key (specialty, chart_text)
         gold = {(g.specialty, g.chart_text) for g in db.scalars(select(models.GoldenCase)).all()}

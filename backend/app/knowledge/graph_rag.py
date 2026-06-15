@@ -36,6 +36,34 @@ _MODALITY_ALIASES = {
     "nm": "NM", "pet": "NM", "pet/ct": "NM", "nuclear": "NM", "nuclear medicine": "NM",
 }
 
+_REGION_LEXICON: dict[str, set[str]] = {
+    "head_neuro": {
+        "brain", "cranial", "intracranial", "frontal", "temporal", "parietal",
+        "occipital", "cerebral", "meningioma", "head", "neuro", "ventricle",
+    },
+    "chest": {
+        "chest", "lung", "lungs", "pulmonary", "pleura", "pleural", "thoracic",
+        "pneumonia", "effusion", "atelectasis", "atelectatic", "mediastinum",
+    },
+    "upper_extremity": {
+        "wrist", "hand", "forearm", "radius", "ulna", "carpal", "scaphoid",
+        "metacarpal", "phalange", "elbow", "humerus", "shoulder",
+    },
+    "abdomen_pelvis": {
+        "abdomen", "abdominal", "pelvis", "pelvic", "intraabdominal",
+        "intra-abdominal", "retroperitoneum", "bowel", "colon", "liver",
+        "kidney", "renal", "appendix", "diverticul", "ovary", "uterus",
+    },
+}
+
+_TOKEN_NORMALIZE = {
+    "atelectatic": "atelectasis",
+    "atelectases": "atelectasis",
+    "effusions": "effusion",
+    "fractures": "fracture",
+    "dislocations": "dislocation",
+}
+
 
 def _norm_modality(m: str) -> str:
     key = (m or "").strip().lower()
@@ -43,7 +71,8 @@ def _norm_modality(m: str) -> str:
 
 
 def _tokens(text: str) -> set[str]:
-    return {t for t in re.findall(r"[a-z0-9]+", (text or "").lower()) if len(t) > 2 and t not in _STOP}
+    raw = re.findall(r"[a-z0-9]+", (text or "").lower())
+    return {_TOKEN_NORMALIZE.get(t, t) for t in raw if len(t) > 2 and t not in _STOP}
 
 
 def _score(query_tokens: set[str], target: str) -> float:
@@ -51,6 +80,52 @@ def _score(query_tokens: set[str], target: str) -> float:
     if not tt or not query_tokens:
         return 0.0
     return len(query_tokens & tt) / (len(query_tokens) ** 0.5)
+
+
+def _anatomy_tokens_from_analysis(analysis: dict[str, Any]) -> set[str]:
+    parts: list[str] = [analysis.get("summary", "")]
+    parts.extend(d.get("text", "") for d in (analysis.get("diagnoses") or []) if isinstance(d, dict))
+    for p in analysis.get("procedures", []) or []:
+        if not isinstance(p, dict):
+            continue
+        parts.extend([p.get("anatomy", ""), p.get("text", "")])
+    return _tokens(" ".join(parts))
+
+
+def _body_region_hint(tokens: set[str]) -> str | None:
+    best_region = None
+    best_hits = 0
+    for region, hints in _REGION_LEXICON.items():
+        hits = len(tokens & hints)
+        if hits > best_hits:
+            best_hits = hits
+            best_region = region
+    return best_region if best_hits else None
+
+
+def _region_from_description(description: str) -> str | None:
+    return _body_region_hint(_tokens(description))
+
+
+def _icd_region_adjustment(description: str, chart_region: str | None) -> float:
+    if not chart_region:
+        return 0.0
+    desc_region = _region_from_description(description)
+    if not desc_region:
+        return 0.0
+    if desc_region == chart_region:
+        return 0.25
+    return -0.35
+
+
+def _analysis_modality(analysis: dict[str, Any]) -> str:
+    for proc in analysis.get("procedures", []) or []:
+        if not isinstance(proc, dict):
+            continue
+        mod = _norm_modality(proc.get("modality", ""))
+        if mod:
+            return mod
+    return ""
 
 
 @dataclass
@@ -61,6 +136,8 @@ class Retrieval:
     payer_policies: list[dict[str, Any]] = field(default_factory=list)
     ontology_paths: list[dict[str, Any]] = field(default_factory=list)
     learned: list[dict[str, Any]] = field(default_factory=list)
+    chart_region: str | None = None
+    chart_modality: str | None = None
 
     def as_prompt_context(self) -> str:
         import json
@@ -91,18 +168,30 @@ def pattern_key(specialty: str, analysis: dict) -> str:
 def retrieve(db: Session, encounter: models.Encounter, analysis: dict, *, top_k: int = 12) -> Retrieval:
     r = Retrieval()
 
-    dx_text = " ".join(d.get("text", "") for d in analysis.get("diagnoses", []))
+    dx_text = " ".join(
+        [analysis.get("summary", "")]
+        + [d.get("text", "") for d in analysis.get("diagnoses", [])]
+    )
     proc_text = " ".join(
         f"{p.get('modality','')} {p.get('anatomy','')} {p.get('text','')} {p.get('contrast','')}"
         for p in analysis.get("procedures", [])
     )
+    anatomy_tokens = _anatomy_tokens_from_analysis(analysis)
+    chart_region = _body_region_hint(anatomy_tokens)
+    chart_modality = _analysis_modality(analysis)
+    r.chart_region = chart_region
+    r.chart_modality = chart_modality or None
     dx_tokens = _tokens(dx_text)
-    proc_tokens = _tokens(proc_text + " " + encounter.modality)
+    proc_tokens = _tokens(proc_text + " " + (chart_modality or encounter.modality))
 
     # --- ICD-10-CM candidates (lexical over real public descriptions) ---
     icd = db.scalars(select(models.ReferenceCode).where(models.ReferenceCode.code_system == "ICD10CM")).all()
     icd_scored = sorted(
-        ((_score(dx_tokens, c.description + " " + c.code), c) for c in icd),
+        ((
+            _score(dx_tokens, c.description + " " + c.code)
+            + _icd_region_adjustment(c.description, chart_region),
+            c,
+        ) for c in icd),
         key=lambda x: x[0], reverse=True,
     )
     r.icd_candidates = [
@@ -142,7 +231,7 @@ def retrieve(db: Session, encounter: models.Encounter, analysis: dict, *, top_k:
             select(models.ReferenceCode).where(models.ReferenceCode.code_system.in_(["CPT", "HCPCS"]))
         ).all()
         if encounter.specialty == "Radiology":
-            enc_mod = _norm_modality(encounter.modality)
+            enc_mod = chart_modality or _norm_modality(encounter.modality)
             procs = [c for c in procs
                      if (not c.modality) or c.modality == "ANY" or _norm_modality(c.modality) == enc_mod]
         elif encounter.specialty == "Pathology":

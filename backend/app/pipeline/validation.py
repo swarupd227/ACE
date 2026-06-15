@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import models
+from ..knowledge import graph_rag
 
 
 def _ref(db: Session, system: str, code: str) -> models.ReferenceCode | None:
@@ -21,12 +22,61 @@ def _ref(db: Session, system: str, code: str) -> models.ReferenceCode | None:
     ).first()
 
 
+def _desc_tokens(text: str) -> set[str]:
+    return graph_rag._tokens(text)
+
+
+def _code_matches_region(code_description: str, chart_region: str | None) -> bool | None:
+    if not chart_region:
+        return None
+    desc_region = graph_rag._body_region_hint(_desc_tokens(code_description))
+    if not desc_region:
+        return None
+    return desc_region == chart_region
+
+
+_FRACTURE_DETAIL_HINTS = (
+    "comminuted",
+    "intra-articular",
+    "impaction",
+    "impacted",
+    "angulation",
+    "displaced",
+    "styloid",
+    "colles",
+    "smith",
+    "barton",
+    "salter",
+    "physeal",
+)
+
+_NAMED_FRACTURE_PATTERNS = ("colles", "smith", "barton", "salter-harris", "salter harris")
+
+
+def _unspecified_fracture_needs_review(code: dict[str, Any]) -> bool:
+    desc = (code.get("description", "") or "").lower()
+    if "unspecified fracture" not in desc:
+        return False
+    cited_text = " ".join((c.get("text", "") or "").lower() for c in (code.get("chart_citations") or []))
+    return any(term in cited_text for term in _FRACTURE_DETAIL_HINTS)
+
+
+def _named_fracture_pattern_inferred(code: dict[str, Any]) -> bool:
+    desc = (code.get("description", "") or "").lower()
+    matched_terms = [term for term in _NAMED_FRACTURE_PATTERNS if term in desc]
+    if not matched_terms:
+        return False
+    cited_text = " ".join((c.get("text", "") or "").lower() for c in (code.get("chart_citations") or []))
+    return not any(term in cited_text for term in matched_terms)
+
+
 def run_gates(
     db: Session,
     code: dict[str, Any],
     encounter: models.Encounter,
     all_codes: list[dict[str, Any]],
     rag_payer: list[dict[str, Any]],
+    chart_region: str | None = None,
 ) -> list[dict[str, Any]]:
     system = code["code_system"]
     cval = code["code"]
@@ -61,6 +111,20 @@ def run_gates(
             add("specificity", False, f"{cval} is a non-billable category code")
         else:
             add("specificity", True, "most-specific billable code")
+        if _unspecified_fracture_needs_review(code):
+            add("fracture_specificity_review", False,
+                "chart documents richer fracture detail than the selected unspecified fracture code captures")
+        if _named_fracture_pattern_inferred(code):
+            add("fracture_pattern_inference_review", False,
+                "named fracture pattern was inferred from descriptive findings rather than explicitly documented")
+
+        region_match = _code_matches_region(ref.description, chart_region)
+        if region_match is False:
+            add("anatomy_relevance", False, f"{cval} does not align with chart body region ({chart_region})")
+        elif region_match is True:
+            add("anatomy_relevance", True, f"{cval} aligns with chart body region ({chart_region})")
+        else:
+            add("anatomy_relevance", True, "insufficient anatomy signal to dispute code")
 
     # 3) Sex / age edits
     if ref.sex_restriction and ref.sex_restriction != encounter.sex:
@@ -107,8 +171,36 @@ def run_gates(
         else:
             add("mue", True, f"within MUE limit ({mue.max_units if mue else 'n/a'})")
 
-        # 8) POS alignment
-        add("pos_alignment", True, f"POS {encounter.pos} acceptable")
+        # 8) POS alignment — table-driven place-of-service validity (CMS POS /
+        # inpatient-only style). Rows exist only where a restriction applies.
+        pos_rule = db.scalars(select(models.PosRule).where(models.PosRule.code == cval)).first()
+        if pos_rule is None:
+            add("pos_alignment", True, f"POS {encounter.pos} — no restriction on file (curated subset)")
+        elif encounter.pos in (pos_rule.allowed_pos or []):
+            add("pos_alignment", True, f"POS {encounter.pos} allowed for {cval}")
+        else:
+            add("pos_alignment", False,
+                f"{cval} not valid at POS {encounter.pos} (allowed: {', '.join(pos_rule.allowed_pos)}) — "
+                f"{pos_rule.rationale}")
+
+        # 8b) Modifier pairing — per-CPT restrictions (MPFS PC/TC-indicator style)
+        # plus the generic contradiction: 50 (bilateral) with RT/LT (unilateral).
+        mods_on_code = list(code.get("modifiers", []))
+        pair_fails = []
+        if mods_on_code:
+            bad_pairs = db.scalars(
+                select(models.ModifierPairRule).where(
+                    models.ModifierPairRule.code == cval,
+                    models.ModifierPairRule.modifier.in_(mods_on_code),
+                )
+            ).all()
+            pair_fails += [f"{cval}-{r.modifier}: {r.rationale}" for r in bad_pairs]
+            if "50" in mods_on_code and ({"RT", "LT"} & set(mods_on_code)):
+                pair_fails.append("50 with RT/LT is contradictory (bilateral vs unilateral)")
+        if pair_fails:
+            add("modifier_pairing", False, "; ".join(pair_fails))
+        else:
+            add("modifier_pairing", True, "no invalid modifier pairings")
 
         # 9) Professional/technical component — facility radiology (7xxxx) and surgical pathology
         # (88xxx) interpretations need modifier 26 (or TC)

@@ -96,6 +96,28 @@ export default function Dashboard() {
               <Kpi icon={Activity} label="Human-override rate" value={`${Math.round(mp.override_rate * 100)}%`} sub="drift / quality signal" target="↓ better" />
             </div>
 
+            {/* Cost & token governance */}
+            <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <Kpi icon={Coins} label="Cost (at list rates)" value={`$${mp.total_cost_usd.toFixed(2)}`} sub={`$${mp.cost_per_chart_usd.toFixed(4)}/chart`} />
+              <Kpi icon={Coins} label="Served from cache" value={fmtTok(mp.cache_read_tokens)} sub={mp.cache_savings_usd > 0 ? `~$${mp.cache_savings_usd.toFixed(2)} saved` : "prompt caching on"} target={mp.cache_savings_usd > 0 ? "↓ cost" : undefined} />
+              <Kpi icon={Gauge} label="Daily budget" value={mp.budget.enabled && mp.budget.budget > 0 ? fmtTok(mp.budget.budget) : "off"} sub={mp.budget.enabled && mp.budget.budget > 0 ? `${fmtTok(mp.budget.spent)} used` : "no budget set"} />
+              <Kpi icon={Activity} label="Budget state" value={mp.budget.enabled && mp.budget.budget > 0 ? mp.budget.state : "—"} sub={mp.budget.enabled && mp.budget.budget > 0 ? `${Math.round(mp.budget.pct * 100)}% of limit` : "set in Admin → Cost & Budget"} />
+            </div>
+            {mp.budget.enabled && mp.budget.budget > 0 && (
+              <div className="mt-3">
+                <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+                  <div className={clsx("h-full rounded-full",
+                    mp.budget.state === "exhausted" ? "bg-rose-500" : mp.budget.state === "throttle" ? "bg-amber-500" : mp.budget.state === "warn" ? "bg-amber-400" : "bg-emerald-500")}
+                    style={{ width: `${Math.min(100, mp.budget.pct * 100)}%` }} />
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
+                  Daily token budget · {fmtTok(mp.budget.spent)} of {fmtTok(mp.budget.budget)} used
+                  {mp.budget.state === "throttle" && " · throttling (self-consistency disabled)"}
+                  {mp.budget.state === "exhausted" && " · exhausted — new charts route to a human coder"}
+                </div>
+              </div>
+            )}
+
             <div className="mt-5">
               {/* by model version — the drift comparison surface (switch models in Admin to populate) */}
               <div>

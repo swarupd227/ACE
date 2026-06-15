@@ -54,7 +54,7 @@ def model_version(llm: dict | None = None) -> str:
     return f"{tag}/{e['model_default']}"
 
 
-def _anthropic_json(system, user, schema, model, temperature, e) -> dict[str, Any]:
+def _anthropic_json(system, user, schema, model, temperature, e, cache=False) -> dict[str, Any]:
     import anthropic
 
     client = anthropic.Anthropic(api_key=e["anthropic_api_key"])
@@ -63,16 +63,28 @@ def _anthropic_json(system, user, schema, model, temperature, e) -> dict[str, An
         "description": "Return the structured coding result. Every field is required.",
         "input_schema": schema,
     }
+    system_param = system
+    if cache:
+        # Cache the static prefix (tool schema + system prompt) — it repeats on every
+        # chart. The dynamic user message (chart + retrieved context) is not cached.
+        # Blocks under the provider minimum are simply not cached (no error).
+        tool["cache_control"] = {"type": "ephemeral"}
+        system_param = [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
     resp = client.messages.create(
         model=model,
         max_tokens=e["max_tokens"],
         temperature=temperature,
-        system=system,
+        system=system_param,
         tools=[tool],
         tool_choice={"type": "tool", "name": "emit_result"},
         messages=[{"role": "user", "content": user}],
     )
-    usage = {"in": getattr(resp.usage, "input_tokens", 0), "out": getattr(resp.usage, "output_tokens", 0)}
+    u = resp.usage
+    usage = {
+        "in": getattr(u, "input_tokens", 0), "out": getattr(u, "output_tokens", 0),
+        "cache_read": getattr(u, "cache_read_input_tokens", 0) or 0,
+        "cache_write": getattr(u, "cache_creation_input_tokens", 0) or 0,
+    }
     for block in resp.content:
         if block.type == "tool_use" and block.name == "emit_result":
             return block.input, usage
@@ -172,6 +184,7 @@ def complete_json(
     samples: int = 1,
     llm: dict | None = None,
     usage_sink: list | None = None,
+    cache: bool = False,
 ) -> list[dict[str, Any]]:
     """Return `samples` structured results. `llm` is the runtime config-store
     config; secrets are pulled from the environment regardless. If `usage_sink`
@@ -189,7 +202,7 @@ def complete_json(
     for _ in range(max(1, samples)):
         try:
             if e["provider"] == "anthropic":
-                result, usage = _anthropic_json(system, user, schema, model, temperature, e)
+                result, usage = _anthropic_json(system, user, schema, model, temperature, e, cache=cache)
             else:
                 result, usage = _openai_json(system, user, schema, model, temperature, e)
             out.append(result)

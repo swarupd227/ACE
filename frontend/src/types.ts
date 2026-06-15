@@ -399,6 +399,18 @@ export interface Dashboard {
       avg_tokens: number;
       override_rate: number;
     }[];
+    total_cost_usd: number;
+    cost_per_chart_usd: number;
+    cache_read_tokens: number;
+    cache_savings_usd: number;
+    budget: {
+      enabled: boolean;
+      budget: number;
+      spent: number;
+      state: "ok" | "warn" | "throttle" | "exhausted";
+      pct: number;
+      remaining: number | null;
+    };
   };
 }
 
