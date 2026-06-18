@@ -1152,6 +1152,18 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
                 else:
                     say("E&M Leveler", f"modifier 25 confirmed on {m25['em_code']}", "good")
 
+        # New-vs-established — resolved from a prior encounter within 3 years (decisive), else the
+        # EHR-fed encounter_type, else the documentation; flagged if it disagrees with the coded family.
+        has_prior_3y = em.prior_within_3y(enc.dos, [p.dos for p in priors])
+        ne = em.new_established(er.get("coded_code", ""), enc.encounter_type,
+                                ef.get("encounter_type", ""), has_prior_3y)
+        if er.get("coded_code"):
+            if not ne["consistent"]:
+                bounded.append(f"new/established mismatch — {ne['reason']}")
+                say("E&M Leveler", f"new/established mismatch — {ne['reason']}", "bad")
+            else:
+                say("E&M Leveler", f"{ne['authoritative']} patient ({ne['source']})", "good")
+
         db.add(models.EmResult(
             run_id=run.id, encounter_id=enc.id, encounter_type=er.get("encounter_type", ""),
             coded_code=er.get("coded_code", ""), mdm_tier=er.get("mdm_tier", ""),
@@ -1159,9 +1171,11 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
             time_code=er.get("time_code", ""), supported_code=er.get("supported_code", ""),
             agreement=er.get("agreement", ""), mod25_applicable=m25["applicable"],
             mod25_action=m25["action"], mod25_reason=m25.get("reason", ""),
+            enc_type_source=ne["source"], enc_type_consistent=ne["consistent"],
             trace=er.get("trace", []), resolved=er["resolved"],
         ))
-        log.append({"stage": "6_em", "title": "E&M Leveling", "result": {**er, "modifier_25": m25}})
+        log.append({"stage": "6_em", "title": "E&M Leveling",
+                    "result": {**er, "modifier_25": m25, "new_established": ne}})
         _audit(db, run, "6_em", "em_leveled" if er["resolved"] else "em_unresolved",
                {"coded": er.get("coded_code"), "supported": er.get("supported_code"),
                 "agreement": er.get("agreement"), "mod25_action": m25.get("action"),

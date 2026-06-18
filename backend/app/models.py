@@ -503,6 +503,9 @@ class EmResult(Base):
     mod25_applicable: Mapped[bool] = mapped_column(Boolean, default=False)
     mod25_action: Mapped[str] = mapped_column(String(12), default="")   # apply|withhold|n/a
     mod25_reason: Mapped[str] = mapped_column(Text, default="")
+    # new-vs-established (from 3-year prior history)
+    enc_type_source: Mapped[str] = mapped_column(String(40), default="")
+    enc_type_consistent: Mapped[bool] = mapped_column(Boolean, default=True)
     trace: Mapped[list] = mapped_column(JSONB, default=list)
     resolved: Mapped[bool] = mapped_column(Boolean, default=False)
 

@@ -31,6 +31,8 @@ def init_db() -> None:
             "ALTER TABLE em_results ADD COLUMN IF NOT EXISTS mod25_applicable BOOLEAN DEFAULT FALSE",
             "ALTER TABLE em_results ADD COLUMN IF NOT EXISTS mod25_action VARCHAR(12) DEFAULT ''",
             "ALTER TABLE em_results ADD COLUMN IF NOT EXISTS mod25_reason TEXT DEFAULT ''",
+            "ALTER TABLE em_results ADD COLUMN IF NOT EXISTS enc_type_source VARCHAR(40) DEFAULT ''",
+            "ALTER TABLE em_results ADD COLUMN IF NOT EXISTS enc_type_consistent BOOLEAN DEFAULT TRUE",
         ):
             conn.execute(text(ddl))
 

@@ -12,6 +12,50 @@ as ACE's placeholder CPT code tables). The 2-of-3 selection is a methodology, no
 """
 from __future__ import annotations
 
+from datetime import date
+
+_NEW_CODES = {"99202", "99203", "99204", "99205"}
+_EST_CODES = {"99211", "99212", "99213", "99214", "99215"}
+
+
+def prior_within_3y(enc_dos: str, prior_dos: list[str]) -> bool:
+    """True if any prior encounter's date of service is within 3 years before this one."""
+    try:
+        anchor = date.fromisoformat((enc_dos or "")[:10])
+    except ValueError:
+        return False
+    for d in prior_dos:
+        try:
+            delta = (anchor - date.fromisoformat((d or "")[:10])).days
+            if 0 <= delta <= 366 * 3:
+                return True
+        except ValueError:
+            continue
+    return False
+
+
+def new_established(coded_code: str, feed_type: str, model_type: str, has_prior_within_3y: bool) -> dict:
+    """Deterministically resolve new vs established from the strongest available signal and check
+    it against the coded visit-code family. A prior encounter within 3 years is decisive; else the
+    EHR-fed encounter_type; else the documentation. Flags a contradiction with the coded family."""
+    coded_family = "new" if coded_code in _NEW_CODES else ("established" if coded_code in _EST_CODES else "")
+    ft = (feed_type or "").strip().lower()
+    mt = (model_type or "").strip().lower()
+    if has_prior_within_3y:
+        authoritative, source = "established", "prior encounter within 3 years"
+    elif ft in ("new", "established"):
+        authoritative, source = ft, "EHR feed"
+    elif mt in ("new", "established"):
+        authoritative, source = mt, "documentation"
+    else:
+        authoritative, source = "established", "default"
+    consistent = (not coded_family) or (coded_family == authoritative)
+    reason = "" if consistent else (
+        f"coded {coded_family}-patient ({coded_code}) but history indicates {authoritative} ({source})")
+    return {"authoritative": authoritative, "coded_family": coded_family,
+            "source": source, "consistent": consistent, "reason": reason}
+
+
 # Complexity tiers, ascending.
 _TIERS = ["straightforward", "low", "moderate", "high"]
 _TIER_ALIASES = {
