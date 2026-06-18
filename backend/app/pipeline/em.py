@@ -146,9 +146,11 @@ def modifier_25(em_factors: dict, accepted_codes: list[dict]) -> dict:
     em_code = next((c["code"] for c in accepted_codes if c.get("code") in _OFFICE_CODES), "")
     # A same-day procedure is evidenced by a coded procedure CPT/HCPCS (authoritative), not the
     # model's free-text flag. Modifier 25 is in scope whenever an E&M and a procedure coexist.
+    # E&M add-ons (office visit codes, prolonged-services codes) are NOT separate procedures.
+    em_addons = _OFFICE_CODES | {"99417", "G2212"}
     proc_codes = [c["code"] for c in accepted_codes
                   if c.get("code_system") in ("CPT", "HCPCS")
-                  and c.get("code") not in _OFFICE_CODES and c.get("code") != em_code]
+                  and c.get("code") not in em_addons and c.get("code") != em_code]
     applicable = bool(em_code) and bool(proc_codes)
     if not applicable:
         return {"applicable": False, "action": "n/a", "em_code": em_code, "procedures": proc_codes,
