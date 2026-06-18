@@ -122,13 +122,16 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
         },
         "em_factors": {
             "type": "object",
-            "description": "E&M leveling factors; use zeros/empty for radiology.",
+            "description": "E&M leveling factors. Classify each MDM element into a tier; use '' / 0 for non-E&M.",
             "properties": {
-                "encounter_type": {"type": "string"},
-                "problems": {"type": "string"},
-                "data_complexity": {"type": "string"},
-                "risk": {"type": "string"},
-                "total_time_minutes": {"type": "integer"},
+                "encounter_type": {"type": "string", "description": "new | established (E&M) or ''"},
+                "problems": {"type": "string", "enum": ["", "straightforward", "low", "moderate", "high"],
+                             "description": "MDM element 1 — number/complexity of problems addressed, as a tier."},
+                "data_complexity": {"type": "string", "enum": ["", "straightforward", "low", "moderate", "high"],
+                                    "description": "MDM element 2 — amount/complexity of data reviewed, as a tier."},
+                "risk": {"type": "string", "enum": ["", "straightforward", "low", "moderate", "high"],
+                         "description": "MDM element 3 — risk of complications/management, as a tier."},
+                "total_time_minutes": {"type": "integer", "description": "Total same-day time if documented, else 0."},
                 "separate_procedure_same_day": {"type": "boolean"},
             },
             "required": ["encounter_type", "problems", "data_complexity", "risk", "total_time_minutes", "separate_procedure_same_day"],
@@ -293,8 +296,12 @@ SPECIALTY_GUIDANCE = {
     ),
     "E&M": (
         "E&M RULES:\n"
-        "- Assign the visit-level CPT (established 99213-99215 / new 99203-99205) from the documented "
-        "MDM or total time. Do not infer a higher level than documented.\n"
+        "- In em_factors, classify EACH of the three MDM elements (problems, data, risk) as exactly one "
+        "tier: straightforward / low / moderate / high — based only on what the documentation supports. "
+        "Capture total_time_minutes when the note documents time.\n"
+        "- Assign the visit-level CPT (established 99212-99215 / new 99202-99205) from the documented MDM "
+        "or total time; do not infer a higher level than documented. A deterministic leveler re-derives "
+        "the level from your tiers + time and will flag any over-leveling.\n"
         "- Code all conditions addressed; use combination codes (e.g., diabetes WITH a complication) "
         "only when the link is documented."
     ),

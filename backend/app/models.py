@@ -484,6 +484,25 @@ class AnesResult(Base):
     run: Mapped[CodingRun] = relationship(back_populates="anes_result")
 
 
+class EmResult(Base):
+    """The deterministic E&M leveler's output for one coding run (one per E&M run)."""
+    __tablename__ = "em_results"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    run_id: Mapped[str] = mapped_column(ForeignKey("coding_runs.id"), index=True)
+    encounter_id: Mapped[str] = mapped_column(String(32), index=True)
+    encounter_type: Mapped[str] = mapped_column(String(16), default="")
+    coded_code: Mapped[str] = mapped_column(String(8), default="")
+    mdm_tier: Mapped[str] = mapped_column(String(16), default="")
+    mdm_code: Mapped[str] = mapped_column(String(8), default="")
+    time_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    time_code: Mapped[str] = mapped_column(String(8), default="")
+    supported_code: Mapped[str] = mapped_column(String(8), default="")
+    agreement: Mapped[str] = mapped_column(String(16), default="")  # confirmed|over-leveled|under-leveled
+    trace: Mapped[list] = mapped_column(JSONB, default=list)
+    resolved: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
 # ---------------------------------------------------------------------------
 # Facility vs Professional — hospital outpatient (APC / OPPS), Tier-B #4.
 # The SAME coded chart drives two claims: the professional fee (physician work,

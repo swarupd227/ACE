@@ -632,12 +632,16 @@ CPT = [
     ("73221", "MRI, upper extremity joint; without contrast", "MRI"),
     ("70551", "MRI, brain; without contrast", "MRI"),
     ("71260", "CT, thorax; with contrast", "CT"),
-    # E&M (established / new office visit)
+    # E&M (established / new office visit) — full leveled ranges
+    ("99211", "Office/outpatient visit, established patient, minimal (nurse) visit", "EM_OFFICE"),
+    ("99212", "Office/outpatient visit, established patient, straightforward MDM", "EM_OFFICE"),
     ("99213", "Office/outpatient visit, established patient, low MDM", "EM_OFFICE"),
     ("99214", "Office/outpatient visit, established patient, moderate MDM", "EM_OFFICE"),
     ("99215", "Office/outpatient visit, established patient, high MDM", "EM_OFFICE"),
+    ("99202", "Office/outpatient visit, new patient, straightforward MDM", "EM_OFFICE"),
     ("99203", "Office/outpatient visit, new patient, low MDM", "EM_OFFICE"),
     ("99204", "Office/outpatient visit, new patient, moderate MDM", "EM_OFFICE"),
+    ("99205", "Office/outpatient visit, new patient, high MDM", "EM_OFFICE"),
     # Emergency Department E&M + critical care
     ("99281", "Emergency department visit, straightforward MDM", "ED"),
     ("99282", "Emergency department visit, low MDM", "ED"),

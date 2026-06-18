@@ -16,7 +16,7 @@ from ..config import settings
 from ..knowledge import graph_rag
 from ..llm import prompts
 from ..llm.client import LLMUnavailable, complete_json, model_version
-from . import anes, apc, calibration, drg, governance, hcc, history, pii, validation
+from . import anes, apc, calibration, drg, em, governance, hcc, history, pii, validation
 
 # Confidence routing thresholds (calibrated per-specialty in production)
 STB_THRESHOLD = 0.90
@@ -26,6 +26,7 @@ QA_THRESHOLD = 0.75
 INPATIENT = "Inpatient (DRG)"        # MS-DRG grouper
 RISK_ADJ = "HCC / Risk Adjustment"   # CMS-HCC RAF scorer
 ANESTHESIA = "Anesthesia"            # base + time + modifying units × CF
+EANDM = "E&M"                        # deterministic outpatient E&M leveler
 
 
 def _now():
@@ -1118,6 +1119,40 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         else:
             bounded.append(f"anesthesia units unresolved ({ar['reason']}) — human review required")
             say("Anesthesia Unit Calculator", f"unresolved — {ar['reason']}; routing to human", "bad")
+
+    # --- Stage 6 (outpatient E&M only) — deterministic MDM + total-time leveling ---
+    if enc.specialty == EANDM:
+        step("6", "E&M leveling")
+        say("E&M Leveler",
+            "applying the 2-of-3 MDM selection (problems × data × risk) and total-time thresholds "
+            "to the documented factors…", "tool")
+        acc_codes = [{"code_system": cr.code_system, "code": cr.code} for cr in accepted]
+        er = em.level(analysis.get("em_factors", {}), acc_codes)
+        db.add(models.EmResult(
+            run_id=run.id, encounter_id=enc.id, encounter_type=er.get("encounter_type", ""),
+            coded_code=er.get("coded_code", ""), mdm_tier=er.get("mdm_tier", ""),
+            mdm_code=er.get("mdm_code", ""), time_minutes=er.get("time_minutes", 0),
+            time_code=er.get("time_code", ""), supported_code=er.get("supported_code", ""),
+            agreement=er.get("agreement", ""), trace=er.get("trace", []), resolved=er["resolved"],
+        ))
+        log.append({"stage": "6_em", "title": "E&M Leveling", "result": er})
+        _audit(db, run, "6_em", "em_leveled" if er["resolved"] else "em_unresolved",
+               {"coded": er.get("coded_code"), "supported": er.get("supported_code"),
+                "agreement": er.get("agreement"), "resolved": er["resolved"]})
+        if not er["resolved"]:
+            say("E&M Leveler", f"not leveled — {er['reason']}", "warn")
+        elif er["agreement"] == "confirmed":
+            say("E&M Leveler",
+                f"{er['coded_code']} confirmed — MDM {er['mdm_tier']} (2-of-3)"
+                + (f", time {er['time_minutes']} min" if er["time_minutes"] else ""), "good")
+        elif er["agreement"] == "over-leveled":
+            bounded.append(f"E&M over-leveled — coded {er['coded_code']}, documentation supports "
+                           f"{er['supported_code']} (MDM/time); review before billing")
+            say("E&M Leveler",
+                f"over-leveled — coded {er['coded_code']} but MDM/time support {er['supported_code']}", "bad")
+        else:  # under-leveled (revenue opportunity, informational — does not block)
+            say("E&M Leveler",
+                f"under-leveled — coded {er['coded_code']}; documentation supports {er['supported_code']}", "warn")
 
     # --- Stage 6 (hospital outpatient, POS 22/23) — facility-side APC / OPPS pricing ---
     # A parallel payment lens on the SAME coded chart (pro-fee + facility fee). Unlike the
