@@ -499,6 +499,10 @@ class EmResult(Base):
     time_code: Mapped[str] = mapped_column(String(8), default="")
     supported_code: Mapped[str] = mapped_column(String(8), default="")
     agreement: Mapped[str] = mapped_column(String(16), default="")  # confirmed|over-leveled|under-leveled
+    # modifier-25 evidence gate
+    mod25_applicable: Mapped[bool] = mapped_column(Boolean, default=False)
+    mod25_action: Mapped[str] = mapped_column(String(12), default="")   # apply|withhold|n/a
+    mod25_reason: Mapped[str] = mapped_column(Text, default="")
     trace: Mapped[list] = mapped_column(JSONB, default=list)
     resolved: Mapped[bool] = mapped_column(Boolean, default=False)
 

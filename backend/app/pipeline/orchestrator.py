@@ -1126,19 +1126,46 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         say("E&M Leveler",
             "applying the 2-of-3 MDM selection (problems × data × risk) and total-time thresholds "
             "to the documented factors…", "tool")
-        acc_codes = [{"code_system": cr.code_system, "code": cr.code} for cr in accepted]
-        er = em.level(analysis.get("em_factors", {}), acc_codes)
+        ef = analysis.get("em_factors", {})
+        # All persisted codes (incl. needs_review) so a same-day procedure is detected regardless
+        # of its review status; the E&M visit code we may modify is taken from the accepted set.
+        all_codes = [{"code_system": cr.code_system, "code": cr.code} for cr in persisted]
+        er = em.level(ef, all_codes)
+
+        # Modifier-25 evidence gate — deterministically apply/withhold on the E&M visit code.
+        m25 = em.modifier_25(ef, all_codes)
+        if m25["applicable"]:
+            em_cr = next((cr for cr in accepted if cr.code == m25["em_code"]), None)
+            if em_cr is not None:
+                mods = list(em_cr.modifiers or [])
+                if m25["action"] == "apply" and "25" not in mods:
+                    em_cr.modifiers = mods + ["25"]
+                    db.add(em_cr)
+                    say("E&M Leveler", f"modifier 25 applied to {m25['em_code']} — {m25['reason']}", "good")
+                elif m25["action"] == "withhold" and "25" in mods:
+                    em_cr.modifiers = [m for m in mods if m != "25"]
+                    db.add(em_cr)
+                    bounded.append(f"modifier 25 withheld on {m25['em_code']} — {m25['reason']}")
+                    say("E&M Leveler", f"modifier 25 withheld on {m25['em_code']} — {m25['reason']}", "bad")
+                elif m25["action"] == "withhold":
+                    say("E&M Leveler", f"modifier 25 correctly absent on {m25['em_code']} — {m25['reason']}", "good")
+                else:
+                    say("E&M Leveler", f"modifier 25 confirmed on {m25['em_code']}", "good")
+
         db.add(models.EmResult(
             run_id=run.id, encounter_id=enc.id, encounter_type=er.get("encounter_type", ""),
             coded_code=er.get("coded_code", ""), mdm_tier=er.get("mdm_tier", ""),
             mdm_code=er.get("mdm_code", ""), time_minutes=er.get("time_minutes", 0),
             time_code=er.get("time_code", ""), supported_code=er.get("supported_code", ""),
-            agreement=er.get("agreement", ""), trace=er.get("trace", []), resolved=er["resolved"],
+            agreement=er.get("agreement", ""), mod25_applicable=m25["applicable"],
+            mod25_action=m25["action"], mod25_reason=m25.get("reason", ""),
+            trace=er.get("trace", []), resolved=er["resolved"],
         ))
-        log.append({"stage": "6_em", "title": "E&M Leveling", "result": er})
+        log.append({"stage": "6_em", "title": "E&M Leveling", "result": {**er, "modifier_25": m25}})
         _audit(db, run, "6_em", "em_leveled" if er["resolved"] else "em_unresolved",
                {"coded": er.get("coded_code"), "supported": er.get("supported_code"),
-                "agreement": er.get("agreement"), "resolved": er["resolved"]})
+                "agreement": er.get("agreement"), "mod25_action": m25.get("action"),
+                "resolved": er["resolved"]})
         if not er["resolved"]:
             say("E&M Leveler", f"not leveled — {er['reason']}", "warn")
         elif er["agreement"] == "confirmed":

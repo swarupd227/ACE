@@ -132,9 +132,14 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
                 "risk": {"type": "string", "enum": ["", "straightforward", "low", "moderate", "high"],
                          "description": "MDM element 3 — risk of complications/management, as a tier."},
                 "total_time_minutes": {"type": "integer", "description": "Total same-day time if documented, else 0."},
-                "separate_procedure_same_day": {"type": "boolean"},
+                "separate_procedure_same_day": {"type": "boolean",
+                                                "description": "A minor procedure (e.g., injection, biopsy) was performed the same day."},
+                "separately_identifiable_em": {"type": "boolean",
+                                               "description": "TRUE only if the note documents an E&M distinct from the procedure's inherent pre/post work (separate history/exam/MDM for a different or additional problem). FALSE if the visit was solely to perform the procedure."},
+                "separate_em_evidence": {"type": "string",
+                                         "description": "Short verbatim quote supporting a separately identifiable E&M, or '' if none."},
             },
-            "required": ["encounter_type", "problems", "data_complexity", "risk", "total_time_minutes", "separate_procedure_same_day"],
+            "required": ["encounter_type", "problems", "data_complexity", "risk", "total_time_minutes", "separate_procedure_same_day", "separately_identifiable_em", "separate_em_evidence"],
         },
     },
     "required": ["summary", "sections", "conditioning_flags", "diagnoses", "medications", "devices", "procedures", "em_factors"],
@@ -303,7 +308,10 @@ SPECIALTY_GUIDANCE = {
         "or total time; do not infer a higher level than documented. A deterministic leveler re-derives "
         "the level from your tiers + time and will flag any over-leveling.\n"
         "- Code all conditions addressed; use combination codes (e.g., diabetes WITH a complication) "
-        "only when the link is documented."
+        "only when the link is documented.\n"
+        "- If a minor procedure is performed the same day, set separate_procedure_same_day. Set "
+        "separately_identifiable_em ONLY when the note documents an E&M beyond the procedure's "
+        "inherent work, and quote the evidence — a deterministic gate decides modifier 25."
     ),
     "ED": (
         "ED RULES:\n"

@@ -69,6 +69,36 @@ def _time_code(enc_type: str, minutes: int) -> str:
     return ""
 
 
+def modifier_25(em_factors: dict, accepted_codes: list[dict]) -> dict:
+    """Evidence gate for modifier 25 (separately identifiable E&M on a same-day procedure day).
+
+    Applies 25 ONLY when a same-day minor procedure coexists with a separately identifiable E&M
+    that the documentation supports; otherwise withholds it (the E&M is bundled into the
+    procedure). Withholding when unsupported is the OIG's perennial audit target.
+    """
+    ef = em_factors or {}
+    em_code = next((c["code"] for c in accepted_codes if c.get("code") in _OFFICE_CODES), "")
+    # A same-day procedure is evidenced by a coded procedure CPT/HCPCS (authoritative), not the
+    # model's free-text flag. Modifier 25 is in scope whenever an E&M and a procedure coexist.
+    proc_codes = [c["code"] for c in accepted_codes
+                  if c.get("code_system") in ("CPT", "HCPCS")
+                  and c.get("code") not in _OFFICE_CODES and c.get("code") != em_code]
+    applicable = bool(em_code) and bool(proc_codes)
+    if not applicable:
+        return {"applicable": False, "action": "n/a", "em_code": em_code, "procedures": proc_codes,
+                "reason": "no same-day E&M + procedure pairing"}
+
+    supported = bool(ef.get("separately_identifiable_em"))
+    evidence = (ef.get("separate_em_evidence") or "").strip()
+    if supported:
+        return {"applicable": True, "action": "apply", "supported": True, "em_code": em_code,
+                "procedures": proc_codes, "evidence": evidence,
+                "reason": "separately identifiable E&M is documented"}
+    return {"applicable": True, "action": "withhold", "supported": False, "em_code": em_code,
+            "procedures": proc_codes, "evidence": evidence,
+            "reason": "no documentation of a separately identifiable E&M — E&M bundled into the procedure"}
+
+
 def level(em_factors: dict, accepted_codes: list[dict], encounter_type: str = "") -> dict:
     """Deterministically derive the supportable E&M level and validate the coded visit code."""
     ef = em_factors or {}

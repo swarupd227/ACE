@@ -28,6 +28,9 @@ def init_db() -> None:
             "ALTER TABLE coding_runs ADD COLUMN IF NOT EXISTS billed_at TIMESTAMPTZ",
             "ALTER TABLE coding_runs ADD COLUMN IF NOT EXISTS cache_read_tokens INTEGER DEFAULT 0",
             "ALTER TABLE hcc_results ADD COLUMN IF NOT EXISTS recapture_gaps JSONB DEFAULT '[]'",
+            "ALTER TABLE em_results ADD COLUMN IF NOT EXISTS mod25_applicable BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE em_results ADD COLUMN IF NOT EXISTS mod25_action VARCHAR(12) DEFAULT ''",
+            "ALTER TABLE em_results ADD COLUMN IF NOT EXISTS mod25_reason TEXT DEFAULT ''",
         ):
             conn.execute(text(ddl))
 
