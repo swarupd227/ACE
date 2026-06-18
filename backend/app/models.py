@@ -506,6 +506,9 @@ class EmResult(Base):
     # new-vs-established (from 3-year prior history)
     enc_type_source: Mapped[str] = mapped_column(String(40), default="")
     enc_type_consistent: Mapped[bool] = mapped_column(Boolean, default=True)
+    # prolonged services
+    prolonged_code: Mapped[str] = mapped_column(String(8), default="")
+    prolonged_units: Mapped[int] = mapped_column(Integer, default=0)
     trace: Mapped[list] = mapped_column(JSONB, default=list)
     resolved: Mapped[bool] = mapped_column(Boolean, default=False)
 

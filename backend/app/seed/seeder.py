@@ -33,6 +33,8 @@ def init_db() -> None:
             "ALTER TABLE em_results ADD COLUMN IF NOT EXISTS mod25_reason TEXT DEFAULT ''",
             "ALTER TABLE em_results ADD COLUMN IF NOT EXISTS enc_type_source VARCHAR(40) DEFAULT ''",
             "ALTER TABLE em_results ADD COLUMN IF NOT EXISTS enc_type_consistent BOOLEAN DEFAULT TRUE",
+            "ALTER TABLE em_results ADD COLUMN IF NOT EXISTS prolonged_code VARCHAR(8) DEFAULT ''",
+            "ALTER TABLE em_results ADD COLUMN IF NOT EXISTS prolonged_units INTEGER DEFAULT 0",
         ):
             conn.execute(text(ddl))
 

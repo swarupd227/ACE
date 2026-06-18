@@ -1164,6 +1164,35 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
             else:
                 say("E&M Leveler", f"{ne['authoritative']} patient ({ne['source']})", "good")
 
+        # Prolonged services — add G2212 (Medicare) / 99417 (commercial) when documented time
+        # crosses the highest-level floor. Payer-aware; deterministic add-on.
+        pl = em.prolonged(er.get("coded_code", ""), er.get("time_minutes", 0), enc.payer)
+        _PROLONGED = {"99417", "G2212"}
+        if pl["applicable"]:
+            # Enforce exactly the payer-correct prolonged code — reject any incorrect one the model coded.
+            for cr in [c for c in persisted if c.code in _PROLONGED and c.code != pl["code"]]:
+                cr.status = "rejected"
+                cr.rule_justification = f"payer-incorrect prolonged code — payer is {pl['payer_basis']} ({pl['code']})"
+                db.add(cr)
+                if cr in accepted:
+                    accepted.remove(cr)
+                say("E&M Leveler",
+                    f"rejected payer-incorrect prolonged code {cr.code} — payer is {pl['payer_basis']}", "warn")
+            if not any(cr.code == pl["code"] for cr in persisted):
+                plc = models.CodeResult(
+                    run_id=run.id, code_system=pl["code_system"], code=pl["code"],
+                    description=f"Prolonged outpatient E&M, {pl['units']}×15 min ({pl['payer_basis']})",
+                    role="add-on", modifiers=[], sequence=99, confidence=0.95, conf_model=0.95,
+                    conf_doc_match=0.95, conf_rule=0.95, conf_historical=0.9, chart_citations=[],
+                    guideline_citations=[], rule_justification=pl["reason"], gate_results=[],
+                    status="accepted", learning_applied=False,
+                )
+                db.add(plc)
+                persisted.append(plc)
+                accepted.append(plc)
+            say("E&M Leveler",
+                f"prolonged services: {pl['units']} × {pl['code']} ({pl['payer_basis']}) — {pl['reason']}", "good")
+
         db.add(models.EmResult(
             run_id=run.id, encounter_id=enc.id, encounter_type=er.get("encounter_type", ""),
             coded_code=er.get("coded_code", ""), mdm_tier=er.get("mdm_tier", ""),
@@ -1172,10 +1201,12 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
             agreement=er.get("agreement", ""), mod25_applicable=m25["applicable"],
             mod25_action=m25["action"], mod25_reason=m25.get("reason", ""),
             enc_type_source=ne["source"], enc_type_consistent=ne["consistent"],
+            prolonged_code=(pl["code"] if pl["applicable"] else ""),
+            prolonged_units=(pl["units"] if pl["applicable"] else 0),
             trace=er.get("trace", []), resolved=er["resolved"],
         ))
         log.append({"stage": "6_em", "title": "E&M Leveling",
-                    "result": {**er, "modifier_25": m25, "new_established": ne}})
+                    "result": {**er, "modifier_25": m25, "new_established": ne, "prolonged": pl}})
         _audit(db, run, "6_em", "em_leveled" if er["resolved"] else "em_unresolved",
                {"coded": er.get("coded_code"), "supported": er.get("supported_code"),
                 "agreement": er.get("agreement"), "mod25_action": m25.get("action"),

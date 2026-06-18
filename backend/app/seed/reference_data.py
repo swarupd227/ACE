@@ -642,6 +642,8 @@ CPT = [
     ("99203", "Office/outpatient visit, new patient, low MDM", "EM_OFFICE"),
     ("99204", "Office/outpatient visit, new patient, moderate MDM", "EM_OFFICE"),
     ("99205", "Office/outpatient visit, new patient, high MDM", "EM_OFFICE"),
+    ("99417", "Prolonged outpatient E&M, each additional 15 minutes (commercial add-on)", "EM_OFFICE"),
+    ("G2212", "Prolonged outpatient E&M, each additional 15 minutes (Medicare add-on)", "EM_OFFICE"),
     # Emergency Department E&M + critical care
     ("99281", "Emergency department visit, straightforward MDM", "ED"),
     ("99282", "Emergency department visit, low MDM", "ED"),

@@ -34,6 +34,28 @@ def prior_within_3y(enc_dos: str, prior_dos: list[str]) -> bool:
     return False
 
 
+# Prolonged-services floors (minutes) for the highest level — DEMO placeholders.
+_PROLONGED_FLOOR = {"established": 55, "new": 75}
+_PROLONGED_STEP = 15
+_TOP_CODE = {"established": "99215", "new": "99205"}
+
+
+def prolonged(coded_code: str, minutes: int, payer: str) -> dict:
+    """Add a prolonged-services unit when documented total time crosses the highest-level floor.
+    Payer-aware: G2212 for Medicare, 99417 commercial. DEMO floors — swap licensed AMA values."""
+    enc_type = "new" if coded_code in _NEW_CODES else ("established" if coded_code in _EST_CODES else "")
+    floor = _PROLONGED_FLOOR.get(enc_type)
+    # Prolonged time codes attach to the highest-level visit only.
+    if not floor or coded_code != _TOP_CODE.get(enc_type) or not minutes or minutes < floor:
+        return {"applicable": False}
+    units = 1 + (int(minutes) - floor) // _PROLONGED_STEP
+    medicare = "medicare" in (payer or "").lower()
+    return {"applicable": True, "code": "G2212" if medicare else "99417",
+            "code_system": "HCPCS" if medicare else "CPT", "units": int(units),
+            "payer_basis": "Medicare" if medicare else "commercial",
+            "reason": f"total time {minutes} min ≥ {floor} min on {coded_code} → {units} prolonged unit(s)"}
+
+
 def new_established(coded_code: str, feed_type: str, model_type: str, has_prior_within_3y: bool) -> dict:
     """Deterministically resolve new vs established from the strongest available signal and check
     it against the coded visit-code family. A prior encounter within 3 years is decisive; else the
