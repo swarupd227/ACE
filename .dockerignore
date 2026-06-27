@@ -1,0 +1,9 @@
+# Keep repo-root build contexts (p2r api, studio gateway) lean and reproducible.
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+.git
+*.log

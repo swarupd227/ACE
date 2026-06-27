@@ -58,6 +58,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           )}
         </div>
 
+        {/* Nous RCM Studio module switcher (only in the unified gateway build) */}
+        {(import.meta as any).env?.VITE_STUDIO === "1" && !collapsed && (
+          <div className="px-3 pt-3">
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">Nous RCM Studio</div>
+            <div className="flex gap-1 rounded-lg bg-black/20 p-1">
+              <span className="flex-1 text-center rounded-md bg-brand-500 text-white text-xs font-semibold py-1">Coding</span>
+              <a href="/policy/" className="flex-1 text-center rounded-md text-slate-300 hover:bg-white/10 text-xs font-semibold py-1">Policy</a>
+            </div>
+          </div>
+        )}
+
         {/* Nav */}
         <nav className={clsx("flex-1 py-4 space-y-1", collapsed ? "px-1" : "px-3")}>
           {visibleNav.map((n) => (
@@ -111,7 +122,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-14 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-6">
           <div className="text-sm text-slate-500">
-            Vee Healthtek <span className="text-slate-300">/</span>{" "}
+            Nous RCM Studio <span className="text-slate-300">/</span>{" "}
             <span className="font-semibold text-slate-700">Autonomous Medical Coding</span>
           </div>
           <div className="flex items-center gap-3">

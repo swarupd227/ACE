@@ -274,9 +274,10 @@ def seed_missing() -> dict:
         for payer, code, mn, auth, modpref, dx in rd.PAYER_POLICY:
             row = pp_rows.get((payer, code))
             if row is None:
-                db.add(models.PayerPolicy(payer=payer, code=code, medical_necessity=mn,
-                                          requires_auth=auth, modifier_pref=modpref, covered_dx=dx))
-                pp_rows[(payer, code)] = True
+                row = models.PayerPolicy(payer=payer, code=code, medical_necessity=mn,
+                                         requires_auth=auth, modifier_pref=modpref, covered_dx=dx)
+                db.add(row)
+                pp_rows[(payer, code)] = row  # store the row, not True — a duplicate key reuses it
                 bump("payer_policy")
             else:
                 changed = (

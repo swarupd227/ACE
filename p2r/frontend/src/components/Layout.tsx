@@ -42,6 +42,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
+        {/* Nous RCM Studio module switcher (only in the unified gateway build) */}
+        {(import.meta as any).env?.VITE_STUDIO === "1" && (
+          <div className="px-3 pt-3">
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">Nous RCM Studio</div>
+            <div className="flex gap-1 rounded-lg bg-black/20 p-1">
+              <a href="/coding/" className="flex-1 text-center rounded-md text-slate-300 hover:bg-white/10 text-xs font-semibold py-1">Coding</a>
+              <span className="flex-1 text-center rounded-md bg-brand-500 text-white text-xs font-semibold py-1">Policy</span>
+            </div>
+          </div>
+        )}
+
         <nav className="flex-1 py-4 px-3 space-y-1">
           {visibleNav.map((n) => (
             <NavLink
