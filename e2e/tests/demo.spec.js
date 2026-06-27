@@ -53,7 +53,7 @@ test("ACE end-to-end product tour", async ({ page, request }) => {
     <body style="margin:0;background:#0E1B33;height:100vh;display:flex;align-items:center;justify-content:center;font-family:Calibri,'Segoe UI',sans-serif">
       <div style="position:fixed;left:0;top:0;bottom:0;width:14px;background:#13B5A6"></div>
       <div style="text-align:left;max-width:900px;padding:0 60px">
-        <div style="color:#13B5A6;font-weight:800;letter-spacing:4px;font-size:16px">NOUS INFOSYSTEMS &nbsp;·&nbsp; FOR VEE HEALTHTEK</div>
+        <div style="color:#13B5A6;font-weight:800;letter-spacing:4px;font-size:16px">NOUS INFOSYSTEMS &nbsp;·&nbsp; NOUS RCM STUDIO</div>
         <div style="color:#fff;font-family:Georgia,serif;font-weight:700;font-size:54px;margin-top:18px">ACE — Autonomous Coding Engine</div>
         <div style="color:#CADCFC;font-size:24px;margin-top:14px">Agentic AI that turns clinical notes into billable codes</div>
         <div style="color:#7E90A8;font-size:16px;margin-top:26px;font-style:italic">An end-to-end product tour &nbsp;·&nbsp; ~2½ minutes</div>
@@ -210,7 +210,7 @@ test("ACE end-to-end product tour", async ({ page, request }) => {
 
   // 15 · CLOSE ────────────────────────────────────────────────────────────────
   await cap(page, "ACE", "Grounded, cited, and yours to run",
-    "Autonomous AI medical coding · Nous Infosystems for Vee Healthtek.");
+    "Autonomous AI medical coding · Nous Infosystems · Nous RCM Studio.");
   await wait(page, 3.5);
 
   expect(rad).toBeTruthy();

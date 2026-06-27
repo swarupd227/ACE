@@ -53,7 +53,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
           {!collapsed && (
             <div className="mt-3 text-[10px] uppercase tracking-wider text-slate-500">
-              inside RevAmp · Coding Studio
+              Nous RCM Studio · Coding
             </div>
           )}
         </div>
