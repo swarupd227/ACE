@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nous RCM Studio</title>
+  <style>
+    :root { --navy:#0e1726; --navy2:#16213a; --brand:#4f6bed; --brand2:#7c93f5; --ink:#e8edf7; --muted:#9aa7c2; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--ink); background: radial-gradient(1200px 600px at 50% -10%, #1c2a4a 0%, var(--navy) 55%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px;
+    }
+    .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+    .logo { height: 46px; width: 46px; border-radius: 12px; background: linear-gradient(135deg, var(--brand), var(--brand2));
+      display: grid; place-items: center; font-weight: 800; font-size: 20px; color: #fff; box-shadow: 0 8px 24px rgba(79,107,237,.35); }
+    h1 { font-size: 26px; margin: 0; letter-spacing: .2px; }
+    .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .tag { margin-top: 2px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 2px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(260px, 320px)); gap: 22px; margin-top: 38px; }
+    @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      display: block; text-decoration: none; color: inherit; background: linear-gradient(180deg, var(--navy2), #121d33);
+      border: 1px solid rgba(255,255,255,.08); border-radius: 16px; padding: 24px; transition: .18s ease;
+    }
+    .card:hover { transform: translateY(-3px); border-color: rgba(124,147,245,.55); box-shadow: 0 16px 40px rgba(0,0,0,.35); }
+    .pill { font-size: 11px; font-weight: 700; color: var(--brand2); background: rgba(79,107,237,.14);
+      border: 1px solid rgba(124,147,245,.3); padding: 3px 10px; border-radius: 999px; }
+    .card h2 { font-size: 18px; margin: 16px 0 6px; }
+    .card p { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0; }
+    .go { margin-top: 16px; font-size: 13px; font-weight: 700; color: var(--brand2); }
+    .foot { margin-top: 40px; color: var(--muted); font-size: 11px; text-align: center; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="brand">
+    <div class="logo">N</div>
+    <div>
+      <h1>Nous RCM Studio</h1>
+      <div class="sub">One platform for autonomous coding and policy intelligence</div>
+    </div>
+  </div>
+  <div class="tag">Nous RCM Intelligence Framework</div>
+
+  <div class="grid">
+    <a class="card" href="/coding/">
+      <span class="pill">CODING</span>
+      <h2>Autonomous Coding Engine</h2>
+      <p>Agentic, cited medical coding with deterministic gates, confidence-based routing, CDI, and closed-loop learning.</p>
+      <div class="go">Open Coding &rarr;</div>
+    </a>
+    <a class="card" href="/policy/">
+      <span class="pill">POLICY &amp; DENIALS</span>
+      <h2>Policy-to-Rule Intelligence</h2>
+      <p>Ingest payer policy, discover denial patterns, validate and author engine-ready rules, and publish them into Coding.</p>
+      <div class="go">Open Policy &rarr;</div>
+    </a>
+  </div>
+
+  <div class="foot">
+    Synthetic / public-CMS data only &middot; cited &middot; confidence-gated &middot; audit-first<br/>
+    Nous-owned solution frameworks &middot; the closed loop: policy &rarr; rule &rarr; code &rarr; denial &rarr; signal
+  </div>
+</body>
+</html>

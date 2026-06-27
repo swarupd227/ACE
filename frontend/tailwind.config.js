@@ -5,7 +5,7 @@ export default {
     extend: {
       colors: {
         brand: {
-          // Vee Healthtek orange accent
+          // brand orange accent
           50: "#fff4ed", 100: "#ffe6d5", 300: "#ffb088",
           500: "#f26722", 600: "#e2520f", 700: "#bb3e0f",
         },

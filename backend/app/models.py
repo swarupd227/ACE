@@ -366,7 +366,7 @@ class DrgResult(Base):
 # DRG; risk adjustment = LONGITUDINAL dx capture. ICD-10-CM diagnoses map to HCC
 # condition categories, hierarchies suppress less-severe categories in the same
 # family, and RAF = demographic factor + Σ HCC coefficients. Strategic adjacency:
-# Vee's RevCap is HCC-focused — ACE extends it with agentic capture + audit.
+# typical risk-adjustment tooling is HCC-focused — ACE extends it with agentic capture + audit.
 # Curated CMS-HCC V24 subset for the demo; the scoring engine is real.
 # ---------------------------------------------------------------------------
 class HccCategory(Base):

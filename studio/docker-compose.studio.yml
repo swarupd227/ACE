@@ -1,0 +1,72 @@
+# ===========================================================================
+# Nous RCM Studio — UNIFIED stack (one origin, one shared database)
+#
+#   docker compose -f studio/docker-compose.studio.yml -p studio up --build -d
+#   → http://localhost:8200   (landing → /coding and /policy)
+#
+# Phase F: ONE Postgres cluster (service `db`) hosts both logical databases —
+# `ace` (Coding) and `p2r` (Policy) — on a single volume. Each module's API
+# initializes and owns its own database; no more drift between separate stacks.
+# Only the gateway publishes a host port, so it coexists with everything else.
+# ===========================================================================
+
+services:
+  # ----------------------- Shared database (Phase F) -----------------------
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ace}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ace_dev_pw}
+      POSTGRES_DB: ${POSTGRES_DB:-ace}            # Coding DB; init script adds `p2r`
+    volumes:
+      - studio_pgdata:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d:ro  # creates the `p2r` database once
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ace} -d ${POSTGRES_DB:-ace}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ----------------------- Coding module (ACE) -----------------------
+  ace-api:
+    build:
+      context: ../backend
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ace}:${POSTGRES_PASSWORD:-ace_dev_pw}@db:5432/${POSTGRES_DB:-ace}
+    depends_on:
+      db:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # --------------------- Policy module (P2R) -------------------------
+  p2r-api:
+    build:
+      context: ..
+      dockerfile: p2r/backend/Dockerfile
+    env_file: ../.env
+    environment:
+      # Same cluster (`db`), different logical database (`p2r`), shared superuser.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ace}:${POSTGRES_PASSWORD:-ace_dev_pw}@db:5432/p2r
+      # Closed loop within the stack: P2R publishes to ACE over the compose network.
+      ACE_BASE_URL: http://ace-api:8000
+    depends_on:
+      db:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ----------------------- Unified gateway ---------------------------
+  gateway:
+    build:
+      context: ..
+      dockerfile: studio/gateway/Dockerfile
+    depends_on:
+      - ace-api
+      - p2r-api
+    ports:
+      - "${STUDIO_PORT:-8200}:80"
+
+volumes:
+  studio_pgdata:

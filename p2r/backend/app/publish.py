@@ -5,7 +5,7 @@ ACE's EXISTING public policy API — the same mechanism proven live with the Med
 edit that changed a medical-necessity gate. This is the closed loop made visible:
 P2R authors the rule, ACE consumes it.
 
-Safety by construction (so the scripted Vee/ACE demo can never move):
+Safety by construction (so the scripted ACE demo can never move):
   * write-only — we POST policies, we never read or mutate ACE's coding state;
   * on explicit click — only an APPROVED recommendation can be published;
   * sandbox payer only — a denylist refuses any scripted demo payer, and every row is
@@ -25,7 +25,7 @@ ACE_BASE_URL = os.getenv("ACE_BASE_URL", "http://host.docker.internal:8000")
 ACE_SOURCE_TAG = "P2R-INTEGRATION"
 
 # Belt-and-braces: these are ACE's scripted demo payers. We refuse to publish against any
-# of them so a glimpse can never overwrite a policy the Vee demo depends on. The sample
+# of them so a glimpse can never overwrite a policy the ACE demo depends on. The sample
 # policy's payer ("Meridian Health Plan") is intentionally NOT one of these.
 _DEMO_PAYERS = {"anthem", "cigna", "medicare", "unitedhealthcare", "aetna", "humana", "bcbs"}
 

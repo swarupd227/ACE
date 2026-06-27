@@ -3128,7 +3128,7 @@ OR_PROC = [
 # dx→HCC mappings, hierarchies, coefficients and demographic factors — is a
 # PUBLIC CMS artifact published annually (like the DRG tables, unlike CPT).
 # Curated V24 community/non-dual/aged subset; the RAF scorer is real.
-# Strategic fit: Vee's RevCap is HCC-focused — ACE extends what they already do.
+# Strategic fit: typical risk-adjustment tooling is HCC-focused — ACE extends that.
 # ===========================================================================
 
 # --- HCC condition categories — (hcc, label, coefficient[CNA]) ---
