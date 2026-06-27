@@ -23,7 +23,7 @@ def meta(db: Session = Depends(get_db)) -> dict:
     e = llm_client.effective_llm(llm)
     return {
         "product": "ACE — Autonomous Coding Engine",
-        "framing": "Engine inside RevAmp Coding Studio",
+        "framing": "Engine inside Nous RCM Studio",
         "env": settings.ace_env,
         "llm_mode": e["provider"],
         "llm_available": llm_client.llm_available(llm),
