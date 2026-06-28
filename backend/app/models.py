@@ -49,6 +49,8 @@ class Encounter(Base):
     client: Mapped[str] = mapped_column(String(80), default="")  # source client/health system
     source_system: Mapped[str] = mapped_column(String(40), default="PracticeAdmin")
     report_type: Mapped[str] = mapped_column(String(40), default="report")
+    # The source PMS/EHR's own id for this chart (E1 connector). Idempotency key + handoff target.
+    external_id: Mapped[str] = mapped_column(String(64), default="", index=True)
     # Billing component: GLOBAL (no modifier), PROFESSIONAL (modifier 26), TECHNICAL (modifier TC).
     # Defaults to PROFESSIONAL — existing behaviour for charts without an explicit setting.
     # Set per-encounter in seed data or via the ingest feed; never derived from report text.
@@ -672,3 +674,24 @@ class GoldenCase(Base):
     truth: Mapped[dict] = mapped_column(JSONB)  # adjudicated codes
     irr: Mapped[float] = mapped_column(Float, default=0.0)  # inter-rater reliability for the set
     ambiguous: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class BillingHandoff(Base):
+    """Outbound write-back to the source PMS/EHR (E1 Practice Admin connector): each time a
+    coded chart is posted as a work item / billing-queue entry, we record the acknowledgement
+    here so the round-trip is auditable. `mode` = sandbox (in-process contract) | live (real API)."""
+    __tablename__ = "billing_handoffs"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    encounter_id: Mapped[str] = mapped_column(String(32), index=True)
+    run_id: Mapped[str] = mapped_column(String(32), default="")
+    connector: Mapped[str] = mapped_column(String(40), default="practice_admin")
+    mode: Mapped[str] = mapped_column(String(12), default="sandbox")  # sandbox | live
+    external_id: Mapped[str] = mapped_column(String(64), default="")  # the PMS's chart/order id
+    work_item_id: Mapped[str] = mapped_column(String(64), default="")  # id returned by the PMS
+    billing_status: Mapped[str] = mapped_column(String(24), default="")  # accepted | queued | rejected | error
+    lane: Mapped[str] = mapped_column(String(12), default="")           # STB | QA | MANUAL
+    trigger: Mapped[str] = mapped_column(String(16), default="auto")    # auto | manual
+    codes: Mapped[list] = mapped_column(JSONB, default=list)            # summary [{system,code,modifiers}]
+    detail: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
