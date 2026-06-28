@@ -78,9 +78,16 @@ DEFAULTS: dict = {
         {"name": "Cerner", "type": "EHR", "channel": "FHIR R4 / HL7 v2", "enabled": True},
     ],
     "privacy": {
-        # Mask direct identifiers (name/MRN/DOB/SSN/phone) from the model's copy of the
-        # chart before ANY model call. Age/sex/DOS are kept — coding needs them.
+        # Mask direct identifiers (name/MRN/DOB/SSN/phone/email/address/account…) from the
+        # model's copy of the chart before ANY model call. Age/sex/DOS are kept — coding needs them.
         "mask_identifiers": True,
+    },
+    "guardrails": {
+        # E7 — I/O guardrails around the reasoning model.
+        "enabled": True,
+        "redact_input_residuals": True,    # re-mask any identifier that slipped past masking
+        "block_on_residual_phi": False,    # if a residual can't be removed, route the chart to a human
+        "scan_output": True,               # sanitise echoed identifiers / injection markers in model output
     },
     "pms": {
         # E1 — source PMS/EHR connector (Practice Admin is the MVP target).
@@ -148,6 +155,7 @@ META: dict = {
     "connectors": "Source systems (PMS/EHR) shown on the Integrations screen",
     "pms": "Active PMS/EHR connector (Practice Admin) — sandbox vs live, base URL, auto billing hand-off",
     "privacy": "Pre-model PII masking — direct identifiers are masked before any model call (age/sex/DOS kept)",
+    "guardrails": "I/O guardrails — residual-PHI defense before the model, output sanitisation, optional route-to-human",
     "token_governance": "Token & cost governance — prompt caching, a daily token budget (warn/throttle/route-to-human), and $/token rates for cost reporting",
     "anesthesia": "Anesthesia unit payment — conversion factor ($/unit) and physical-status unit adders",
     "llm": "The reasoning model — provider, default/hard models and endpoint (API keys stay in the environment)",

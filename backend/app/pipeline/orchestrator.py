@@ -16,7 +16,7 @@ from ..config import settings
 from ..knowledge import graph_rag
 from ..llm import prompts
 from ..llm.client import LLMUnavailable, complete_json, model_version
-from . import anes, apc, calibration, drg, em, governance, hcc, history, pii, validation
+from . import anes, apc, calibration, drg, em, governance, guardrails, hcc, history, pii, validation
 
 # Confidence routing thresholds (calibrated per-specialty in production)
 STB_THRESHOLD = 0.90
@@ -514,6 +514,11 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
             enc.chart_text, known_name=enc.patient_name, known_mrn=enc.mrn)
     else:
         chart_for_model, pii_findings = enc.chart_text, []
+    # E7 input guardrail (defense-in-depth): catch any direct identifier that slipped past
+    # masking before the text is numbered and sent to the model. `gi` is logged/acted on at
+    # the privacy stage below (route-to-human if it can't be cleaned and policy requires it).
+    gi = guardrails.guard_input(chart_for_model, cfg)
+    chart_for_model = gi.text
     numbered, lookup = _number_chart(chart_for_model)
     log: list[dict] = []
     usage: list[dict] = []   # real per-call token usage, accumulated across the run
@@ -573,6 +578,19 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
             {"STB": "good", "QA": "warn", "MANUAL": "bad"}.get(lane, "info"))
         emit({"type": "routing", "lane": lane, "reason": reason})
         db.flush()  # ensure code rows have ids before we snapshot them
+        # E7 output guardrail: the model's emitted text must not echo a direct identifier.
+        if guardrails.enabled(cfg):
+            sanitized = 0
+            for c in run.codes:
+                go = guardrails.guard_output(c.description or "", cfg)
+                if go.action == "sanitized":
+                    c.description = go.text
+                    sanitized += 1
+            if sanitized:
+                say("Guardrail", f"output guardrail: sanitised {sanitized} code field(s)", "warn")
+                log.append({"stage": "6_guardrail", "title": "I/O Guardrail (output)",
+                            "sanitized_fields": sanitized})
+                _audit(db, run, "6_guardrail", "output:sanitized", {"fields": sanitized})
         # Snapshot the original AI output so a coder can roll back human edits deterministically.
         run.ai_snapshot = {
             "routing_lane": lane, "routing_reason": reason,
@@ -637,6 +655,16 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
                             "Production: clinical de-id service behind the same hook."})
         _audit(db, run, "1_privacy", "identifiers_masked",
                {"masked": pii_findings, "total": sum(f["count"] for f in pii_findings)})
+
+    # --- Stage 1 guardrail — residual-PHI defense-in-depth on what reaches the model ---
+    if guardrails.enabled(cfg) and gi.action != "pass":
+        lvl = "bad" if gi.action == "block" else "warn"
+        say("Guardrail", f"input guardrail: {gi.detail}", lvl)
+        log.append({"stage": "1_guardrail", "title": "I/O Guardrail (input)",
+                    "action": gi.action, "findings": gi.findings, "note": gi.detail})
+        _audit(db, run, "1_guardrail", f"input:{gi.action}", {"findings": gi.findings, "detail": gi.detail})
+        if gi.action == "block":
+            return finish("MANUAL", "PHI guardrail: residual direct identifiers could not be removed — routed to a human")
 
     # --- Stage 1 patient history — longitudinal checks (only when patient_key links priors) ---
     priors = history.prior_encounters(db, enc)
