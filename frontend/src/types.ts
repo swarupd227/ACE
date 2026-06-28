@@ -419,4 +419,21 @@ export interface Integrations {
   channels: string[];
   api_docs: string;
   note: string;
+  pms?: { name: string; connector: string; mode: string; reachable: boolean; base_url: string; auto_handoff_stb: boolean; detail: string };
+  handoff_count?: number;
+}
+
+export interface Handoff {
+  id: string;
+  encounter_id: string;
+  external_id: string;
+  work_item_id: string;
+  billing_status: string;
+  lane: string;
+  trigger: string;
+  mode: string;
+  connector: string;
+  codes: { system: string; code: string; modifiers: string[]; description?: string }[];
+  detail: string;
+  created_at: string;
 }

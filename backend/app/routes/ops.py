@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import config_store, models
@@ -640,15 +640,61 @@ def integrations(db: Session = Depends(get_db)) -> dict:
     for e in db.scalars(select(models.Encounter).where(models.Encounter.client != HIDDEN)).all():
         counts[e.source_system] = counts.get(e.source_system, 0) + 1
     # Connectors are admin-configurable (config_store), not a hardcoded list.
-    cfg_connectors = config_store.all_config(db).get("connectors") or SOURCE_SYSTEMS
+    cfg = config_store.all_config(db)
+    cfg_connectors = cfg.get("connectors") or SOURCE_SYSTEMS
     connectors = [
         {"name": s["name"], "type": s.get("type", ""), "channel": s.get("channel", ""),
          "status": "connected" if s.get("enabled", True) else "disabled",
          "charts_ingested": counts.get(s["name"], 0) or counts.get(s["name"].replace(" ", ""), 0)}
         for s in cfg_connectors
     ]
-    return {"connectors": connectors, "channels": CHANNELS, "api_docs": "/docs",
+    # E1 — active PMS connector status (Practice Admin: sandbox vs live, auto-handoff).
+    from ..connectors.practice_admin import get_connector
+    st = get_connector(cfg).status()
+    pms = {"name": st.name, "connector": st.connector, "mode": st.mode, "reachable": st.reachable,
+           "base_url": st.base_url, "auto_handoff_stb": st.auto_handoff_stb, "detail": st.detail}
+    handoff_count = db.scalar(select(func.count()).select_from(models.BillingHandoff)) or 0
+    return {"connectors": connectors, "channels": CHANNELS, "api_docs": "/docs", "pms": pms,
+            "handoff_count": int(handoff_count),
             "note": "Connectors are admin-configurable (Admin > Connectors); the REST ingest below is live."}
+
+
+class PmsSyncIn(BaseModel):
+    limit: int = 5
+
+
+@router.post("/integrations/pms/sync")
+def pms_sync(body: PmsSyncIn, db: Session = Depends(get_db)) -> dict:
+    """Pull new charts from the source PMS (Practice Admin) into the coding queue."""
+    from ..connectors import handoff
+    cfg = config_store.all_config(db)
+    return handoff.sync_inbound(db, cfg, limit=max(1, min(body.limit, 25)))
+
+
+@router.get("/integrations/handoffs")
+def list_handoffs(db: Session = Depends(get_db)) -> list[dict]:
+    """Recent outbound billing/work-item hand-offs (write-back to the PMS)."""
+    from ..connectors import handoff
+    return handoff.recent_handoffs(db, limit=25)
+
+
+@router.post("/integrations/encounters/{enc_id}/handoff")
+def manual_handoff(enc_id: str, db: Session = Depends(get_db)) -> dict:
+    """Manually post a coded chart to the PMS billing queue (e.g. after a coder accepts a QA chart)."""
+    from ..connectors import handoff
+    enc = db.get(models.Encounter, enc_id)
+    if enc is None:
+        raise HTTPException(404, "encounter not found")
+    run = db.scalars(
+        select(models.CodingRun).where(models.CodingRun.encounter_id == enc_id)
+        .order_by(models.CodingRun.started_at.desc())
+    ).first()
+    if run is None or run.status != "DONE":
+        raise HTTPException(400, "encounter has no completed coding run to hand off")
+    cfg = config_store.all_config(db)
+    ho = handoff.do_handoff(db, enc, run, cfg, trigger="manual")
+    return {"id": ho.id, "work_item_id": ho.work_item_id, "billing_status": ho.billing_status,
+            "lane": ho.lane, "mode": ho.mode}
 
 
 class IngestIn(BaseModel):

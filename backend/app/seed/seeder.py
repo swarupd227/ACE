@@ -25,6 +25,7 @@ def init_db() -> None:
             "ALTER TABLE encounters ADD COLUMN IF NOT EXISTS signed_at TIMESTAMPTZ",
             "ALTER TABLE encounters ADD COLUMN IF NOT EXISTS addendum_at TIMESTAMPTZ",
             "ALTER TABLE encounters ADD COLUMN IF NOT EXISTS bill_type VARCHAR(16) DEFAULT 'PROFESSIONAL'",
+            "ALTER TABLE encounters ADD COLUMN IF NOT EXISTS external_id VARCHAR(64) DEFAULT ''",
             "ALTER TABLE coding_runs ADD COLUMN IF NOT EXISTS billed_at TIMESTAMPTZ",
             "ALTER TABLE coding_runs ADD COLUMN IF NOT EXISTS cache_read_tokens INTEGER DEFAULT 0",
             "ALTER TABLE hcc_results ADD COLUMN IF NOT EXISTS recapture_gaps JSONB DEFAULT '[]'",

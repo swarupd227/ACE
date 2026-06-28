@@ -95,6 +95,14 @@ export const api = {
     req(`/learning/${id}`, { method: "PATCH", body: JSON.stringify({ applied }) }),
   deleteLearning: (id: string) => req(`/learning/${id}`, { method: "DELETE" }),
   integrations: () => req<import("./types").Integrations>("/integrations"),
+  // E1 — Practice Admin connector: pull charts, list billing hand-offs, push one manually.
+  pmsSync: (limit = 5) =>
+    req<{ connector: string; mode: string; pulled: number; skipped: number; created: { id: string; mrn: string; specialty: string; external_id: string }[] }>(
+      "/integrations/pms/sync", { method: "POST", body: JSON.stringify({ limit }) }),
+  handoffs: () => req<import("./types").Handoff[]>("/integrations/handoffs"),
+  manualHandoff: (encId: string) =>
+    req<{ id: string; work_item_id: string; billing_status: string; lane: string; mode: string }>(
+      `/integrations/encounters/${encId}/handoff`, { method: "POST" }),
   ingest: (body: Record<string, any>) =>
     req<{ id: string; mrn: string; specialty: string; status: string; source_system: string }>(
       "/ingest", { method: "POST", body: JSON.stringify(body) }),

@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plug, CheckCircle2, FileInput, ArrowRight, Cable, Code2, ScanLine } from "lucide-react";
+import clsx from "clsx";
+import { Plug, CheckCircle2, FileInput, ArrowRight, Cable, Code2, ScanLine, RefreshCw, Send, Building2 } from "lucide-react";
 import { api } from "../api";
 import { Spinner } from "../lib";
+import type { Integrations as IntegrationsData } from "../types";
 
 const MODALITY_OPTIONS: Record<string, string[]> = {
   "Radiology":    ["CT", "X-Ray", "MRI", "Ultrasound", "Doppler"],
@@ -70,6 +72,9 @@ export default function Integrations() {
           </div>
         ))}
       </div>
+
+      {/* E1 — Practice Admin connector (inbound pull + outbound billing hand-off) */}
+      <PracticeAdminCard data={data} />
 
       {/* Channels + API */}
       <div className="grid lg:grid-cols-3 gap-4">
@@ -157,6 +162,80 @@ export default function Integrations() {
       </div>
 
       <ScannedDocCard specs={specs} />
+    </div>
+  );
+}
+
+function PracticeAdminCard({ data }: { data: IntegrationsData }) {
+  const qc = useQueryClient();
+  const pms = data.pms;
+  const [msg, setMsg] = useState<string>("");
+  const { data: handoffs } = useQuery({ queryKey: ["handoffs"], queryFn: api.handoffs });
+
+  const sync = useMutation({
+    mutationFn: () => api.pmsSync(5),
+    onSuccess: (r) => {
+      setMsg(`Pulled ${r.pulled} chart(s) from ${r.connector} (${r.mode}) — ${r.created.length} new, ${r.skipped} already present.`);
+      qc.invalidateQueries({ queryKey: ["encounters"] });
+      qc.invalidateQueries({ queryKey: ["integrations"] });
+      qc.invalidateQueries({ queryKey: ["controlTower"] });
+    },
+    onError: (e) => setMsg((e as Error).message),
+  });
+
+  const live = pms?.mode === "live";
+  return (
+    <div className="card p-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Building2 size={16} className="text-ace-600" />
+          <h2 className="font-bold text-slate-800">Practice Admin connector — coding work queue</h2>
+          <span className={clsx("pill ring-1", live ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-amber-50 text-amber-700 ring-amber-200")}>
+            {live ? "live" : "sandbox"}
+          </span>
+          {pms?.auto_handoff_stb && (
+            <span className="pill bg-ace-50 text-ace-700 ring-1 ring-ace-200">auto-handoff STB → billing</span>
+          )}
+        </div>
+        <button className="btn-primary py-1.5" disabled={sync.isPending} onClick={() => sync.mutate()}>
+          {sync.isPending ? <Spinner className="h-4 w-4" /> : <RefreshCw size={14} />} Sync charts from Practice Admin
+        </button>
+      </div>
+      <p className="mt-1 text-xs text-slate-500">
+        Inbound: pull new charts into the coding queue. Outbound: a coded chart is posted back as a
+        work item / billing-queue entry. {pms?.detail}
+      </p>
+      {msg && <div className="mt-2 text-sm text-emerald-700 flex items-center gap-1"><CheckCircle2 size={15} /> {msg}</div>}
+
+      {/* Outbound billing hand-offs (write-back) */}
+      <div className="mt-3 border-t border-slate-100 pt-3">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 mb-2">
+          <Send size={13} className="text-ace-600" /> Billing hand-offs ({data.handoff_count ?? handoffs?.length ?? 0})
+        </div>
+        {handoffs && handoffs.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="text-left text-slate-400">
+                <tr><th className="py-1 pr-3">Work item</th><th className="py-1 pr-3">Status</th><th className="py-1 pr-3">Lane</th><th className="py-1 pr-3">Trigger</th><th className="py-1 pr-3">Codes</th><th className="py-1 pr-3">PMS id</th></tr>
+              </thead>
+              <tbody>
+                {handoffs.slice(0, 8).map((h) => (
+                  <tr key={h.id} className="border-t border-slate-50">
+                    <td className="py-1 pr-3 font-mono text-slate-700">{h.work_item_id || "—"}</td>
+                    <td className="py-1 pr-3"><span className={clsx("pill ring-1", h.billing_status === "accepted" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-50 text-slate-600 ring-slate-200")}>{h.billing_status}</span></td>
+                    <td className="py-1 pr-3">{h.lane}</td>
+                    <td className="py-1 pr-3 text-slate-500">{h.trigger}</td>
+                    <td className="py-1 pr-3 font-mono text-slate-500">{(h.codes || []).map((c) => c.code).join(", ") || "—"}</td>
+                    <td className="py-1 pr-3 font-mono text-slate-400">{h.external_id || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-xs text-slate-400">No hand-offs yet. Sync a chart, run coding — straight-through (STB) charts post here automatically.</div>
+        )}
+      </div>
     </div>
   );
 }

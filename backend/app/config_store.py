@@ -82,6 +82,17 @@ DEFAULTS: dict = {
         # chart before ANY model call. Age/sex/DOS are kept — coding needs them.
         "mask_identifiers": True,
     },
+    "pms": {
+        # E1 — source PMS/EHR connector (Practice Admin is the MVP target).
+        # mode=sandbox runs the contract in-process; mode=live calls the real API at base_url
+        # with a bearer token from the env var named below (token never stored in the DB).
+        "connector": "practice_admin",
+        "mode": "sandbox",                       # sandbox | live
+        "base_url": "",                          # live: Practice Admin REST API base
+        "auth_token_env": "PRACTICE_ADMIN_TOKEN",
+        "auto_handoff_stb": True,                # auto-post straight-through charts to the billing queue
+        "timeout_s": 20,
+    },
     "token_governance": {
         # Active token management. OFF by default — nothing changes until an admin enables it.
         "enabled": False,
@@ -135,6 +146,7 @@ META: dict = {
     "specialties": "Enabled specialties and their model-tier (hard = Opus + self-consistency)",
     "roster": "Coders / auditors available for assignment",
     "connectors": "Source systems (PMS/EHR) shown on the Integrations screen",
+    "pms": "Active PMS/EHR connector (Practice Admin) — sandbox vs live, base URL, auto billing hand-off",
     "privacy": "Pre-model PII masking — direct identifiers are masked before any model call (age/sex/DOS kept)",
     "token_governance": "Token & cost governance — prompt caching, a daily token budget (warn/throttle/route-to-human), and $/token rates for cost reporting",
     "anesthesia": "Anesthesia unit payment — conversion factor ($/unit) and physical-status unit adders",

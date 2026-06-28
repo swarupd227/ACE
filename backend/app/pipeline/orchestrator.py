@@ -586,6 +586,14 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
         _audit(db, run, "routing", f"routed:{lane}", {"reason": reason})
         db.commit()
         db.refresh(run)
+        # E1: hand off straight-through charts to the source PMS billing queue.
+        # Config-gated (pms.auto_handoff_stb) and soft-fail — integration never breaks coding.
+        try:
+            from ..connectors import handoff as _handoff
+            _handoff.maybe_auto_handoff(db, enc, run, cfg, emit=emit)
+        except Exception as exc:  # noqa: BLE001
+            _audit(db, run, "integration", "handoff_error", {"error": str(exc)})
+            db.commit()
         return run
 
     # --- Token budget ladder (warn → throttle → route-to-human) — before any model call ---
