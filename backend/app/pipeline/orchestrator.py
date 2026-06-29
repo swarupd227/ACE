@@ -538,6 +538,10 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
     gov = cfg.get("token_governance", {})
     cache_on = bool(gov.get("prompt_cache", True))
 
+    # Set during Stage-1 analysis; pre-initialised so finish() (which may be reached via an
+    # early budget/eligibility exit) can safely reference it for the E9 proactive-CDI hook.
+    is_ambiguous = False
+
     def finish(lane: str, reason: str):
         run.routing_lane = lane
         run.routing_reason = reason
@@ -611,6 +615,18 @@ def run_coding(db: Session, encounter_id: str, extra_context: str = "", emit=Non
             _handoff.maybe_auto_handoff(db, enc, run, cfg, emit=emit)
         except Exception as exc:  # noqa: BLE001
             _audit(db, run, "integration", "handoff_error", {"error": str(exc)})
+            db.commit()
+        # E9: proactive CDI — when documentation gaps blocked confident coding, auto-draft a
+        # compliant physician query so the coder/auditor is alerted (not only on a manual scan).
+        try:
+            if cfg.get("cdi", {}).get("auto_query_on_gap", True) and lane != "STB" and is_ambiguous:
+                drafted = cdi_scan(db, enc.id, emit=emit)
+                if drafted:
+                    say("CDI Co-pilot",
+                        f"documentation gap → {len(drafted)} physician query auto-drafted for review", "warn")
+                    _audit(db, run, "cdi", "auto_query_on_gap", {"count": len(drafted)})
+        except Exception as exc:  # noqa: BLE001 — CDI is advisory; never break coding
+            _audit(db, run, "cdi", "auto_query_error", {"error": str(exc)})
             db.commit()
         return run
 

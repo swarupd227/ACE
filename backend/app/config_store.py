@@ -89,6 +89,12 @@ DEFAULTS: dict = {
         "block_on_residual_phi": False,    # if a residual can't be removed, route the chart to a human
         "scan_output": True,               # sanitise echoed identifiers / injection markers in model output
     },
+    "cdi": {
+        # E9 — proactive CDI. When documentation gaps (ambiguous / contradiction / missing) block
+        # confident coding, auto-draft a compliant physician query so the coder/auditor is alerted
+        # during the run — not only on a manual scan. Bounded: gap charts (non-STB) only.
+        "auto_query_on_gap": True,
+    },
     "pms": {
         # E1 — source PMS/EHR connector (Practice Admin is the MVP target).
         # mode=sandbox runs the contract in-process; mode=live calls the real API at base_url
@@ -156,6 +162,7 @@ META: dict = {
     "pms": "Active PMS/EHR connector (Practice Admin) — sandbox vs live, base URL, auto billing hand-off",
     "privacy": "Pre-model PII masking — direct identifiers are masked before any model call (age/sex/DOS kept)",
     "guardrails": "I/O guardrails — residual-PHI defense before the model, output sanitisation, optional route-to-human",
+    "cdi": "Proactive CDI — auto-draft a physician query when documentation gaps block confident coding",
     "token_governance": "Token & cost governance — prompt caching, a daily token budget (warn/throttle/route-to-human), and $/token rates for cost reporting",
     "anesthesia": "Anesthesia unit payment — conversion factor ($/unit) and physical-status unit adders",
     "llm": "The reasoning model — provider, default/hard models and endpoint (API keys stay in the environment)",
