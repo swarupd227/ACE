@@ -570,6 +570,9 @@ class AuditEntry(Base):
     detail: Mapped[dict] = mapped_column(JSONB, default=dict)
     model_version: Mapped[str] = mapped_column(String(60), default="")
     ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # E11 — tamper-evident hash chain (populated by /audit/seal; checked by /audit/verify).
+    prev_hash: Mapped[str] = mapped_column(String(64), default="")
+    row_hash: Mapped[str] = mapped_column(String(64), default="")
 
 
 class LearningExample(Base):

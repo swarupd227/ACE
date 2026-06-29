@@ -242,13 +242,19 @@ function PracticeAdminCard({ data }: { data: IntegrationsData }) {
 
 function ScannedDocCard({ specs }: { specs: string[] }) {
   const qc = useQueryClient();
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [specialty, setSpecialty] = useState("Radiology");
   const [modality, setModality] = useState("XR");
   const [result, setResult] = useState<any>(null);
 
   const upload = useMutation({
-    mutationFn: () => api.ingestDocument(file!, { specialty, modality, payer: "Medicare", pos: "22" }),
+    mutationFn: async () => {
+      const fields = { specialty, modality, payer: "Medicare", pos: "22" };
+      // One file → single (rich preview); many → batch (per-file success/failure).
+      return files.length === 1
+        ? { single: await api.ingestDocument(files[0], fields) }
+        : { batch: await api.ingestDocuments(files, fields) };
+    },
     onSuccess: (r) => {
       setResult(r);
       qc.invalidateQueries({ queryKey: ["encounters"] });
@@ -270,29 +276,45 @@ function ScannedDocCard({ specs }: { specs: string[] }) {
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <input
-          type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
-          onChange={(e) => { setFile(e.target.files?.[0] ?? null); setResult(null); }}
+          type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
+          onChange={(e) => { setFiles(Array.from(e.target.files ?? [])); setResult(null); }}
           className="text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-ace-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ace-700 hover:file:bg-ace-100"
         />
         <select className="rounded border border-slate-200 px-2 py-1.5 text-sm" value={specialty} onChange={(e) => setSpecialty(e.target.value)}>
           {specs.map((s) => <option key={s}>{s}</option>)}
         </select>
         <input className="w-28 rounded border border-slate-200 px-2 py-1.5 text-sm" placeholder="Modality" value={modality} onChange={(e) => setModality(e.target.value)} />
-        <button className="btn-primary py-1.5" disabled={!file || upload.isPending} onClick={() => upload.mutate()}>
+        <button className="btn-primary py-1.5" disabled={!files.length || upload.isPending} onClick={() => upload.mutate()}>
           {upload.isPending ? <Spinner className="h-4 w-4" /> : <ScanLine size={14} />}
-          {upload.isPending ? "Extracting…" : "Extract & ingest"}
+          {upload.isPending ? "Extracting…" : files.length > 1 ? `Extract & ingest ${files.length} files` : "Extract & ingest"}
         </button>
       </div>
       {upload.isError && <div className="mt-2 text-xs text-rose-600">{(upload.error as Error).message}</div>}
-      {result && (
+      {result?.single && (
         <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3">
           <div className="text-sm text-emerald-700 flex items-center gap-1 flex-wrap">
-            <CheckCircle2 size={15} /> Extracted {result.extracted_chars} chars from {result.filename} → ingested as{" "}
-            <Link to={`/encounter/${result.id}`} className="font-semibold text-ace-600 hover:underline">{result.mrn}</Link>
-            <span className="text-xs text-emerald-600">({result.tokens.in + result.tokens.out} tokens)</span>
+            <CheckCircle2 size={15} /> Extracted {result.single.extracted_chars} chars from {result.single.filename} → ingested as{" "}
+            <Link to={`/encounter/${result.single.id}`} className="font-semibold text-ace-600 hover:underline">{result.single.mrn}</Link>
+            <span className="text-xs text-emerald-600">({result.single.tokens.in + result.single.tokens.out} tokens)</span>
           </div>
-          <pre className="mt-2 text-[11px] leading-relaxed text-slate-600 font-mono whitespace-pre-wrap max-h-36 overflow-y-auto">{result.extracted_preview}…</pre>
+          <pre className="mt-2 text-[11px] leading-relaxed text-slate-600 font-mono whitespace-pre-wrap max-h-36 overflow-y-auto">{result.single.extracted_preview}…</pre>
           <div className="mt-1 text-xs text-slate-500">Open the encounter and run coding — the extracted text flows through the normal pipeline.</div>
+        </div>
+      )}
+      {result?.batch && (
+        <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3">
+          <div className="text-sm text-emerald-700 flex items-center gap-1">
+            <CheckCircle2 size={15} /> Batch: {result.batch.ingested}/{result.batch.files} ingested{result.batch.failed ? `, ${result.batch.failed} failed` : ""}.
+          </div>
+          <div className="mt-2 space-y-1">
+            {result.batch.results.map((r: any, i: number) => (
+              <div key={i} className="text-xs flex items-center gap-2">
+                {r.ok
+                  ? <><CheckCircle2 size={13} className="text-emerald-500" /><span className="font-mono text-slate-500">{r.filename}</span> → <Link to={`/encounter/${r.id}`} className="font-semibold text-ace-600 hover:underline">{r.mrn}</Link> <span className="text-slate-400">({r.extracted_chars} chars)</span></>
+                  : <><span className="text-rose-500">✕</span><span className="font-mono text-slate-500">{r.filename}</span> <span className="text-rose-600">{r.error}</span></>}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
