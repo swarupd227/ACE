@@ -126,9 +126,24 @@ export default function EvalHarness() {
 
       {result && (
         <div className="space-y-4">
-          <div className="card p-5 bg-ace-900 text-white">
-            <div className="text-xs uppercase tracking-wide text-slate-300">Overall chart-level accuracy (vs adjudicated consensus)</div>
-            <div className="text-4xl font-extrabold tabular-nums mt-1">{pct(result.overall_chart_accuracy)}</div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="card p-5 bg-ace-900 text-white">
+              <div className="text-xs uppercase tracking-wide text-slate-300">Overall chart-level accuracy (vs adjudicated consensus)</div>
+              <div className="text-4xl font-extrabold tabular-nums mt-1">{pct(result.overall_chart_accuracy)}</div>
+            </div>
+            {result.overall_metrics && (
+              <div className="card p-5">
+                <div className="text-xs uppercase tracking-wide text-slate-400">Code-level micro precision / recall / F1 (all specialties)</div>
+                <div className="mt-2 flex gap-8">
+                  <div><div className="text-2xl font-extrabold tabular-nums text-slate-700">{pct(result.overall_metrics.overall_prf.precision)}</div><div className="text-[11px] text-slate-400">Precision</div></div>
+                  <div><div className="text-2xl font-extrabold tabular-nums text-slate-700">{pct(result.overall_metrics.overall_prf.recall)}</div><div className="text-[11px] text-slate-400">Recall</div></div>
+                  <div><div className="text-2xl font-extrabold tabular-nums text-ace-700">{pct(result.overall_metrics.overall_prf.f1)}</div><div className="text-[11px] text-slate-400">F1</div></div>
+                </div>
+                <div className="mt-2 text-[11px] text-slate-400">
+                  Dx F1 {pct(result.overall_metrics.diagnosis_prf.f1)} · Proc F1 {pct(result.overall_metrics.procedure_prf.f1)} · TP {result.overall_metrics.overall_prf.tp} / FP {result.overall_metrics.overall_prf.fp} / FN {result.overall_metrics.overall_prf.fn}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="card overflow-hidden">
@@ -138,7 +153,8 @@ export default function EvalHarness() {
                 <th className="px-4 py-3">ICD acc</th><th className="px-4 py-3">CPT/PCS acc</th>
                 <th className="px-4 py-3">DRG acc</th><th className="px-4 py-3">RAF acc</th>
                 <th className="px-4 py-3">Units acc</th><th className="px-4 py-3">Facility acc</th>
-                <th className="px-4 py-3">Chart acc</th><th className="px-4 py-3">Citation valid</th>
+                <th className="px-4 py-3">Chart acc</th><th className="px-4 py-3">P / R / F1</th>
+                <th className="px-4 py-3">Citation valid</th>
                 <th className="px-4 py-3">STB share</th><th className="px-4 py-3">IRR ceiling</th>
               </tr></thead>
               <tbody className="divide-y divide-slate-100">
@@ -153,6 +169,7 @@ export default function EvalHarness() {
                     <td className="px-4 py-3">{s.units_accuracy != null ? pct(s.units_accuracy) : "—"}</td>
                     <td className="px-4 py-3">{s.facility_accuracy != null ? pct(s.facility_accuracy) : "—"}</td>
                     <td className="px-4 py-3 font-semibold">{pct(s.chart_accuracy)}</td>
+                    <td className="px-4 py-3 tabular-nums text-slate-600">{s.overall_prf ? `${pct(s.overall_prf.precision)} / ${pct(s.overall_prf.recall)} / ${pct(s.overall_prf.f1)}` : "—"}</td>
                     <td className="px-4 py-3">{pct(s.citation_validity)}</td>
                     <td className="px-4 py-3">{pct(s.stb_share)}</td>
                     <td className="px-4 py-3 text-slate-500">{pct(s.irr_ceiling)}</td>
@@ -164,8 +181,14 @@ export default function EvalHarness() {
 
           <p className="text-xs text-slate-500">
             We report accuracy against post-adjudication consensus, not a single coder — the IRR ceiling
-            shows the realistic upper bound where qualified coders themselves disagree.
+            shows the realistic upper bound where qualified coders themselves disagree. Precision/recall/F1
+            are micro-averaged from per-code TP/FP/FN against the adjudicated truth.
           </p>
+          {result.ragas && (
+            <p className="text-[11px] text-slate-400">
+              Ragas adapter: <span className={result.ragas.available ? "text-emerald-600" : "text-slate-500"}>{result.ragas.available ? "available" : "not wired"}</span> — {result.ragas.note}
+            </p>
+          )}
         </div>
       )}
 
