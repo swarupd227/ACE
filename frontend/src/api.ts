@@ -127,6 +127,30 @@ export const api = {
       tokens: { in: number; out: number };
     }>;
   },
+  // E2 — batch scanned-document upload (one encounter per file; per-file success/failure).
+  ingestDocuments: async (files: File[], fields: Record<string, string>) => {
+    const role = localStorage.getItem("ace_role") || "Admin";
+    const fd = new FormData();
+    files.forEach((f) => fd.append("files", f));
+    Object.entries(fields).forEach(([k, v]) => fd.append(k, v));
+    const res = await fetch(`${BASE}/ingest/documents`, {
+      method: "POST", body: fd,
+      headers: { "X-Actor": `${role.toLowerCase().replace(/\s+/g, "_")}:demo`, "X-Role": role },
+    });
+    if (!res.ok) { let d = res.statusText; try { const j = await res.json(); d = j.detail || j.error || d; } catch { /* */ } throw new Error(d); }
+    return res.json() as Promise<{ files: number; ingested: number; failed: number; results: { filename: string; ok: boolean; id?: string; mrn?: string; extracted_chars?: number; error?: string }[] }>;
+  },
+  // E11 — tamper-evident audit chain + export.
+  auditSeal: () => req<{ sealed: number; head: string }>("/audit/seal", { method: "POST" }),
+  auditVerify: () => req<{ ok: boolean; sealed_rows: number; broken_at: any; head: string }>("/audit/verify"),
+  auditExportUrl: (p: { source?: string; q?: string; encounter?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (p.source) qs.set("source", p.source);
+    if (p.q) qs.set("q", p.q);
+    if (p.encounter) qs.set("encounter", p.encounter);
+    const s = qs.toString();
+    return `${BASE}/audit/global/export${s ? `?${s}` : ""}`;
+  },
   adminConfig: () => req<{ config: any; meta: Record<string, string>; defaults: any }>("/admin/config"),
   putConfig: (key: string, value: any) =>
     req(`/admin/config/${key}`, { method: "PUT", body: JSON.stringify({ value }) }),

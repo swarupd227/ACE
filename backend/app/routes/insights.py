@@ -1,12 +1,16 @@
 """Dashboard, knowledge-graph view, reference data, learning log, eval harness."""
 from __future__ import annotations
 
+import csv
+import hashlib
+import io
+import json
 import re
 
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -585,6 +589,71 @@ def eval_run_stream() -> StreamingResponse:
             db.close()
 
     return sse_response(work)
+
+
+# --- E11: tamper-evident audit chain (seal / verify) -----------------------
+def _audit_canonical(r: models.AuditEntry) -> str:
+    """Stable serialisation of an audit row's content (excludes the hash fields)."""
+    return json.dumps({
+        "id": r.id, "run_id": r.run_id, "encounter_id": r.encounter_id, "stage": r.stage,
+        "actor": r.actor, "event": r.event, "detail": r.detail,
+        "model_version": r.model_version, "ts": r.ts.isoformat() if r.ts else "",
+    }, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def _audit_rows_ordered(db: Session) -> list[models.AuditEntry]:
+    return db.scalars(
+        select(models.AuditEntry).order_by(models.AuditEntry.ts.asc(), models.AuditEntry.id.asc())
+    ).all()
+
+
+@router.post("/audit/seal")
+def audit_seal(db: Session = Depends(get_db)) -> dict:
+    """Compute the hash chain over the audit ledger: row_hash = SHA-256(prev_hash + content).
+    After sealing, any edit/deletion to a sealed row is detectable by /audit/verify."""
+    rows = _audit_rows_ordered(db)
+    prev = ""
+    for r in rows:
+        r.prev_hash = prev
+        r.row_hash = hashlib.sha256((prev + _audit_canonical(r)).encode()).hexdigest()
+        prev = r.row_hash
+    db.commit()
+    return {"sealed": len(rows), "head": prev}
+
+
+@router.get("/audit/verify")
+def audit_verify(db: Session = Depends(get_db)) -> dict:
+    """Recompute the chain over sealed rows and report the first break (tamper detection)."""
+    chain = [r for r in _audit_rows_ordered(db) if r.row_hash]
+    prev = chain[0].prev_hash if chain else ""
+    broken = None
+    for r in chain:
+        expect = hashlib.sha256((prev + _audit_canonical(r)).encode()).hexdigest()
+        if r.prev_hash != prev or r.row_hash != expect:
+            broken = {"id": r.id, "ts": r.ts.isoformat() if r.ts else "", "stage": r.stage, "event": r.event}
+            break
+        prev = r.row_hash
+    return {"ok": broken is None and len(chain) > 0, "sealed_rows": len(chain),
+            "broken_at": broken, "head": (chain[-1].row_hash if chain and broken is None else "")}
+
+
+@router.get("/audit/global/export")
+def audit_export(source: str = "", q: str = "", encounter: str = "",
+                 db: Session = Depends(get_db)) -> Response:
+    """Export the (filtered) global audit timeline as CSV for an auditor."""
+    data = global_audit(source=source, q=q, encounter=encounter, limit=1_000_000, db=db)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    cols = ["ts", "source", "actor", "role", "category", "action", "target",
+            "specialty", "encounter_id", "run_id", "model_version", "detail"]
+    w.writerow(cols)
+    for e in data.get("events", []):
+        w.writerow([e.get("ts", ""), e.get("source", ""), e.get("actor", ""), e.get("role", ""),
+                    e.get("category", ""), e.get("action", ""), e.get("target", ""),
+                    e.get("specialty", ""), e.get("encounter_id", ""), e.get("run_id", ""),
+                    e.get("model_version", ""), json.dumps(e.get("detail", {}), default=str)])
+    return Response(content=buf.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=audit_global.csv"})
 
 
 # --- Global audit timeline -------------------------------------------------

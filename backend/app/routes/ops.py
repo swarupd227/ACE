@@ -745,6 +745,42 @@ def ingest(body: IngestIn, db: Session = Depends(get_db)) -> dict:
 
 
 _DOC_TYPES = {"application/pdf", "image/png", "image/jpeg", "image/webp"}
+MAX_DOC_BYTES = 25 * 1024 * 1024  # 25 MB — scanned multi-page PDFs (Claude reads all pages natively)
+
+
+def _ocr_ingest_one(db: Session, data: bytes, media_type: str, filename: str,
+                    specialty: str, modality: str, payer: str, pos: str,
+                    patient_name: str, sex: str, age: int, dos: str) -> dict:
+    """Vision-OCR a single document and create an encounter. Honest failure: an unreadable or
+    oversized/unsupported document is rejected, never invented. Multi-page PDFs are supported."""
+    media_type = (media_type or "").lower()
+    if media_type not in _DOC_TYPES:
+        raise HTTPException(400, f"unsupported document type '{media_type}' — use PDF/PNG/JPEG/WebP")
+    if not data:
+        raise HTTPException(400, "empty document")
+    if len(data) > MAX_DOC_BYTES:
+        raise HTTPException(400, f"document too large ({len(data) // 1024 // 1024} MB; max {MAX_DOC_BYTES // 1024 // 1024} MB)")
+    usage: list = []
+    llm = config_store.all_config(db).get("llm")
+    text = llm_client.extract_document_text(data, media_type, llm=llm, usage_sink=usage)
+    mrn = f"DOC{abs(hash(text)) % 100000:05d}"
+    enc = models.Encounter(
+        mrn=mrn, patient_name=patient_name, age=age, sex=sex,
+        specialty=specialty, modality=modality, payer=payer, pos=pos,
+        dos=dos, client="Ingested", source_system="Document upload (vision OCR)",
+        report_type="scanned_document", chart_text=text,
+        scenario=f"Scanned {filename or 'document'} → vision OCR → pipeline",
+        status="NEW", doc_status=_derive_doc_status("", text),
+    )
+    db.add(enc)
+    db.commit()
+    db.refresh(enc)
+    return {
+        "id": enc.id, "mrn": enc.mrn, "specialty": enc.specialty, "status": enc.status,
+        "source_system": enc.source_system, "filename": filename, "bytes": len(data),
+        "extracted_chars": len(text), "extracted_preview": text[:400],
+        "tokens": {"in": sum(u.get("in", 0) for u in usage), "out": sum(u.get("out", 0) for u in usage)},
+    }
 
 
 @router.post("/ingest/document")
@@ -760,39 +796,37 @@ async def ingest_document(
     dos: str = Form("2026-05-15"),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Ingest a SCANNED chart (PDF or image). The reasoning model transcribes the
-    document verbatim (vision OCR — the production Document Ingestion & Conditioning
-    front-end); the text then enters the normal pipeline at Stage 1. Real extraction,
-    honest failure: an unreadable document is rejected, never invented."""
-    media_type = (file.content_type or "").lower()
-    if media_type not in _DOC_TYPES:
-        raise HTTPException(400, f"unsupported document type '{media_type}' — use PDF/PNG/JPEG/WebP")
+    """Ingest one SCANNED chart (PDF or image) via vision OCR; the text enters the pipeline at Stage 1."""
     data = await file.read()
-    if len(data) > 10 * 1024 * 1024:
-        raise HTTPException(400, "document too large (10 MB max for the demo)")
-
-    usage: list = []
-    llm = config_store.all_config(db).get("llm")
     try:
-        text = llm_client.extract_document_text(data, media_type, llm=llm, usage_sink=usage)
+        return _ocr_ingest_one(db, data, file.content_type or "", file.filename or "document",
+                               specialty, modality, payer, pos, patient_name, sex, age, dos)
     except llm_client.LLMUnavailable as exc:
         raise HTTPException(503, f"document extraction unavailable: {exc}")
 
-    mrn = f"DOC{abs(hash(text)) % 100000:05d}"
-    enc = models.Encounter(
-        mrn=mrn, patient_name=patient_name, age=age, sex=sex,
-        specialty=specialty, modality=modality, payer=payer, pos=pos,
-        dos=dos, client="Ingested", source_system="Document upload (vision OCR)",
-        report_type="scanned_document", chart_text=text,
-        scenario=f"Scanned {file.filename or 'document'} → vision OCR → pipeline",
-        status="NEW", doc_status=_derive_doc_status("", text),
-    )
-    db.add(enc)
-    db.commit()
-    db.refresh(enc)
-    return {
-        "id": enc.id, "mrn": enc.mrn, "specialty": enc.specialty, "status": enc.status,
-        "source_system": enc.source_system, "filename": file.filename,
-        "extracted_chars": len(text), "extracted_preview": text[:400],
-        "tokens": {"in": sum(u.get("in", 0) for u in usage), "out": sum(u.get("out", 0) for u in usage)},
-    }
+
+@router.post("/ingest/documents")
+async def ingest_documents(
+    files: list[UploadFile] = File(...),
+    specialty: str = Form("Radiology"),
+    modality: str = Form(""),
+    payer: str = Form("Medicare"),
+    pos: str = Form("22"),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Batch ingest of scanned charts — OCR each file, create an encounter per file, and report
+    per-file success/failure (one bad file never fails the batch)."""
+    results: list[dict] = []
+    for f in files:
+        try:
+            data = await f.read()
+            r = _ocr_ingest_one(db, data, f.content_type or "", f.filename or "document",
+                                 specialty, modality, payer, pos, "Scanned-Document Patient", "F", 55, "2026-05-15")
+            results.append({"filename": f.filename, "ok": True, "id": r["id"], "mrn": r["mrn"],
+                            "extracted_chars": r["extracted_chars"]})
+        except HTTPException as exc:
+            results.append({"filename": f.filename, "ok": False, "error": str(exc.detail)})
+        except llm_client.LLMUnavailable as exc:
+            results.append({"filename": f.filename, "ok": False, "error": f"extraction unavailable: {exc}"})
+    ingested = sum(1 for r in results if r["ok"])
+    return {"files": len(files), "ingested": ingested, "failed": len(files) - ingested, "results": results}

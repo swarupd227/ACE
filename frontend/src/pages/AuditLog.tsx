@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
-  ScrollText, RefreshCw, Download, Search, Cpu, ShieldCheck, FileSearch, ChevronRight,
+  ScrollText, RefreshCw, Download, Search, Cpu, ShieldCheck, ShieldAlert, Lock, FileSearch, ChevronRight,
 } from "lucide-react";
 import clsx from "clsx";
 import { api } from "../api";
@@ -129,6 +129,12 @@ export default function AuditLog() {
 
   const s = data?.summary;
 
+  // E11 — tamper-evident chain: seal computes the hash chain; verify recomputes + reports breaks.
+  const [integrity, setIntegrity] = useState<{ ok: boolean; sealed_rows: number; broken_at: any } | null>(null);
+  const [busy, setBusy] = useState<"" | "seal" | "verify">("");
+  const onSeal = async () => { setBusy("seal"); try { await api.auditSeal(); setIntegrity(await api.auditVerify()); } finally { setBusy(""); } };
+  const onVerify = async () => { setBusy("verify"); try { setIntegrity(await api.auditVerify()); } finally { setBusy(""); } };
+
   return (
     <div className="space-y-5 fadeup">
       <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -149,6 +155,19 @@ export default function AuditLog() {
           <button className="btn-ghost" onClick={exportCsv} disabled={!events.length}>
             <Download size={15} /> Export CSV
           </button>
+          <button className="btn-ghost" onClick={onSeal} disabled={!!busy} title="Compute the tamper-evident hash chain over the ledger">
+            {busy === "seal" ? <Spinner className="h-4 w-4" /> : <Lock size={15} />} Seal
+          </button>
+          <button className="btn-ghost" onClick={onVerify} disabled={!!busy} title="Recompute the chain and detect any tampering">
+            {busy === "verify" ? <Spinner className="h-4 w-4" /> : <ShieldCheck size={15} />} Verify integrity
+          </button>
+          {integrity && (
+            <span className={clsx("pill ring-1 inline-flex items-center gap-1",
+              integrity.ok ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-rose-50 text-rose-700 ring-rose-200")}>
+              {integrity.ok ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />}
+              {integrity.ok ? `intact · ${integrity.sealed_rows} sealed` : `tampered @ ${integrity.broken_at?.event ?? "?"}`}
+            </span>
+          )}
         </div>
       </div>
 
