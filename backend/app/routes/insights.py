@@ -365,9 +365,22 @@ def _modality_from_text(t: str) -> str:
     return ""
 
 
+def _prf(tp: int, fp: int, fn: int) -> dict:
+    """Precision / recall / F1 from raw TP/FP/FN counts (set-level, per code system)."""
+    precision = tp / (tp + fp) if (tp + fp) else (1.0 if tp == fp == 0 else 0.0)
+    recall = tp / (tp + fn) if (tp + fn) else (1.0 if tp == fn == 0 else 0.0)
+    f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
+    return {"precision": round(precision, 3), "recall": round(recall, 3), "f1": round(f1, 3),
+            "tp": tp, "fp": fp, "fn": fn}
+
+
 def _eval_core(db: Session, emit) -> dict:
     """Run the live pipeline over the frozen golden set, emitting per-case
-    progress. Returns the aggregate summary. `emit(dict)` streams SSE events."""
+    progress. Returns the aggregate summary. `emit(dict)` streams SSE events.
+
+    Scoring (E8): besides chart-level accuracy, every case contributes TP/FP/FN per code
+    system (diagnosis = ICD, procedure = CPT/HCPCS/PCS) so we report micro precision / recall /
+    F1 per specialty and overall — the confusion-matrix metrics QA actually audits against."""
     from .. import config_store
     from ..llm import client as _llm
 
@@ -395,6 +408,7 @@ def _eval_core(db: Session, emit) -> dict:
             db.execute(delete(models.HccResult).where(models.HccResult.run_id.in_(run_ids)))
             db.execute(delete(models.AnesResult).where(models.AnesResult.run_id.in_(run_ids)))
             db.execute(delete(models.ApcResult).where(models.ApcResult.run_id.in_(run_ids)))
+            db.execute(delete(models.EmResult).where(models.EmResult.run_id.in_(run_ids)))
         db.execute(delete(models.CodingRun).where(models.CodingRun.encounter_id == e.id))
         db.delete(e)
     db.commit()
@@ -404,6 +418,7 @@ def _eval_core(db: Session, emit) -> dict:
     emit({"type": "progress", "done": 0, "total": total})
     results = []
     agg: dict[str, dict] = {}
+    overall_counts = {"itp": 0, "ifp": 0, "ifn": 0, "ptp": 0, "pfp": 0, "pfn": 0}  # E8 micro PRF
     for i, g in enumerate(golden):
         # RAF depends on demographics, so risk-adjustment golden cases run as a fixed
         # 72-year-old male (the band the golden truth RAFs were adjudicated against).
@@ -447,8 +462,16 @@ def _eval_core(db: Session, emit) -> dict:
         chart_ok = icd_ok and cpt_ok and pcs_ok and drg_ok and raf_ok and units_ok and fac_ok
         cit_ok = all(c.conf_doc_match >= 0.5 for c in run.codes if c.status == "accepted") if run.codes else False
 
-        a = agg.setdefault(g.specialty, {"specialty": g.specialty, "n": 0, "icd": 0, "cpt": 0, "chart": 0, "cit": 0, "stb": 0, "irr": [], "drg": 0, "drg_n": 0, "raf": 0, "raf_n": 0})
+        a = agg.setdefault(g.specialty, {"specialty": g.specialty, "n": 0, "icd": 0, "cpt": 0, "chart": 0, "cit": 0, "stb": 0, "irr": [], "drg": 0, "drg_n": 0, "raf": 0, "raf_n": 0,
+                                         "itp": 0, "ifp": 0, "ifn": 0, "ptp": 0, "pfp": 0, "pfn": 0})
         a["n"] += 1
+        # E8 — TP/FP/FN per code system (diagnosis = ICD; procedure = CPT/HCPCS + PCS).
+        proc_pred, proc_truth = (pred_cpt | pred_pcs), (truth_cpt | truth_pcs)
+        for key, val in (("itp", len(pred_icd & truth_icd)), ("ifp", len(pred_icd - truth_icd)),
+                         ("ifn", len(truth_icd - pred_icd)), ("ptp", len(proc_pred & proc_truth)),
+                         ("pfp", len(proc_pred - proc_truth)), ("pfn", len(proc_truth - proc_pred))):
+            a[key] += val
+            overall_counts[key] += val
         a["icd"] += int(icd_ok)
         a["cpt"] += int(cpt_ok)
         a["chart"] += int(chart_ok)
@@ -503,6 +526,10 @@ def _eval_core(db: Session, emit) -> dict:
             "citation_validity": round(a["cit"] / n, 3),
             "stb_share": round(a["stb"] / n, 3),
             "irr_ceiling": round(sum(a["irr"]) / len(a["irr"]), 3),
+            # E8 — micro precision/recall/F1 (per code system + combined) for this specialty.
+            "diagnosis_prf": _prf(a["itp"], a["ifp"], a["ifn"]),
+            "procedure_prf": _prf(a["ptp"], a["pfp"], a["pfn"]),
+            "overall_prf": _prf(a["itp"] + a["ptp"], a["ifp"] + a["pfp"], a["ifn"] + a["pfn"]),
         }
         if a.get("drg_n"):
             row["drg_accuracy"] = round(a["drg"] / a["drg_n"], 3)
@@ -522,9 +549,21 @@ def _eval_core(db: Session, emit) -> dict:
             "calibration fitted from this run's outcomes + coder feedback: "
             + ", ".join(f"{k} (n={v['samples']})" for k, v in fitted.items()), "good")
     overall_chart = round(sum(r["chart_ok"] for r in results) / len(results), 3) if results else 0.0
-    say("Evaluation Harness", f"done · overall chart accuracy {round(overall_chart * 100)}% on {len(results)} case(s)", "good")
-    return {"overall_chart_accuracy": overall_chart, "by_specialty": by_spec, "cases": results,
-            "calibration_fitted": fitted}
+    # E8 — overall micro precision/recall/F1 across all specialties + the Ragas adapter status.
+    oc = overall_counts
+    overall_metrics = {
+        "diagnosis_prf": _prf(oc["itp"], oc["ifp"], oc["ifn"]),
+        "procedure_prf": _prf(oc["ptp"], oc["pfp"], oc["pfn"]),
+        "overall_prf": _prf(oc["itp"] + oc["ptp"], oc["ifp"] + oc["pfp"], oc["ifn"] + oc["pfn"]),
+    }
+    from .. import eval_ragas
+    ov = overall_metrics["overall_prf"]
+    say("Evaluation Harness",
+        f"done · chart accuracy {round(overall_chart * 100)}% · micro F1 {ov['f1']} "
+        f"(P {ov['precision']} / R {ov['recall']}) on {len(results)} case(s)", "good")
+    return {"overall_chart_accuracy": overall_chart, "overall_metrics": overall_metrics,
+            "by_specialty": by_spec, "cases": results, "calibration_fitted": fitted,
+            "ragas": eval_ragas.score(results)}
 
 
 @router.post("/eval/run")
